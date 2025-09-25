@@ -1,0 +1,1 @@
+{"params": {"PB_M": 80}, "loop_bounds": {}, "arrays": ["A[PB_M,PB_M]", "B[PB_M]"], "instructions": [{"schedule": [0, "i", 0, "j", 0], "additional_computation": [{"array_name": "A", "array_type": "write", "array_access_function": [[0, 1, 0], [1, 0, 0]]}, {"array_name": "B", "array_type": "read", "array_access_function": [[0, 1, -1]]}], "dependency": []}]}

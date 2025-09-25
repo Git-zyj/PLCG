@@ -1,0 +1,3 @@
+Time for loop synthesis: 1.9875469207763672 s
+Files in /data/zyj/Dataset/loop_generator/input: 162
+Files in /data/zyj/Dataset/loop_generator/poly_code: 323

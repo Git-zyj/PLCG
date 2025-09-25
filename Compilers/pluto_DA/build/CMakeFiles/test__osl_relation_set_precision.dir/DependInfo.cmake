@@ -1,0 +1,28 @@
+# The set of languages for which implicit dependencies are needed:
+set(CMAKE_DEPENDS_LANGUAGES
+  "C"
+  )
+# The set of files for implicit dependencies of each language:
+set(CMAKE_DEPENDS_CHECK_C
+  "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop/tests/osl_relation_set_precision.c" "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/CMakeFiles/test__osl_relation_set_precision.dir/tests/osl_relation_set_precision.c.o"
+  )
+set(CMAKE_C_COMPILER_ID "Clang")
+
+# Preprocessor definitions for this target.
+set(CMAKE_TARGET_DEFINITIONS_C
+  "OSL_GMP_IS_HERE"
+  )
+
+# The include file search paths:
+set(CMAKE_C_TARGET_INCLUDE_PATH
+  "include"
+  "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop/./include"
+  )
+
+# Targets to which this target links.
+set(CMAKE_TARGET_LINKED_INFO_FILES
+  "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/CMakeFiles/osl_static.dir/DependInfo.cmake"
+  )
+
+# Fortran module output directory.
+set(CMAKE_Fortran_TARGET_MODULE_DIR "")
