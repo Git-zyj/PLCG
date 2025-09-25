@@ -43,11 +43,15 @@ def generate_files(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exis
     file_path = random_json_generator.generate_json_file(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_narrays_read, arg_bounds_coef, arg_ndeps_read, arg_bounds_distance, arg_prob_dep_write_exist, id)
     c_code_generator.generate_c_code(file_path)
 
-def main(option = 1):
+def main(option = 0):
 
     time_start = time.time()
 
-    if option == 1:
+    if option == 0:
+        file_path = random_json_generator.generate_json_file()
+        c_code_generator.generate_c_code(file_path)
+
+    elif option == 1:
         # 36
         for arg_depth in range(3, 4):
             for arg_nstmts in range(1, 7):
@@ -120,6 +124,6 @@ def main(option = 1):
         
 if __name__ == "__main__":
     
-    option = 1 # 2
+    option = 0 # 2
     
     main(option)

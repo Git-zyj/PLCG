@@ -1,0 +1,312 @@
+[zyj-debug] Before affine transformations
+nvar = 3, npar = 3
+Parameters: PB_P PB_M PB_N 
+S1 "A[j+1][i+2] = A[j+1][i+4] * A[j-1][i-1] - 4;"
+ndims: 2; orig_depth: 2
+iterators: i, j
+Index set
+6 7
+1 1 0 0 0 0 -1 
+1 -1 0 1 0 0 -5 
+1 0 0 1 0 0 -6 
+1 0 1 0 0 0 -1 
+1 1 -1 0 0 0 -1 
+1 1 0 0 0 0 -2 
+T(S1): (0, i, 0, j, 0, 0, 0)
+loop types (loop, loop, loop, loop, loop, scalar, scalar)
+
+Read accesses
+A[j+1][i+4]
+A[j-1][i-1]
+Write accesses
+A[j+1][i+2]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+
+S2 "A[j][i] = A[j-1][i+2] - 6;"
+ndims: 2; orig_depth: 2
+iterators: i, j
+Index set
+6 7
+1 1 0 0 0 0 -1 
+1 -1 0 1 0 0 -5 
+1 0 0 1 0 0 -6 
+1 0 1 0 0 0 -1 
+1 1 -1 0 0 0 -1 
+1 1 0 0 0 0 -2 
+T(S2): (0, i, 0, j, 1, 0, 0)
+loop types (loop, loop, loop, loop, loop, scalar, scalar)
+
+Read accesses
+A[j-1][i+2]
+Write accesses
+A[j][i]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+
+S3 "B[m+1][k][l-1] = B[m][k][l-2] + 6;"
+ndims: 3; orig_depth: 3
+iterators: k, l, m
+Index set
+9 8
+1 1 0 0 0 0 0 0 
+1 -1 0 0 1 0 0 -1 
+1 0 0 0 1 0 0 -1 
+1 0 1 0 0 0 0 -2 
+1 1 -1 0 0 0 0 -1 
+1 1 0 0 0 0 0 -3 
+1 0 0 1 0 0 0 0 
+1 0 0 -1 0 1 0 -2 
+1 0 0 0 0 1 0 -2 
+T(S3): (1, k, 0, l, 0, m, 0)
+loop types (loop, loop, loop, loop, loop, loop, loop)
+
+Read accesses
+B[m][k][l-2]
+Write accesses
+B[m+1][k][l-1]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+Original loop: 2 -> yes
+
+S4 "C[n] = C[n] + C[n] * 1;"
+ndims: 1; orig_depth: 1
+iterators: n
+Index set
+3 6
+1 1 0 0 0 0 
+1 -1 0 0 1 -3 
+1 0 0 0 1 -3 
+T(S4): (2, n, 0, 0, 0, 0, 0)
+loop types (loop, loop, loop, scalar, scalar, scalar, scalar)
+
+Read accesses
+C[n]
+C[n]
+Write accesses
+C[n]
+Original loop: 0 -> yes
+
+S5 "C[n+2] = A[n+1][o] - 2;"
+ndims: 2; orig_depth: 2
+iterators: n, o
+Index set
+8 7
+1 1 0 0 0 0 0 
+1 -1 0 0 0 1 -3 
+1 0 0 0 0 1 -3 
+1 0 1 0 0 0 0 
+1 1 -1 0 0 0 -1 
+1 0 -1 1 0 0 -1 
+1 1 0 0 0 0 -1 
+1 0 0 1 0 0 -1 
+T(S5): (2, n, 1, o, 0, 0, 0)
+loop types (loop, loop, loop, loop, loop, scalar, scalar)
+
+Read accesses
+A[n+1][o]
+Write accesses
+C[n+2]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+
+--- Dep 1 from S5 to S4; satisfied: 0, sat level: -1; Type: RAW
+on variable: C
+Dependence polyhedron
+9 8
+0 -1 0 1 0 0 0 -2 
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 0 0 1 -5 
+1 0 0 0 0 0 1 -400 
+1 0 1 0 0 0 0 0 
+1 1 -1 0 0 0 0 -1 
+1 0 -1 0 1 0 0 -1 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -400 
+
+--- Dep 2 from S1 to S1; satisfied: 0, sat level: -1; Type: RAW
+on variable: A
+Dependence polyhedron
+9 9
+0 0 -1 0 1 0 0 0 -2 
+0 -1 0 1 0 0 0 0 -3 
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -8 
+1 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+
+--- Dep 3 from S1 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: A
+Dependence polyhedron
+9 9
+0 0 -1 0 1 0 0 0 -2 
+0 -1 0 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -5 
+1 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 -3 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+
+--- Dep 4 from S3 to S3; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+12 11
+0 0 0 -1 0 0 1 0 0 0 -1 
+0 0 -1 0 0 1 0 0 0 0 -1 
+0 -1 0 0 1 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 -3 
+1 -1 0 0 0 0 0 1 0 0 -1 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 -2 
+1 1 -1 0 0 0 0 0 0 0 -2 
+1 0 0 0 0 0 0 0 1 0 -400 
+1 0 0 1 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 1 0 -3 
+1 0 0 0 0 0 0 0 0 1 -400 
+
+--- Dep 5 from S5 to S4; satisfied: 0, sat level: -1; Type: RAW
+on variable: C
+Dependence polyhedron
+9 8
+0 -1 0 1 0 0 0 -2 
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 0 0 1 -5 
+1 0 0 0 0 0 1 -400 
+1 0 1 0 0 0 0 0 
+1 1 -1 0 0 0 0 -1 
+1 0 -1 0 1 0 0 -1 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -400 
+
+--- Dep 6 from S2 to S1; satisfied: 0, sat level: -1; Type: RAW
+on variable: A
+Dependence polyhedron
+9 9
+0 0 -1 0 1 0 0 0 -1 
+0 -1 0 1 0 0 0 0 -1 
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -6 
+1 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+
+--- Dep 7 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+9 9
+0 0 -1 0 1 0 0 0 1 
+0 -1 0 1 0 0 0 0 -2 
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -7 
+1 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 -2 
+1 1 -1 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+
+--- Dep 8 from S1 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+9 9
+0 0 -1 0 1 0 0 0 -1 
+0 -1 0 1 0 0 0 0 -4 
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -9 
+1 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+
+--- Dep 9 from S1 to S1; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+9 9
+0 0 -1 0 1 0 0 0 0 
+0 -1 0 1 0 0 0 0 -2 
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -7 
+1 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+
+--- Dep 10 from S1 to S2; satisfied: 0, sat level: -1; Type: WAW
+on variable: A
+Dependence polyhedron
+9 9
+0 0 -1 0 1 0 0 0 -1 
+0 -1 0 1 0 0 0 0 -2 
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -7 
+1 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+
+--- Dep 11 from S5 to S4; satisfied: 0, sat level: -1; Type: WAW
+on variable: C
+Dependence polyhedron
+9 8
+0 -1 0 1 0 0 0 -2 
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 0 0 1 -5 
+1 0 0 0 0 0 1 -400 
+1 0 1 0 0 0 0 0 
+1 1 -1 0 0 0 0 -1 
+1 0 -1 0 1 0 0 -1 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -400 
+
+--- Dep 12 from S5 to S5; satisfied: 0, sat level: -1; Type: WAW
+on variable: C
+Dependence polyhedron
+13 9
+0 -1 0 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 -1 
+1 -1 0 0 0 0 0 1 -3 
+1 0 0 0 0 0 0 1 -400 
+1 0 1 0 0 0 0 0 0 
+1 1 -1 0 0 0 0 0 -1 
+1 0 -1 0 0 1 0 0 -1 
+1 0 0 0 0 1 0 0 -300 
+1 0 0 0 0 0 1 0 -400 
+1 0 0 0 -1 1 0 0 -1 
+1 1 0 0 -1 0 0 0 -1 
+1 0 0 0 1 0 0 0 0 
+1 0 -1 0 1 0 0 0 -1 
+
+
+[zyj-debug] After affine transformations
+T(S1): (3, zT2+zT3, zT3, i, i+j, 0, 0)
+loop types (scalar, loop, loop, loop, loop, scalar, scalar)
+
+T(S2): (3, zT2+zT3, zT3, i, i+j, 0, 0)
+loop types (scalar, loop, loop, loop, loop, scalar, scalar)
+
+T(S3): (2, zT3, zT4, zT5, k, m, l)
+loop types (scalar, loop, loop, loop, loop, loop, loop)
+
+T(S4): (1, zT1, n, 0, 0, 0, 0)
+loop types (scalar, loop, loop, scalar, scalar, scalar, scalar)
+
+T(S5): (0, zT2, zT3, n, o, 0, 0)
+loop types (scalar, loop, loop, loop, loop, scalar, scalar)
+
+t1 --> fwd_dep  scalar (band 0)no-ujam
+t2 --> fwd_dep  loop   (band 0)no-ujam
+t3 --> fwd_dep  loop   (band 0)no-ujam
+t4 --> fwd_dep  loop   (band 0)no-ujam
+t5 --> fwd_dep  loop   (band 0)no-ujam
+t6 --> fwd_dep  loop   (band 0)no-ujam
+t7 --> parallel loop   (band 0)no-ujam
+

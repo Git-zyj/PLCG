@@ -8,7 +8,7 @@
 1. python ./random_generation.py 
   Create intermidiate json files in ./input, and code and header files in ./poly_code in default.
 
-## Code optimization and analysis after synthesis (optional)
+## Code optimization and analysis after synthesis
 1. cd ./loop_transformation_classifier
 2. python ./optimization_and_analysis.py 
   Create code after optimization using PLuTo in ./pluto_code and store the stdout data flow info in./stdout in default.

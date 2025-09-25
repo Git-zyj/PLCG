@@ -1,0 +1,256 @@
+[zyj-debug] Before affine transformations
+nvar = 3, npar = 3
+Parameters: PB_M PB_L PB_Q 
+S1 "B[i-1] = B[i] * 4;"
+ndims: 2; orig_depth: 2
+iterators: i, j
+Index set
+6 7
+1 1 0 0 0 0 -1 
+1 -1 0 1 0 0 -2 
+1 0 0 1 0 0 -3 
+1 0 1 0 0 0 0 
+1 0 -1 1 0 0 -1 
+1 0 0 1 0 0 -1 
+T(S1): (0, i, 0, j, 0, 0, 0)
+loop types (loop, loop, loop, loop, loop, scalar, scalar)
+
+Read accesses
+B[i]
+Write accesses
+B[i-1]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+
+S2 "B[i-1] = B[i-1] * B[i] + B[i+1] + 6;"
+ndims: 1; orig_depth: 1
+iterators: i
+Index set
+3 6
+1 1 0 0 0 -1 
+1 -1 1 0 0 -2 
+1 0 1 0 0 -3 
+T(S2): (0, i, 1, 0, 0, 0, 0)
+loop types (loop, loop, loop, scalar, scalar, scalar, scalar)
+
+Read accesses
+B[i-1]
+B[i]
+B[i+1]
+Write accesses
+B[i-1]
+Original loop: 0 -> yes
+
+S3 "C[m][l+1][k] = C[m][l+1][k] + C[m][l][k-1] + C[l][k][m+1] * 4;"
+ndims: 3; orig_depth: 3
+iterators: k, l, m
+Index set
+9 8
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 0 1 0 -1 
+1 0 0 0 0 1 0 -2 
+1 0 1 0 0 0 0 0 
+1 1 -1 0 0 0 0 -1 
+1 0 -1 0 0 1 0 -2 
+1 0 0 1 0 0 0 0 
+1 0 0 -1 0 0 1 -2 
+1 0 0 0 0 0 1 -2 
+T(S3): (1, k, 0, l, 0, m, 0)
+loop types (loop, loop, loop, loop, loop, loop, loop)
+
+Read accesses
+C[m][l+1][k]
+C[m][l][k-1]
+C[l][k][m+1]
+Write accesses
+C[m][l+1][k]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+Original loop: 2 -> yes
+
+--- Dep 1 from S1 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+8 8
+0 -1 0 1 0 0 0 0 
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 1 0 0 -2 
+1 0 0 0 1 0 0 -400 
+1 0 1 0 0 0 0 0 
+1 0 -1 0 1 0 0 -1 
+1 0 0 0 0 0 1 -400 
+1 0 0 0 0 1 0 -400 
+
+--- Dep 2 from S3 to S3; satisfied: 0, sat level: -1; Type: RAW
+on variable: C
+Dependence polyhedron
+13 11
+0 0 0 -1 0 0 1 0 0 0 0 
+0 0 -1 0 0 1 0 0 0 0 -1 
+0 -1 0 0 1 0 0 0 0 0 -1 
+1 1 0 0 0 0 0 0 0 0 -1 
+1 -1 0 0 0 0 0 0 1 0 -2 
+1 0 0 0 0 0 0 0 1 0 -400 
+1 0 1 0 0 0 0 0 0 0 0 
+1 1 -1 0 0 0 0 0 0 0 -1 
+1 0 -1 0 0 0 0 0 1 0 -3 
+1 0 0 1 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 0 1 -2 
+1 0 0 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 0 1 0 0 -400 
+
+--- Dep 3 from S1 to S1; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+10 9
+0 -1 0 1 0 0 0 0 -1 
+1 1 0 0 0 0 0 0 -1 
+1 -1 0 0 0 1 0 0 -3 
+1 0 0 0 0 1 0 0 -400 
+1 0 1 0 0 0 0 0 0 
+1 0 -1 0 0 1 0 0 -1 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+1 0 0 0 -1 1 0 0 -1 
+1 0 0 0 1 0 0 0 0 
+
+--- Dep 4 from S2 to S1; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+8 8
+0 -1 1 0 0 0 0 -1 
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 1 0 0 -3 
+1 0 0 0 1 0 0 -400 
+1 0 0 0 0 0 1 -400 
+1 0 0 0 0 1 0 -400 
+1 0 0 -1 1 0 0 -1 
+1 0 0 1 0 0 0 0 
+
+--- Dep 5 from S1 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+8 8
+0 -1 0 1 0 0 0 -1 
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 1 0 0 -3 
+1 0 0 0 1 0 0 -400 
+1 0 1 0 0 0 0 0 
+1 0 -1 0 1 0 0 -1 
+1 0 0 0 0 0 1 -400 
+1 0 0 0 0 1 0 -400 
+
+--- Dep 6 from S3 to S3; satisfied: 0, sat level: -1; Type: WAR
+on variable: C
+Dependence polyhedron
+11 11
+0 0 -1 0 0 0 1 0 0 0 0 
+0 -1 0 0 0 1 0 0 0 0 1 
+0 0 0 -1 1 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 0 1 0 0 -400 
+1 0 0 0 0 0 0 0 1 0 -400 
+1 0 1 0 0 0 0 0 0 0 0 
+1 1 -1 0 0 0 0 0 0 0 -1 
+1 -1 0 1 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 1 0 -2 
+1 0 0 -1 0 0 0 0 0 1 -2 
+
+--- Dep 7 from S3 to S3; satisfied: 0, sat level: -1; Type: WAR
+on variable: C
+Dependence polyhedron
+11 11
+0 0 -1 0 0 0 1 0 0 0 0 
+0 -1 0 0 0 1 0 0 0 0 1 
+0 -1 0 0 1 0 0 0 0 0 0 
+0 -1 0 1 0 0 0 0 0 0 1 
+1 -1 0 0 0 0 0 0 0 1 -1 
+1 -1 0 0 0 0 0 0 1 0 -1 
+1 0 0 0 0 0 0 0 1 0 -400 
+1 0 1 0 0 0 0 0 0 0 0 
+1 1 -1 0 0 0 0 0 0 0 -2 
+1 0 0 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 0 1 0 0 -400 
+
+--- Dep 8 from S2 to S1; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+8 8
+0 -1 1 0 0 0 0 -2 
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 1 0 0 -4 
+1 0 0 0 1 0 0 -400 
+1 0 0 0 0 0 1 -400 
+1 0 0 0 0 1 0 -400 
+1 0 0 -1 1 0 0 -1 
+1 0 0 1 0 0 0 0 
+
+--- Dep 9 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+6 7
+0 -1 1 0 0 0 -1 
+1 1 0 0 0 0 -1 
+1 -1 0 1 0 0 -3 
+1 0 0 1 0 0 -400 
+1 0 0 0 0 1 -400 
+1 0 0 0 1 0 -400 
+
+--- Dep 10 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+6 7
+0 -1 1 0 0 0 -2 
+1 1 0 0 0 0 -1 
+1 -1 0 1 0 0 -4 
+1 0 0 1 0 0 -400 
+1 0 0 0 0 1 -400 
+1 0 0 0 1 0 -400 
+
+--- Dep 11 from S1 to S2; satisfied: 0, sat level: -1; Type: WAW
+on variable: B
+Dependence polyhedron
+8 8
+0 -1 0 1 0 0 0 0 
+1 1 0 0 0 0 0 -1 
+1 -1 0 0 1 0 0 -2 
+1 0 0 0 1 0 0 -400 
+1 0 1 0 0 0 0 0 
+1 0 -1 0 1 0 0 -1 
+1 0 0 0 0 0 1 -400 
+1 0 0 0 0 1 0 -400 
+
+--- Dep 12 from S1 to S1; satisfied: 0, sat level: -1; Type: WAW
+on variable: B
+Dependence polyhedron
+11 9
+0 -1 0 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 -1 
+1 -1 0 0 0 1 0 0 -2 
+1 0 0 0 0 1 0 0 -400 
+1 0 1 0 0 0 0 0 0 
+1 0 -1 0 0 1 0 0 -1 
+1 0 0 0 0 0 0 1 -400 
+1 0 0 0 0 0 1 0 -400 
+1 0 0 0 -1 1 0 0 -1 
+1 0 0 0 1 0 0 0 0 
+1 0 -1 0 1 0 0 0 -1 
+
+
+[zyj-debug] After affine transformations
+T(S1): (i, 1, j, 0, 0, 0)
+loop types (loop, scalar, loop, scalar, scalar, scalar)
+
+T(S2): (i, 2, 0, 0, 0, 0)
+loop types (loop, scalar, scalar, scalar, scalar, scalar)
+
+T(S3): (k+l+m, 0, zT3+zT4, zT4, l, k)
+loop types (loop, scalar, loop, loop, loop, loop)
+
+t1 --> serial   loop   (band 0)no-ujam
+t2 --> fwd_dep  scalar (band 1)no-ujam
+t3 --> fwd_dep  loop   (band 1)no-ujam
+t4 --> fwd_dep  loop   (band 1)no-ujam
+t5 --> fwd_dep  loop   (band 1)no-ujam
+t6 --> fwd_dep  loop   (band 1)no-ujam
+

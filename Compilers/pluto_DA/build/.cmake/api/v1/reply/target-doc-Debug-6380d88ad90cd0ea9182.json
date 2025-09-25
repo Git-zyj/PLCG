@@ -52,13 +52,13 @@
 		{
 			"backtrace" : 1,
 			"isGenerated" : true,
-			"path" : "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/CMakeFiles/doc",
+			"path" : "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build/CMakeFiles/doc",
 			"sourceGroupIndex" : 0
 		},
 		{
 			"backtrace" : 0,
 			"isGenerated" : true,
-			"path" : "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/CMakeFiles/doc.rule",
+			"path" : "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build/CMakeFiles/doc.rule",
 			"sourceGroupIndex" : 1
 		}
 	],

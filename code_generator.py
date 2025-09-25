@@ -1,12 +1,16 @@
+# THIS CODE WILL BE REFACTORED!!!
+# todo use ast eval, since eval is unsafe!
 import random
 import math
 import numpy as np
 
 from collections import defaultdict
 from typing import List, Set, Tuple
+from itertools import product, combinations_with_replacement
 
+# from parse_input_v2_0 import parse_data
 from parse_input import parse_data
-from settings import ArrayData, Arrays_total, Schedule_tree, json_input_path, target_path
+from settings import ArrayData, Arrays_total, Schedule_tree, json_input_path, target_path, max_degree
 from polybench_files_generation import polybench_pipeline_single_file
 
 class CodeGenerator:
@@ -34,13 +38,14 @@ class CodeGenerator:
         
         # print(f'Generation start for "{self.filename}".\n')
         
-        self.extract_instructions() 
+        self.extract_instructions()
+        # print(f'[zyj-debug] arrays_write: {self.arrays_total.arrays_write}\n')
         # print(f'[zyj-debug] arrays_read: {self.arrays_total.arrays_read}\n')
         
         self.create_bounds_data()
         # print(f'[zyj-debug] bounds_data: {self.bounds_data}\n')
         
-        arrays_in_stmts = self.main_function()
+        arrays_in_stmts = self.parse_arrays()
         # print(f'[zyj-debug] arrays_in_stmts: {arrays_in_stmts}\n')
         
         self.convert_statements_to_expressions(arrays_in_stmts)
@@ -52,7 +57,7 @@ class CodeGenerator:
         
         self.get_final_loop()
         scop = '\n'.join(self.SCoP)
-        # print(f'[zyj-debug] SCoP: \n{scop}\n')
+        print(f'[zyj-debug] SCoP: \n{scop}\n')
         
         polybench_pipeline_single_file(self.filename, json_input_path, self.SCoP, target_path)
 
@@ -62,12 +67,15 @@ class CodeGenerator:
         """Extract 'dependency' and 'additional_computation' instructions from the DSL"""
         id = 0
         schedules = []
+        branchs = []
         self.arrays_total.arrays_write = defaultdict(ArrayData)
         self.arrays_total.arrays_read = defaultdict(list)
         for i in range(len(self._parsed_data.instructions)):
             instruction = self._parsed_data.instructions[i]
             # print(f'[zyj-debug] instruction: {instruction}\n')
             schedules.append(instruction['schedule'])
+            branchs.append(instruction['branch'])
+            
             self.variables.append([instruction['schedule'][j] for j in range(len(instruction['schedule'])) if j % 2 == 1])
             
             self.arrays_total.arrays_read[i] = []
@@ -100,8 +108,11 @@ class CodeGenerator:
 
             id += 1
             
-        self.schedule_tree.add_paths(schedules)
+        self.schedule_tree.add_paths(schedules, branchs)
         self.schedule_tree.check_tree()
+        
+        scop_init = '\n'.join(self.schedule_tree.extract_tree('code'))
+        print(f'[zyj-debug] initial scop: \n{scop_init}\n')
         
         # print(f'[zyj-debug] arrays_write before check: {self.arrays_total.arrays_write}\n')
         
@@ -168,7 +179,7 @@ class CodeGenerator:
                 else:
                     self.bounds_data[key]['max']['numerical'].add(max_value)
     
-    def main_function(self):
+    def parse_arrays(self):
         """Transfer access info to array index and update loop bounds"""
         arrays_in_stmts = []    
         for stmt_id in self.arrays_total.arrays_read.keys():
@@ -181,8 +192,8 @@ class CodeGenerator:
                 
             indexed_array_access = self.get_indexed_array_access(stmt_id, array_write.array_access_function)
                 
-            for _i, array_index in enumerate(array_write.array_access_function):
-                self.calculate_bounds(stmt_id, array_write.array_name, array_index, _i)
+            for j, access_function in enumerate(array_write.array_access_function):
+                self.calculate_bounds(stmt_id, array_write.array_name, access_function, j)
                 
             arrays_in_stmt.append(array_write.array_name + self.concatenate_with_square_brackets(indexed_array_access))
                 
@@ -194,8 +205,8 @@ class CodeGenerator:
                 
                 indexed_array_access = self.get_indexed_array_access(stmt_id, array_read.array_access_function)
                 
-                for _i, array_index in enumerate(array_read.array_access_function):
-                    self.calculate_bounds(stmt_id, array_read.array_name, array_index, _i)
+                for j, access_function in enumerate(array_read.array_access_function):
+                    self.calculate_bounds(stmt_id, array_read.array_name, access_function, j)
 
                 arrays_in_stmt.append(array_read.array_name + self.concatenate_with_square_brackets(indexed_array_access))    
                 
@@ -216,12 +227,11 @@ class CodeGenerator:
         """
         index_letters = self.variables[stmt_id]
         # print(f'[zyj-debug] index_letters: {index_letters}\n')
+        # print(f'[zyj-debug] array_access_function: {array_access_function}\n')
         
         indexed_array_access = []
         for access_fun in array_access_function:
             access_fun_str = self.translate_access_function_to_indexes(access_fun, index_letters)
-            if access_fun_str and access_fun_str[0] == '+':  # remove the leading '+' sign if exists
-                access_fun_str = access_fun_str[1:]
             indexed_array_access.append(access_fun_str)
         # print(f'[zyj-debug] indexed_array_access: {indexed_array_access}\n')
         
@@ -233,24 +243,34 @@ class CodeGenerator:
             access_fun = [1, 1, 2, -1], index_letters = ['i','j','k']
             -> 'i+j+2*k-1'
         """
-        coefficients = access_fun[:-1]
-        numerical_value = access_fun[-1]
+        terms = self.generate_terms(index_letters, max_degree)
+        parts = []
         
-        zipped_coefficients_and_indexes = zip(coefficients, index_letters)
-        expression = [self.stringify_multiplication(x, y) for x, y in zipped_coefficients_and_indexes if x != 0]
-        
-        if numerical_value != 0:
-            if type(numerical_value) != str:
-                numerical_value_with_sign = self.stringify_int(numerical_value)
-            elif numerical_value[0] == '-':
-                numerical_value_with_sign = numerical_value
+        for coef, term in zip(access_fun, terms):
+            if coef == 0:
+                continue
+            
+            # 构造项表达式
+            term_str = ''
+            if term:  # 非常数项
+                term_str = '*'.join([index_letters[v] for v in term])
+            
+            # 添加系数
+            if coef == 1 and term:
+                parts.append(f"{term_str}")
+            elif coef == -1 and term:
+                parts.append(f"-{term_str}")
+            elif not term: # 常数项
+                parts.append(f"{coef}")
             else:
-                numerical_value_with_sign = '+' + numerical_value
-            expression.append(numerical_value_with_sign)
-        elif not expression:
-            return '0'
+                parts.append(f"{coef}*{term_str}")
+        
+        if not parts:
+            return "0"
+        
+        expr = ' + '.join(parts).replace('+ -', '- ')
 
-        return ''.join(expression)
+        return expr
 
     def stringify_multiplication(self, n: int, index_letter: str) -> str:
         """Return an integer and an index letter formatted to multiplication expression.
@@ -287,70 +307,149 @@ class CodeGenerator:
         array_name = array_write.array_name
         
         if array_data.distance:
-            access_transpose = np.array(array_access_function).T
-            access_transpose[-1] += np.array(array_data.distance)
-            array_access_function = access_transpose.T
+            terms = self.generate_terms(range(len(array_data.distance)), max_degree)
+            self.apply_offsets_to_coeffs(array_access_function, terms, array_data.distance)
             
-        array_data = ArrayData(array_name = array_name, array_access_function = array_access_function.tolist())
+        array_data = ArrayData(array_name = array_name, array_access_function = array_access_function)
         # print(f'[zyj-debug] get_initial_array_info:\n new array_data: {array_data}\n')
         
         return array_data
 
-    def calculate_bounds(self, stmt_id, array_name: str, array_access_function: List[int], position: int):
+    def generate_terms(self, variables, max_degree):
+        """生成所有可能的项（常数项、线性项、二次项等）"""
+        terms = [()]
+        for d in range(1, max_degree + 1):
+            terms += list(combinations_with_replacement(range(len(variables)), d))
+        return terms
+
+    def create_offset_var(self, var_idx, offset):
+        """创建 (var + offset) 表达式"""
+        if offset == 0:
+            return {(var_idx,): 1}
+        return {(var_idx,): 1, (): offset}
+
+    def expand_product(self, factors):
+        """展开乘积项（如 (i+1)*(j-1)）"""
+        result = {(): 1}
+        
+        for factor in factors:
+            new_result = defaultdict(int)
+            for t1, c1 in result.items():
+                for t2, c2 in factor.items():
+                    # 合并变量索引（保持排序以识别同类项）
+                    merged_term = tuple(sorted(t1 + t2))
+                    new_result[merged_term] += c1 * c2
+            result = new_result
+            
+        return dict(result)
+
+    def apply_offsets_to_poly(self, term_dict, offsets):
+        """将偏移量应用到多项式并展开"""
+        new_poly = defaultdict(int)
+        
+        for term, coeff in term_dict.items():
+            # 初始化 substituted 为 {(): 1}（代表常数项1）
+            substituted = {(): 1}
+            
+            # 对term中的每个变量应用偏移
+            for var_idx in term:
+                # 创建 (var + offset) 的表达式
+                offset_var = self.create_offset_var(var_idx, offsets[var_idx])
+                
+                # 计算 substituted * (var + offset)
+                new_substituted = defaultdict(int)
+                for (t1, c1), (t2, c2) in product(substituted.items(), offset_var.items()):
+                    merged_term = tuple(sorted(t1 + t2))
+                    new_substituted[merged_term] += c1 * c2
+                substituted = new_substituted
+            
+            # 合并到新多项式
+            for t, c in substituted.items():
+                new_poly[t] += coeff * c
+                
+        return dict(new_poly)
+
+    def apply_offsets_to_coeffs(self, coeff_matrix, terms, offsets):
+        """
+        应用偏移量到系数矩阵
+        :param coeff_matrix: 原始系数矩阵（每行对应一个访问函数）
+        :param terms: 所有可能的项列表
+        :param offsets: 偏移向量，如 [1, -1, 0] 表示 i→i+1, j→j-1, k→k+0
+        :return: 新的系数矩阵
+        """
+        new_coeffs = []
+        for coeffs in coeff_matrix:
+            # 将系数映射到项字典
+            term_dict = {term: coeff for term, coeff in zip(terms, coeffs) if coeff != 0}
+            
+            # 应用偏移量并展开新多项式
+            new_poly = self.apply_offsets_to_poly(term_dict, offsets)
+            
+            # 将新多项式转换回系数向量
+            new_coeff = [new_poly.get(term, 0) for term in terms]
+            new_coeffs.append(new_coeff)
+            
+        return np.array(new_coeffs)
+
+    def calculate_bounds(self, stmt_id, array_name: str, access_function: List[int], position: int):
         """Based on rank of the array_access_function update the min and max bounds."""
 
-        rank = self.get_rank(array_access_function[:-1])  # don't pass the numerical value
+        # print(self.variables, stmt_id)
+
+        rank = self.get_rank(access_function[:1+len(self.variables[stmt_id])])  # don't pass the numerical value
 
         if rank == -1:  # we don't want to have an expression like C[-1] when access fun is [0,0,0, -1]
-            value = array_access_function[-1]
+            value = access_function[0]
             param = self._parsed_data.array_sizes[array_name][position]
             max_array_size = self._parsed_data.params[param]
             if value not in range(0, max_array_size):
-                print(f'[zyj-debug] Constant array access function not within the array size bounds: {array_name + str(array_access_function)}, reverse the array access function for available generation\n')
-                array_access_function[-1] = -array_access_function[-1]
-                self.calculate_bounds(stmt_id, array_name, array_access_function, position)
+                print(f'[zyj-debug] Constant array access function not within the array size bounds: {array_name + str(access_function)}, reverse the array access function for available generation\n')
+                access_function[0] = -access_function[0]
+                self.calculate_bounds(stmt_id, array_name, access_function, position)
         else:
-            value_at_rank = array_access_function[rank]
+            value_at_rank = access_function[rank]
 
-            copy = array_access_function[:]  # use a copy
+            access_function_low = access_function[:1+len(self.variables[stmt_id])]  # use lower terms of access function
 
-            copy[rank] = 0  # very important step!
+            access_function_low[rank] = 0  # very important step!
 
             right_bound = self._parsed_data.array_sizes[array_name][position]  # left bound is always 0 in C
             fun = None
             lower_bound, upper_bound = [], []
             if value_at_rank == 1:
-                lower_bound = self.get_opposite_numbers(copy)
+                lower_bound = self.get_opposite_numbers(access_function_low)
                 upper_bound = lower_bound[:]
-                upper_bound[-1] = self.var_add_num(right_bound, upper_bound[-1])
+                upper_bound[0] = self.var_add_num(right_bound, upper_bound[0])
 
             elif value_at_rank == -1:
-                upper_bound = copy[:]
+                upper_bound = access_function_low[:]
                 lower_bound = upper_bound[:]
-                lower_bound[-1] = self.var_add_num(right_bound, lower_bound[-1], 1)
+                lower_bound[0] = self.var_add_num(right_bound, lower_bound[0], 1)
 
             elif value_at_rank > 1:
                 alpha = value_at_rank
                 alpha_min_1 = alpha - 1
 
-                lower_bound = self.get_opposite_numbers(copy)
-                lower_bound[-1] += alpha_min_1
+                lower_bound = self.get_opposite_numbers(access_function_low)
+                lower_bound[0] += alpha_min_1
                 upper_bound = lower_bound[:]
-                upper_bound[-1] = self.var_add_num(right_bound, upper_bound[-1])
+                upper_bound[0] = self.var_add_num(right_bound, upper_bound[0])
                 fun = self.write_as_fraction
 
             elif value_at_rank < -1:
                 alpha = value_at_rank * (-1)
                 alpha_min_1 = alpha - 1
 
-                lower_bound = copy[:]
-                lower_bound[-1] = self.var_add_num(right_bound, alpha_min_1 + lower_bound[-1], 1)
+                lower_bound = access_function_low[:]
+                lower_bound[0] = self.var_add_num(right_bound, alpha_min_1 + lower_bound[0], 1)
 
-                upper_bound = copy[:]
-                upper_bound[-1] = alpha_min_1 + upper_bound[-1]
+                upper_bound = access_function_low[:]
+                upper_bound[0] = alpha_min_1 + upper_bound[0]
                 fun = self.write_as_fraction
+                
             # print(f'[zyj-debug] upp: {upper_bound}\n')
             # print(f'[zyj-debug] low: {lower_bound}\n')
+            
             if lower_bound and upper_bound:
                 self.update_bounds_based_on_access_function(stmt_id, [lower_bound],  rank, 'min', value_at_rank, fun)
                 self.update_bounds_based_on_access_function(stmt_id, [upper_bound],  rank, 'max', value_at_rank, fun)
@@ -387,10 +486,10 @@ class CodeGenerator:
         """Form a common fraction and return as a string.""" # todo check if den != 1
         return '({})/{}'.format(numerator, abs(denominator))
 
-    def update_bounds_based_on_access_function(self, stmt_id, my_copy: List[List[int]], rank: int, expr_min_max: str, value_at_rank: int, fun=None):
+    def update_bounds_based_on_access_function(self, stmt_id, bounds: List[List[int]], rank: int, expr_min_max: str, value_at_rank: int, fun=None):
         """Update bounds by evaluating access function."""
         # extract only the access function that will be an only element of the result array
-        access_function = self.get_indexed_array_access(stmt_id, my_copy)[0]
+        access_function = self.get_indexed_array_access(stmt_id, bounds)[0]
 
         if fun:
             access_function = fun(access_function, abs(value_at_rank))
@@ -400,9 +499,9 @@ class CodeGenerator:
         # print(f'[zyj-debug] eval_output: {eval_output}\n')
         
         if eval_output[-1]:
-            self.bounds_data[self.variables[stmt_id][rank]][expr_min_max][eval_output[0]][eval_output[-1]].add(eval_output[1])
+            self.bounds_data[self.variables[stmt_id][rank - 1]][expr_min_max][eval_output[0]][eval_output[-1]].add(eval_output[1])
         else:
-            self.bounds_data[self.variables[stmt_id][rank]][expr_min_max][eval_output[0]].add(eval_output[1])
+            self.bounds_data[self.variables[stmt_id][rank - 1]][expr_min_max][eval_output[0]].add(eval_output[1])
 
     def evaluate_expression(self, expression):
         """Try to evaluate the expression (especially common fractions from calculating bounds).
@@ -470,8 +569,10 @@ class CodeGenerator:
         # print(sorted_keys)
         ndims = len(sorted_keys)
         reverse_dim = [0] * ndims
-        # prepared for reversed loop
-        # reverse_dim[random.sample(range(ndims), 1)[0]] = 1
+        
+        # TODO prepared for reversed loop
+        reverse_dim[random.sample(range(ndims), 1)[0]] = 1
+        
         for i in range(ndims):
             self.calc_bound(sorted_keys[i], 0)
             self.calc_bound(sorted_keys[i], 1)
@@ -481,7 +582,7 @@ class CodeGenerator:
         """Compare all bounds collected before. Types: Numericals, parameters and variables"""
         func = [min, max]
         bound = bound_val = [0, np.inf][id]
-        # print(f'[zyj-debug] bounds_data[{key}][{func[id].__name__}]: {self.bounds_data[key][func[id].__name__]}\n')
+        print(f'[zyj-debug] bounds_data[{key}][{func[id].__name__}]: {self.bounds_data[key][func[id].__name__]}\n')
         
         ### for numericals
         if self.bounds_data[key][func[id].__name__]['numerical']: # "func[id].__name__" refers to "min" or "max", according to id (cal lower bound: 0 -> min, and cal upper bound: 1 -> max)
@@ -530,7 +631,7 @@ class CodeGenerator:
 
                 bounds_var.append(func[-id-1](tmp_bound_val_vars, key = tmp_bound_val_vars.get))
 
-            # print(f'[zyj-debug] bounds_var: {bounds_var}\n')
+            print(f'[zyj-debug] bounds_var: {bounds_var}\n')
             
             vals_var_0 = dict()
             vals_var_1 = dict()
@@ -557,12 +658,12 @@ class CodeGenerator:
                 params_and_vars = self._parsed_data.params.copy()
                 vals_var_1[bound_var] = eval(bound_var, params_and_vars)
             
-            ### 下面这一块要修改以适应多个变量边界的大小比对
+            ### TODO: 下面这一块要修改以适应多个变量边界的大小比对
             
             vals_var_0[bound] = bound_val
             vals_var_1[bound] = bound_val
-            # print(f"[zyj-debug] {func[-id-1].__name__} bound value containing vairables: {vals_var_0}\n")
-            # print(f"[zyj-debug] {func[id].__name__} bound value containing vairables: {vals_var_1}\n")
+            print(f"[zyj-debug] {func[-id-1].__name__} bound value containing vairables: {vals_var_0}\n")
+            print(f"[zyj-debug] {func[id].__name__} bound value containing vairables: {vals_var_1}\n")
             
             
             tmp_extreme = func[-id-1](vals_var_0, key = vals_var_0.get)
@@ -586,7 +687,7 @@ class CodeGenerator:
                         '''
                         bound_set.append(str(bound_var))
 
-                # print(f'bound_set: {bound_set}\n')
+                print(f'[zyj-debug] bound_set: {bound_set}\n')
 
                 if len(bound_set) > 1:
                     bound = ''
@@ -595,10 +696,12 @@ class CodeGenerator:
                         bound += f'{func[-id-1].__name__}({bound_set[i]},'
                         tail += ')'
                     bound += bound_set[-1] + tail
-                else:
+                elif len(bound_set):
                     bound = bound_set[0]
+                else:
+                    bound = "inf"
 
-        # print(f'[zyj-debug] new bound: {bound}\n')
+        print(f'[zyj-debug] new bound: {bound}\n')
         if str(bound) == 'inf':
             bounds_from_rand = [x for x in self._parsed_data.params.keys() if x not in self.bounds_data.keys()]
             # print(f'[zyj-debug] randomly select bound from list instead of "inf": {bounds_from_rand}\n')
@@ -615,13 +718,13 @@ class CodeGenerator:
         else:
             loop_expression = 'for (int {0} = {1}; {0} < {2}; {0}++)'.format(key, lower_bound, upper_bound)
         # print(f'[zyj-debug] loop expression: {loop_expression}\n')
-        self.loop_structure[key] = loop_expression
+        self.loop_structure[key] = (loop_expression, lower_bound, upper_bound)
 
     def get_final_loop(self):
         """assemble all components in loops together"""
         final_loop = []
         self.schedule_tree.update_tree(self.loop_structure, self.SCoP)
-        self.SCoP = self.schedule_tree.extract_code()
+        self.SCoP = self.schedule_tree.extract_tree('code')
 
         return ''.join(final_loop)
 

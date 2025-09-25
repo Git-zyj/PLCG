@@ -1,29 +1,34 @@
 import itertools
 import json
 import random
+import os
+import math
 from typing import List, Dict, Tuple, Set
-from settings import *
+from settings import json_input_path, ArrayData, Arrays_total, depth_min, Schedule_tree, indexed_array_names, indexed_parameter_names, params_multiplier, params_range, max_degree
 import time
 
 from collections import defaultdict
 from dataclasses import dataclass
 import numpy as np
 from scipy import stats
+from itertools import combinations_with_replacement
 
 class Json_generator:
     def __init__(self) -> None:
         self.arrays_total = Arrays_total()
         self.schedules = []
+        self.branchs = []
         self.params_info = dict()
         self.loop_bounds = defaultdict(list)
         self.arrays_info = defaultdict(list)
 
-    def generate_schedule(self, arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist):
+    def generate_schedule(self, arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_prob_branch):
         '''
         arg_depth暂定为2,表示循环维度范围为(2)
         arg_nstmts暂定为3,表示语句数量为3
         arg_bounds_index暂定为3,表示调度序号范围为(0,1,2,3),影响语句的疏密程度
-        arg_prob_bounds_exist暂定为4,表示循环边界被指定的几率为40%
+        arg_prob_bounds_exist暂定为4,表示循环边界被指定为循环变量的基础几率为40%
+        arg_prob_branch暂定为4,表示if分支出现的基础几率为20%
         '''
         
         depth_max = arg_depth # 指定最大维度①
@@ -32,20 +37,27 @@ class Json_generator:
         schedules_init = -np.ones([nstmts, 2 * depth_max + 1])
         
         for i in range(nstmts):
-            depth = random.randint(depth_min, depth_max) # 指定各个语句维度
+            depth = random.randint(depth_min, depth_max) # 指定各个语句所处维度
             for j in range(depth + 1):
-                index = random.randint(0, arg_bounds_index) # 指定具体序号③
-                schedules_init[i][2 * j] = index
+                index = random.randint(0, arg_bounds_index) # 指定该维度下语句的具体序号③
+                schedules_init[i][2 * j] = index # 在调度的常量维进行记录
         
+        print(schedules_init)
         schedule_tree_init = Schedule_tree()
         schedule_tree_init.add_paths(schedules_init)
-        schedule_tree_init.standardize_node() # 并进行重排序
+        schedule_tree_init.standardize_node() # 并进行排序号重编（不影响顺序）
         schedule_tree_init.check_tree()
-        # scop = '\n'.join(schedule_tree_init.extract_code())
-        # print(f'[zyj-debug] initial scop:\n{scop}\n')
-        schedules = schedule_tree_init.extract_paths() # 提取重排序和重命名后的调度
+        scop_init = '\n'.join(schedule_tree_init.extract_tree('init'))
+        print(f'[zyj-debug] initial scop:\n{scop_init}\n')
+        
+        schedule_tree_init.propagate_cond_attribute(base_prob=arg_prob_branch/10)
+        scop_branch = '\n'.join(schedule_tree_init.extract_tree('branch'))
+        print(f'[zyj-debug] scop with branch:\n{scop_branch}\n')
+        
+        schedules, self.branchs = schedule_tree_init.extract_stmt_infos() # 提取重排序和重命名后的调度以及分支信息
         self.schedules = [s[:-1] for s in schedules]
-        # print(f'[zyj-debug] schedules:\n{self.schedules}\n')
+        print(f'[zyj-debug] schedules:\n{self.schedules}\n')
+        print(f'[zyj-debug] branchs:\n{self.branchs}\n')
         
         for child in schedule_tree_init.root.children: # loop_bounds固定
             self.generate_loop_bounds(arg_prob_bounds_exist, child)
@@ -77,9 +89,13 @@ class Json_generator:
         arrays_name = defaultdict(str)
         idx = 0
         
+        value_vars = range(1, arg_bounds_coef + 1) # TODO: allow negative coef
+        prob_vars = [1] * len(value_vars)  # prob for value as coef for variables in indexes. TODO: newer prob for value selection in access
+        
         value_consts = range(-arg_bounds_coef, arg_bounds_coef + 1)
-        prob_conts = [1/3/(2 * arg_bounds_coef)] * (2 * arg_bounds_coef + 1) # prob for value in const coef in indexes 
-        prob_conts[arg_bounds_coef] = 2/3 # 0 for 66.7%
+        prob_consts = [1/3/(2 * arg_bounds_coef)] * (2 * arg_bounds_coef + 1) # prob for value in const coef in indexes 
+        prob_consts[arg_bounds_coef] = 2/3 # 0 for 66.7%
+        
         
         for i in range(nstmts):
             depth_stmt = len(self.schedules[i]) // 2
@@ -94,18 +110,23 @@ class Json_generator:
             
             depth_array_write = loc_array_write[0] # 数组维度
             
-            array_write_access_function = [] # 指定语句写数组访存⑧(有待扩充)
-            index_dims = range(0, depth_stmt)
-            prob_dims = [1/depth_stmt] * depth_stmt # prob for iterator in indexes
             
-            for _ in range(depth_array_write):
-                access_function = [0] * depth_stmt
-                select_dim = random.choices(index_dims, prob_dims)[0]
-                prob_dims[select_dim] /= 3 # 相同循环变量出现的机率每次/2
-                access_function[select_dim] = 1 # 固定数组下标变量系数为0或1，方便计算（有待扩充）
-                select_const = random.choices(value_consts, prob_conts)[0]
-                access_function.append(select_const)
-                array_write_access_function.append(access_function)  
+            # 基项生成：常数项 + 线性项 + 二次项
+            variables = range(depth_stmt)
+            terms = [()]  # 常数项
+            terms.extend([(v,) for v in variables])  # 线性项
+            
+            if max_degree >= 2:
+                terms.extend(combinations_with_replacement(variables, 2))  # 二次项
+                
+            term_weights = [1.0] * len(terms) # 实际上常数项另外计算，此处仅为占位
+            for j, term in enumerate(terms):
+                if len(term) == 1: # 一次项
+                    term_weights[j] *= 1/math.comb(depth_stmt+len(term)-1, len(term)) # 总体一次项概率为基准1.0
+                elif len(term) == 2:  # 二次项
+                    term_weights[j] *= 1/4/math.comb(depth_stmt+len(term)-1, len(term)) # 总体二次项概率调整为一次项的1/4倍
+                    
+            array_write_access_function = self.generate_access_function(depth_array_write, terms, term_weights, value_vars, prob_vars, value_consts, prob_consts) # 指定语句写数组访存⑧(有待扩充)
             
             array_write = ArrayData(array_name = arrays_name[loc_array_write], array_access_function = array_write_access_function)
             arrays_write[i] = array_write
@@ -125,18 +146,7 @@ class Json_generator:
                 
                 depth_array_read = loc_array_read[0] # 数组维度
                 
-                array_read_access_function = [] # 指定语句读数组访存⑾(有待扩充)
-                index_dims = range(0, depth_stmt)
-                prob_dims = [1/depth_stmt] * depth_stmt # prob for iterator in indexes
-                
-                for _ in range(depth_array_read):
-                    access_function = [0] * depth_stmt
-                    select_dim = random.choices(index_dims, prob_dims)[0]
-                    prob_dims[select_dim] /= 3 # 每两次连续相同循环变量出现的机率为1/4
-                    access_function[select_dim] = 1
-                    select_const = random.choices(value_consts, prob_conts)[0]
-                    access_function.append(select_const)
-                    array_read_access_function.append(access_function)
+                array_read_access_function = self.generate_access_function(depth_array_read, terms, term_weights, value_vars, prob_vars, value_consts, prob_consts) # 指定语句读数组访存⑾(有待扩充)
                     
                 array_read = ArrayData(array_name = arrays_name[loc_array_read], array_access_function = array_read_access_function)
                 arrays_read[i].append(array_read)
@@ -151,6 +161,58 @@ class Json_generator:
         self.arrays_total = Arrays_total(arrays_write, arrays_read)
         # print(f'[zyj-debug] arrays_write for additional_computation:\n{arrays_write}\n')
         # print(f'[zyj-debug] arrays_read for additional_computation:\n{arrays_read}\n')
+
+    def generate_access_function(self, depth_array, terms, term_weights, value_vars, prob_vars, value_consts, prob_consts):
+        
+        print(f"[zyj-debug] value_vars: {value_vars}")
+        print(f"[zyj-debug] prob_vars: {prob_vars}")
+        print(f"[zyj-debug] value_consts: {value_consts}")
+        print(f"[zyj-debug] prob_consts: {prob_consts}")
+        print(f"[zyj-debug] term_weights: {term_weights}")
+        
+        array_access_function = [] # 指定语句数组访存
+            
+        for i in range(depth_array):
+            access_function = [0] * len(terms)
+            selected_indices = [0] # 必定包含常数项，关键在于取值
+            
+            remaining_weights = term_weights.copy() # 常数项（0）实际上无意义
+            continue_prob = 1.0  # 初始继续选择基项概率为1*(2/3)^0
+
+            j = 0
+            while True:
+                # 决定是否继续选择基项
+                if random.random() > continue_prob:
+                    print(f"[zyj-debug] break before the {j}th access selection for the {i}th access_function")
+                    break  # 终止选择
+
+                # 选择基项（排除常数项和已选项）
+                valid_indices = [k for k in range(1, len(terms)) if remaining_weights[k] > 0]
+                if not valid_indices:
+                    break
+
+                idx = random.choices(valid_indices, weights=[remaining_weights[i] for i in valid_indices])[0]
+                selected_indices.append(idx)
+                remaining_weights[idx] = 0  # 禁用已选项
+
+                # 衰减继续概率：(2/3)^n
+                continue_prob *= 2/3
+                
+                j += 1
+
+            # 为选中的基项分配系数
+            for idx in selected_indices:
+                if idx: # vars
+                    coef = random.choices(value_vars, prob_vars)[0]
+                else: # consts
+                    coef = random.choices(value_consts, prob_consts)[0]
+                access_function[idx] = coef
+
+            print(f"[zyj-debug] the {i}th access_function: {access_function}")
+
+            array_access_function.append(access_function)
+        
+        return array_access_function
 
     def generate_dependency(self, arg_ndeps_read, arg_bounds_distance,arg_prob_dep_write_exist):
         '''
@@ -260,9 +322,9 @@ class Json_generator:
         # print(f'[zyj-debug] params_info:\n{self.params_info}\n')
         # print(f'[zyj-debug] arrays_info:\n{self.arrays_info}\n')
 
-    def generate_json_info(self, arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_narrays_read, arg_bounds_coef, arg_ndeps_read, arg_bounds_distance, arg_prob_dep_write_exist):
+    def generate_json_info(self, arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_narrays_read, arg_bounds_coef, arg_ndeps_read, arg_bounds_distance, arg_prob_dep_write_exist, arg_prob_branch):
         
-        self.generate_schedule(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist) # 首先生成调度
+        self.generate_schedule(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_prob_branch) # 首先生成调度
         self.generate_additional_computation(arg_narrays_per_dim, arg_narrays_read, arg_bounds_coef) # 生成未指定依赖计算(可能有依赖,考虑避免？)
         self.generate_dependency(arg_ndeps_read, arg_bounds_distance, arg_prob_dep_write_exist) # 生成指定依赖计算
         self.generate_arrays() # 最后生成参数和部分数组信息？
@@ -323,13 +385,14 @@ class Json_generator:
         for i in range(nstmts):
             instructions = dict()
             instructions['schedule'] = self.schedules[i]
+            instructions['branch'] = self.branchs[i]
             instructions['additional_computation'] = additional_computations[i]
             instructions['dependency'] = dependencies[i]
             json_info['instructions'].append(instructions)
         
         return json_info
 
-    def generate_json_file(self, arg_depth = 2, arg_nstmts = 3, arg_bounds_index = 2, arg_prob_bounds_exist = 4, arg_narrays_per_dim = 2, arg_narrays_read = 2, arg_bounds_coef = 1, arg_ndeps_read = 2, arg_bounds_distance = 2, arg_prob_dep_write_exist = 4, id = 0):
+    def generate_json_file(self, arg_depth = 2, arg_nstmts = 3, arg_bounds_index = 2, arg_prob_bounds_exist = 4, arg_narrays_per_dim = 2, arg_narrays_read = 2, arg_bounds_coef = 1, arg_ndeps_read = 2, arg_bounds_distance = 2, arg_prob_dep_write_exist = 4, arg_prob_branch = 2, id = 0):
         '''
         (*)arg_depth暂定为2,表示循环维度范围为(1,2)
         (*)arg_nstmts暂定为3,表示语句数量为3
@@ -341,13 +404,14 @@ class Json_generator:
         arg_ndeps_read暂定为2,表示每条语句读依赖数量范围为(0,1,2)
         arg_bounds_distance暂定为2,表示依赖距离范围为(-2,-1,0,1,2)
         (*)arg_dep_write_exist暂定为4,表示每条语句写依赖存在概率为40%
+        (*)arg_prob_branch暂定为4,表示if分支出现的基础几率为20%
         '''
         
         self.__init__()
 
-        file = self.generate_json_info(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_narrays_read, arg_bounds_coef, arg_ndeps_read, arg_bounds_distance, arg_prob_dep_write_exist)
+        file = self.generate_json_info(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_narrays_read, arg_bounds_coef, arg_ndeps_read, arg_bounds_distance, arg_prob_dep_write_exist, arg_prob_branch)
     
-        filename = f'{arg_depth}{arg_nstmts}{arg_bounds_index}{arg_prob_bounds_exist}{arg_narrays_per_dim}{arg_narrays_read}{arg_bounds_coef}{arg_ndeps_read}{arg_bounds_distance}{arg_prob_dep_write_exist}_{id:02d}.json'
+        filename = f'{arg_depth}{arg_nstmts}{arg_bounds_index}{arg_prob_bounds_exist}{arg_narrays_per_dim}{arg_narrays_read}{arg_bounds_coef}{arg_ndeps_read}{arg_bounds_distance}{arg_prob_dep_write_exist}{arg_prob_branch}_{id:02d}.json'
         file_destination = os.path.join(json_input_path, filename)
         with open(file_destination, 'w') as fp:
             json.dump(file, fp)

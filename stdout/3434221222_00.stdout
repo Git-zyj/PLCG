@@ -1,0 +1,192 @@
+[zyj-debug] Before affine transformations
+nvar = 3, npar = 2
+Parameters: PB_M PB_L 
+S1 "A[i] = B[i-1] + A[i] + 1;"
+ndims: 1; orig_depth: 1
+iterators: i
+Index set
+3 5
+1 1 0 0 -1 
+1 -1 1 0 -1 
+1 0 1 0 -2 
+T(S1): (0, i, 0, 0, 0, 0, 0)
+loop types (loop, loop, loop, scalar, scalar, scalar, scalar)
+
+Read accesses
+B[i-1]
+A[i]
+Write accesses
+A[i]
+Original loop: 0 -> yes
+
+S2 "C[j][k][j] = D[j-1][l] * 1;"
+ndims: 3; orig_depth: 3
+iterators: j, k, l
+Index set
+8 7
+1 1 0 0 0 0 -1 
+1 -1 0 0 0 1 -1 
+1 0 0 0 0 1 -2 
+1 0 1 0 0 0 0 
+1 0 -1 0 0 1 -1 
+1 0 0 0 0 1 -1 
+1 0 0 1 0 0 0 
+1 0 0 -1 0 1 -1 
+T(S2): (1, j, 0, k, 0, l, 0)
+loop types (loop, loop, loop, loop, loop, loop, loop)
+
+Read accesses
+D[j-1][l]
+Write accesses
+C[j][k][j]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+Original loop: 2 -> yes
+
+S3 "B[j] = B[j] - 6;"
+ndims: 1; orig_depth: 1
+iterators: j
+Index set
+3 5
+1 1 0 0 -1 
+1 -1 0 1 -1 
+1 0 0 1 -2 
+T(S3): (1, j, 1, 0, 0, 0, 0)
+loop types (loop, loop, loop, scalar, scalar, scalar, scalar)
+
+Read accesses
+B[j]
+Write accesses
+B[j]
+Original loop: 0 -> yes
+
+S4 "E[j][m-1][m] = E[j][m-1][m] + C[n][j][j] - 5;"
+ndims: 3; orig_depth: 3
+iterators: j, m, n
+Index set
+8 7
+1 1 0 0 0 0 -1 
+1 -1 0 0 0 1 -1 
+1 0 0 0 0 1 -2 
+1 0 1 0 0 0 -1 
+1 1 -1 0 0 0 -1 
+1 1 0 0 0 0 -2 
+1 0 0 1 0 0 0 
+1 1 0 -1 0 0 -1 
+T(S4): (1, j, 2, m, 0, n, 0)
+loop types (loop, loop, loop, loop, loop, loop, loop)
+
+Read accesses
+E[j][m-1][m]
+C[n][j][j]
+Write accesses
+E[j][m-1][m]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+Original loop: 2 -> yes
+
+--- Dep 1 from S4 to S4; satisfied: 0, sat level: -1; Type: RAW
+on variable: E
+Dependence polyhedron
+13 10
+0 0 -1 0 0 1 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 0 0 1 -1 
+1 0 0 0 0 0 0 0 1 -300 
+1 0 1 0 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 0 -1 
+1 1 0 -1 0 0 0 0 0 -1 
+1 0 0 1 0 0 0 0 0 0 
+1 0 0 0 0 0 0 1 0 -400 
+1 0 0 0 0 0 1 0 0 0 
+1 1 0 0 0 0 -1 0 0 -1 
+1 0 0 -1 0 0 1 0 0 -1 
+
+--- Dep 2 from S4 to S4; satisfied: 0, sat level: -1; Type: WAR
+on variable: E
+Dependence polyhedron
+13 10
+0 0 -1 0 0 1 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 0 0 1 -1 
+1 0 0 0 0 0 0 0 1 -300 
+1 0 1 0 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 0 -1 
+1 1 0 -1 0 0 0 0 0 -1 
+1 0 0 1 0 0 0 0 0 0 
+1 0 0 0 0 0 0 1 0 -400 
+1 0 0 0 0 0 1 0 0 0 
+1 1 0 0 0 0 -1 0 0 -1 
+1 0 0 -1 0 0 1 0 0 -1 
+
+--- Dep 3 from S1 to S3; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+6 6
+0 -1 1 0 0 1 
+1 1 0 0 0 -2 
+1 -1 0 1 0 -1 
+1 0 0 1 0 -400 
+1 0 0 0 1 -300 
+1 -1 0 0 1 0 
+
+--- Dep 4 from S4 to S4; satisfied: 0, sat level: -1; Type: WAW
+on variable: E
+Dependence polyhedron
+13 10
+0 0 -1 0 0 1 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 0 0 1 -1 
+1 0 0 0 0 0 0 0 1 -300 
+1 0 1 0 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 0 -1 
+1 1 0 -1 0 0 0 0 0 -1 
+1 0 0 1 0 0 0 0 0 0 
+1 0 0 0 0 0 0 1 0 -400 
+1 0 0 0 0 0 1 0 0 0 
+1 1 0 0 0 0 -1 0 0 -1 
+1 0 0 -1 0 0 1 0 0 -1 
+
+--- Dep 5 from S2 to S2; satisfied: 0, sat level: -1; Type: WAW
+on variable: C
+Dependence polyhedron
+13 10
+0 0 -1 0 0 1 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 -1 
+1 -1 0 0 0 0 0 0 1 -1 
+1 0 0 0 0 0 0 0 1 -300 
+1 0 1 0 0 0 0 0 0 0 
+1 0 -1 0 0 0 0 0 1 -1 
+1 0 0 -1 0 0 0 0 1 -1 
+1 0 0 1 0 0 0 0 0 0 
+1 0 0 0 0 0 0 1 0 -400 
+1 0 0 0 0 0 1 0 0 0 
+1 0 0 0 0 0 -1 0 1 -1 
+1 0 0 -1 0 0 1 0 0 -1 
+
+
+[zyj-debug] After affine transformations
+T(S1): (zT1, 0, 0, i, 0, 0, 2)
+loop types (loop, scalar, scalar, loop, scalar, scalar, scalar)
+
+T(S2): (zT3, zT4, zT5, j, k, l, 1)
+loop types (loop, loop, loop, loop, loop, loop, scalar)
+
+T(S3): (zT1, 0, 0, j+1, 0, 0, 3)
+loop types (loop, scalar, scalar, loop, scalar, scalar, scalar)
+
+T(S4): (zT3, zT4, zT5, j, m, n, 0)
+loop types (loop, loop, loop, loop, loop, loop, scalar)
+
+t1 --> parallel loop   (band 0)no-ujam
+t2 --> parallel loop   (band 0)no-ujam
+t3 --> fwd_dep  loop   (band 0)no-ujam
+t4 --> parallel loop   (band 0)no-ujam
+t5 --> parallel loop   (band 0)no-ujam
+t6 --> fwd_dep  loop   (band 0)no-ujam
+t7 --> fwd_dep  scalar (band 0)no-ujam
+

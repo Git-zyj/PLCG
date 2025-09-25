@@ -55,7 +55,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build"
+			"value" : "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build"
 		},
 		{
 			"name" : "CMAKE_CACHE_MAJOR_VERSION",
@@ -595,7 +595,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop"
+			"value" : "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop"
 		},
 		{
 			"name" : "CMAKE_INSTALL_PREFIX",
@@ -1163,7 +1163,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build"
+			"value" : "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build"
 		},
 		{
 			"name" : "Project_SOURCE_DIR",
@@ -1175,7 +1175,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop"
+			"value" : "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop"
 		},
 		{
 			"name" : "gmp_LIB",

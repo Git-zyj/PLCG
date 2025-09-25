@@ -6,5 +6,5 @@ C_FLAGS = -O0 -g3 -Wall -Wextra -std=c99 -pedantic -g -fPIC
 
 C_DEFINES = -DOSL_GMP_IS_HERE -Dosl_EXPORTS
 
-C_INCLUDES = -I/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/include -I/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop/./include 
+C_INCLUDES = -I/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build/include -I/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop/./include 
 

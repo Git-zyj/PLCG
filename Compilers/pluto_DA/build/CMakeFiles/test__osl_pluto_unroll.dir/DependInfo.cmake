@@ -4,7 +4,7 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_C
-  "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop/tests/osl_pluto_unroll.c" "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/CMakeFiles/test__osl_pluto_unroll.dir/tests/osl_pluto_unroll.c.o"
+  "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop/tests/osl_pluto_unroll.c" "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build/CMakeFiles/test__osl_pluto_unroll.dir/tests/osl_pluto_unroll.c.o"
   )
 set(CMAKE_C_COMPILER_ID "Clang")
 
@@ -16,12 +16,12 @@ set(CMAKE_TARGET_DEFINITIONS_C
 # The include file search paths:
 set(CMAKE_C_TARGET_INCLUDE_PATH
   "include"
-  "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop/./include"
+  "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop/./include"
   )
 
 # Targets to which this target links.
 set(CMAKE_TARGET_LINKED_INFO_FILES
-  "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/CMakeFiles/osl_static.dir/DependInfo.cmake"
+  "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build/CMakeFiles/osl_static.dir/DependInfo.cmake"
   )
 
 # Fortran module output directory.

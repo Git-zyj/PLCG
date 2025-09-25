@@ -1,7 +1,7 @@
 # optimization_and_analysis.py
 
-## usage example
-python optimization_and_analysis.py -dp .. -op . -pp ../Compilers/pluto_DA
+## usage example (pluto_DA is needed outside loop_generator)
+python optimization_and_analysis.py -dp .. -op . -pp ../../Compilers/pluto_DA
 
 # loop_transformation_classifier.py
 

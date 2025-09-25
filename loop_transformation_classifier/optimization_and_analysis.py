@@ -4,9 +4,9 @@ import itertools as it
 import argparse as ap
 import subprocess as sp
 
-# src_path = '../poly_code'
-# target_path = '..'
-# PATH_pluto = '../Compilers/pluto_DA'
+# src_path = 'polycoder/poly_code'
+# target_path = 'polycoder'
+# PATH_pluto = 'Compilers/pluto_DA'
 
 parser_description = '''
 For optimized version of codes and data flow information from pluto, clan and candl\n

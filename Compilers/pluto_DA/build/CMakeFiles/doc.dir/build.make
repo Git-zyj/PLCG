@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop
+CMAKE_SOURCE_DIR = /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build
+CMAKE_BINARY_DIR = /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build
 
 # Utility rule file for doc.
 
@@ -54,8 +54,8 @@ CMAKE_BINARY_DIR = /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/bui
 include CMakeFiles/doc.dir/progress.make
 
 CMakeFiles/doc:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating documentation (pdf) (with texi2pdf)"
-	/usr/bin/texi2pdf /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop/doc/openscop.texi --output=/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/openscop.pdf
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating documentation (pdf) (with texi2pdf)"
+	/usr/bin/texi2pdf /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop/doc/openscop.texi --output=/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build/openscop.pdf
 
 doc: CMakeFiles/doc
 doc: CMakeFiles/doc.dir/build.make
@@ -72,6 +72,6 @@ CMakeFiles/doc.dir/clean:
 .PHONY : CMakeFiles/doc.dir/clean
 
 CMakeFiles/doc.dir/depend:
-	cd /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build/CMakeFiles/doc.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build/CMakeFiles/doc.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/doc.dir/depend
 

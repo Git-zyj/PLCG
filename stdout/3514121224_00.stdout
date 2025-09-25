@@ -1,0 +1,378 @@
+[zyj-debug] Before affine transformations
+nvar = 3, npar = 4
+Parameters: PB_L PB_M PB_Q PB_P 
+S1 "A[i] = A[i] * 5;"
+ndims: 1; orig_depth: 1
+iterators: i
+Index set
+3 7
+1 1 0 0 0 0 0 
+1 -1 1 0 0 0 -3 
+1 0 1 0 0 0 -3 
+T(S1): (0, i, 0, 0, 0, 0, 0)
+loop types (loop, loop, loop, scalar, scalar, scalar, scalar)
+
+Read accesses
+A[i]
+Write accesses
+A[i]
+Original loop: 0 -> yes
+
+S2 "B[i][j] = A[i] - 5;"
+ndims: 2; orig_depth: 2
+iterators: i, j
+Index set
+6 8
+1 1 0 0 0 0 0 0 
+1 -1 0 1 0 0 0 -3 
+1 0 0 1 0 0 0 -3 
+1 0 1 0 0 0 0 0 
+1 0 -1 1 0 0 0 -1 
+1 0 0 1 0 0 0 -1 
+T(S2): (0, i, 1, j, 0, 0, 0)
+loop types (loop, loop, loop, loop, loop, scalar, scalar)
+
+Read accesses
+A[i]
+Write accesses
+B[i][j]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+
+S3 "A[i] = A[i+2] + A[i+1] - A[i] + 6;"
+ndims: 1; orig_depth: 1
+iterators: i
+Index set
+3 7
+1 1 0 0 0 0 0 
+1 -1 1 0 0 0 -3 
+1 0 1 0 0 0 -3 
+T(S3): (0, i, 2, 0, 0, 0, 0)
+loop types (loop, loop, loop, scalar, scalar, scalar, scalar)
+
+Read accesses
+A[i+2]
+A[i+1]
+A[i]
+Write accesses
+A[i]
+Original loop: 0 -> yes
+
+S4 "B[m][k] = B[m+2][k] * B[m+2][k-2] * C[k][k+1][k] * C[k][m][l] * 4;"
+ndims: 3; orig_depth: 3
+iterators: k, l, m
+Index set
+8 9
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -1 
+1 0 0 0 0 1 0 0 -3 
+1 0 1 0 0 0 0 0 0 
+1 0 -1 0 0 0 1 0 -1 
+1 0 0 0 0 0 1 0 -1 
+1 0 0 1 0 0 0 0 0 
+1 0 0 -1 0 1 0 0 -3 
+T(S4): (1, k, 0, l, 0, m, 0)
+loop types (loop, loop, loop, loop, loop, loop, loop)
+
+Read accesses
+B[m+2][k]
+B[m+2][k-2]
+C[k][k+1][k]
+C[k][m][l]
+Write accesses
+B[m][k]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+Original loop: 2 -> yes
+
+S5 "C[k][n][k+1] = C[k][n][k] + 3;"
+ndims: 3; orig_depth: 3
+iterators: k, n, o
+Index set
+8 9
+1 1 0 0 0 0 0 0 -2 
+1 -1 0 0 0 1 0 0 -1 
+1 0 0 0 0 1 0 0 -3 
+1 0 1 0 0 0 0 0 0 
+1 0 -1 0 0 0 0 1 -1 
+1 0 0 0 0 0 0 1 -1 
+1 0 0 1 0 0 0 0 0 
+1 0 0 -1 0 0 0 1 -1 
+T(S5): (1, k, 1, n, 0, o, 0)
+loop types (loop, loop, loop, loop, loop, loop, loop)
+
+Read accesses
+C[k][n][k]
+Write accesses
+C[k][n][k+1]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+Original loop: 2 -> yes
+
+--- Dep 1 from S2 to S4; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+14 11
+0 -1 0 0 0 1 0 0 0 0 2 
+0 0 -1 1 0 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 1 0 0 0 -3 
+1 0 0 0 0 0 1 0 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 -2 
+1 0 -1 0 0 0 1 0 0 0 -1 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 0 0 0 1 -500 
+1 -1 0 0 0 0 0 1 0 0 -1 
+1 0 -1 0 0 0 0 1 0 0 -1 
+1 0 0 0 -1 0 0 0 1 0 -1 
+1 0 0 0 1 0 0 0 0 0 0 
+
+--- Dep 2 from S1 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: A
+Dependence polyhedron
+9 9
+0 -1 1 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 
+1 -1 0 0 1 0 0 0 -3 
+1 0 0 0 1 0 0 0 -300 
+1 0 0 0 0 1 0 0 -300 
+1 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 0 1 -500 
+1 0 0 -1 1 0 0 0 -1 
+1 0 0 1 0 0 0 0 0 
+
+--- Dep 3 from S4 to S4; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+14 12
+0 0 0 -1 0 0 1 0 0 0 0 2 
+0 -1 0 0 1 0 0 0 0 0 0 -2 
+1 1 0 0 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 0 0 1 0 0 -3 
+1 0 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 0 0 
+1 0 -1 0 0 0 0 0 0 1 0 -1 
+1 0 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 1 0 0 0 0 0 0 0 -2 
+1 0 0 -1 0 0 0 0 1 0 0 -3 
+1 0 0 0 0 0 0 0 0 0 1 -500 
+1 0 0 0 0 0 0 1 0 0 0 -300 
+1 0 0 0 0 -1 0 0 0 1 0 -1 
+1 0 0 0 0 1 0 0 0 0 0 0 
+
+--- Dep 4 from S4 to S4; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+15 12
+0 0 0 -1 0 0 1 0 0 0 0 2 
+0 -1 0 0 1 0 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 0 0 1 0 0 -1 
+1 0 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 0 0 
+1 0 -1 0 0 0 0 0 0 1 0 -1 
+1 0 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 1 0 0 0 0 0 0 0 -2 
+1 0 0 -1 0 0 0 0 1 0 0 -3 
+1 0 0 0 0 0 0 0 0 0 1 -500 
+1 0 0 0 0 0 0 1 0 0 0 -300 
+1 0 0 0 0 -1 0 0 0 1 0 -1 
+1 0 0 0 0 1 0 0 0 0 0 0 
+1 0 -1 0 0 1 0 0 0 0 0 -1 
+
+--- Dep 5 from S1 to S3; satisfied: 0, sat level: -1; Type: RAW
+on variable: A
+Dependence polyhedron
+7 8
+0 -1 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 
+1 -1 0 1 0 0 0 -3 
+1 0 0 1 0 0 0 -300 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 1 -500 
+
+--- Dep 6 from S2 to S4; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+14 11
+0 -1 0 0 0 1 0 0 0 0 2 
+0 0 -1 1 0 0 0 0 0 0 -2 
+1 1 0 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 1 0 0 0 -3 
+1 0 0 0 0 0 1 0 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 0 
+1 0 -1 0 0 0 1 0 0 0 -1 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 0 0 0 1 -500 
+1 -1 0 0 0 0 0 1 0 0 -1 
+1 0 -1 0 0 0 0 1 0 0 -3 
+1 0 0 0 -1 0 0 0 1 0 -1 
+1 0 0 0 1 0 0 0 0 0 0 
+
+--- Dep 7 from S1 to S3; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+7 8
+0 -1 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 
+1 -1 0 1 0 0 0 -3 
+1 0 0 1 0 0 0 -300 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 1 -500 
+
+--- Dep 8 from S3 to S3; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+7 8
+0 -1 1 0 0 0 0 -2 
+1 1 0 0 0 0 0 0 
+1 -1 0 1 0 0 0 -5 
+1 0 0 1 0 0 0 -300 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 1 -500 
+
+--- Dep 9 from S3 to S1; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+7 8
+0 -1 1 0 0 0 0 -2 
+1 1 0 0 0 0 0 0 
+1 -1 0 1 0 0 0 -5 
+1 0 0 1 0 0 0 -300 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 1 -500 
+
+--- Dep 10 from S4 to S4; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+13 12
+0 0 0 -1 0 0 1 0 0 0 0 -2 
+0 -1 0 0 1 0 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 0 0 1 0 0 -1 
+1 0 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 0 0 
+1 0 -1 0 0 1 0 0 0 0 0 0 
+1 0 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 1 0 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 1 0 0 -5 
+1 0 0 0 0 0 0 0 0 0 1 -500 
+1 0 0 0 0 0 0 1 0 0 0 -300 
+1 0 0 0 0 -1 0 0 0 1 0 -1 
+
+--- Dep 11 from S3 to S1; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+7 8
+0 -1 1 0 0 0 0 -1 
+1 1 0 0 0 0 0 0 
+1 -1 0 1 0 0 0 -4 
+1 0 0 1 0 0 0 -300 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 1 -500 
+
+--- Dep 12 from S2 to S3; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+9 9
+0 -1 0 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 
+1 -1 0 0 1 0 0 0 -3 
+1 0 0 0 1 0 0 0 -300 
+1 0 1 0 0 0 0 0 0 
+1 0 -1 0 1 0 0 0 -1 
+1 0 0 0 0 1 0 0 -300 
+1 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 0 1 -500 
+
+--- Dep 13 from S3 to S3; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+7 8
+0 -1 1 0 0 0 0 -1 
+1 1 0 0 0 0 0 0 
+1 -1 0 1 0 0 0 -4 
+1 0 0 1 0 0 0 -300 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 1 -500 
+
+--- Dep 14 from S4 to S5; satisfied: 0, sat level: -1; Type: WAR
+on variable: C
+Dependence polyhedron
+15 12
+0 0 0 -1 0 1 0 0 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 0 0 
+0 -1 1 0 0 0 0 0 0 0 0 -1 
+1 1 0 0 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 0 0 1 0 0 -1 
+1 0 0 0 0 0 0 0 1 0 0 -300 
+1 0 0 0 0 0 0 1 0 0 0 -300 
+1 -1 0 0 0 0 0 0 0 1 0 -2 
+1 0 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 1 0 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 1 0 0 -3 
+1 0 0 0 0 0 0 0 0 0 1 -500 
+1 0 0 0 0 0 -1 0 0 0 1 -1 
+1 0 0 0 0 0 1 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 0 0 1 -1 
+
+--- Dep 15 from S1 to S3; satisfied: 0, sat level: -1; Type: WAW
+on variable: A
+Dependence polyhedron
+7 8
+0 -1 1 0 0 0 0 0 
+1 1 0 0 0 0 0 0 
+1 -1 0 1 0 0 0 -3 
+1 0 0 1 0 0 0 -300 
+1 0 0 0 1 0 0 -300 
+1 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 1 -500 
+
+--- Dep 16 from S2 to S4; satisfied: 0, sat level: -1; Type: WAW
+on variable: B
+Dependence polyhedron
+14 11
+0 -1 0 0 0 1 0 0 0 0 0 
+0 0 -1 1 0 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 0 
+1 -1 0 0 0 0 1 0 0 0 -3 
+1 0 0 0 0 0 1 0 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 -2 
+1 0 -1 0 0 0 1 0 0 0 -1 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 0 0 0 1 -500 
+1 -1 0 0 0 0 0 1 0 0 -3 
+1 0 -1 0 0 0 0 1 0 0 -1 
+1 0 0 0 -1 0 0 0 1 0 -1 
+1 0 0 0 1 0 0 0 0 0 0 
+
+--- Dep 17 from S4 to S4; satisfied: 0, sat level: -1; Type: WAW
+on variable: B
+Dependence polyhedron
+15 12
+0 0 0 -1 0 0 1 0 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 0 -2 
+1 -1 0 0 0 0 0 0 1 0 0 -1 
+1 0 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 0 0 
+1 0 -1 0 0 0 0 0 0 1 0 -1 
+1 0 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 1 0 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 1 0 0 -3 
+1 0 0 0 0 0 0 0 0 0 1 -500 
+1 0 0 0 0 0 0 1 0 0 0 -300 
+1 0 0 0 0 -1 0 0 0 1 0 -1 
+1 0 0 0 0 1 0 0 0 0 0 0 
+1 0 -1 0 0 1 0 0 0 0 0 -1 
+
+--- Dep 18 from S5 to S5; satisfied: 0,

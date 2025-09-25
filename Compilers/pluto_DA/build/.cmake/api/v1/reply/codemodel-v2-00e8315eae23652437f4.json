@@ -103,8 +103,8 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/build",
-		"source" : "/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/openscop"
+		"build" : "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/build",
+		"source" : "/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop"
 	},
 	"version" : 
 	{

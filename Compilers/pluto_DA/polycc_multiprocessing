@@ -13,9 +13,9 @@
 # Available under GNU GPL version 3 or (at your option) any later version
 # 
 
-pluto=/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/src/pluto
-plann=/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/plann
-plorc=/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/plorc
+pluto=/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/src/pluto
+plann=/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/plann
+plorc=/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/plorc
 
 # Some additional setup here to ensure that variables are visible outside of the run function
 SOURCEFILE=""
@@ -102,16 +102,16 @@ PLUTOOUT=$OUTFILE
 
 # generate and insert unrolling annotations, run ancc on it,
 if [ "$UNROLL" == 1 ]; then
-    $plorc $PLUTOOUT /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/orio-0.1.0
+    $plorc $PLUTOOUT /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/orio-0.1.0
 fi
 
 #if [ "$UNROLL" == 1 ]; then
-    #$plann $PLUTOOUT /home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/annotations
+    #$plann $PLUTOOUT /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/annotations
 #fi
 
 
 # put the original skeleton around the transformed code
-/home/zyj/Data0/Dataset/loop_generator/Compilers/pluto_DA/inscop_multiprocessing $SOURCEFILE $OUTFILE $OUTFILE $TILE $INTRATILEOPT $INNERPAR $FUSE
+/home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/inscop_multiprocessing $SOURCEFILE $OUTFILE $OUTFILE $TILE $INTRATILEOPT $INNERPAR $FUSE
 
 if [ "$INDENT" == 1 ] && [ -x /usr/bin/indent ]; then
     indent -kr -br -ce -l125 $OUTFILE

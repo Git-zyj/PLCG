@@ -1,0 +1,30 @@
+[zyj-debug] Before affine transformations
+nvar = 1, npar = 1
+Parameters: PB_M 
+S1 "A[i] = A[i] + 4;"
+ndims: 1; orig_depth: 1
+iterators: i
+Index set
+3 4
+1 1 0 0 
+1 -1 1 -1 
+1 0 1 -1 
+T(S1): (0, i, 0)
+loop types (loop, loop, loop)
+
+Read accesses
+A[i]
+Write accesses
+A[i]
+Original loop: 0 -> yes
+
+** No dependences **
+
+
+[zyj-debug] After affine transformations
+T(S1): (zT1, i)
+loop types (loop, loop)
+
+t1 --> parallel loop   (band 0)no-ujam
+t2 --> parallel loop   (band 0)no-ujam
+

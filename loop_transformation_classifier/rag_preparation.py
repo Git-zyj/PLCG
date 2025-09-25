@@ -11,7 +11,7 @@ import multiprocessing as mp
 import itertools as it
 
 parser_description = '''
-For dataset selection based on applied loop transformations for LOOPRAG
+For dataset selection based on applied loop transformations for LoopRAG
 '''
     
 parser = ap.ArgumentParser(parser_description)

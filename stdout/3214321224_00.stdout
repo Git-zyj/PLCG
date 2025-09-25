@@ -1,0 +1,161 @@
+[zyj-debug] Before affine transformations
+nvar = 3, npar = 3
+Parameters: PB_P PB_L PB_M 
+S1 "A[j][k][i+1] = 4;"
+ndims: 3; orig_depth: 3
+iterators: i, j, k
+Index set
+9 8
+1 1 0 0 0 0 0 1 
+1 -1 0 0 1 0 0 -2 
+1 0 0 0 1 0 0 -1 
+1 0 1 0 0 0 0 0 
+1 1 -1 0 0 0 0 -1 
+1 1 0 0 0 0 0 -1 
+1 0 0 1 0 0 0 0 
+1 0 0 -1 0 1 0 -1 
+1 0 0 0 0 1 0 -1 
+T(S1): (0, i, 0, j, 0, k, 0)
+loop types (loop, loop, loop, loop, loop, loop, loop)
+
+No Read accesses
+Write accesses
+A[j][k][i+1]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+Original loop: 2 -> yes
+
+S2 "A[m+1][l+1][l+1] = A[m+1][l+1][l+1] - 2;"
+ndims: 3; orig_depth: 3
+iterators: l, m, n
+Index set
+9 8
+1 1 0 0 0 0 0 1 
+1 -1 0 0 1 0 0 -2 
+1 0 0 0 1 0 0 -1 
+1 0 1 0 0 0 0 0 
+1 1 -1 0 0 0 0 -1 
+1 1 0 0 0 0 0 -1 
+1 0 0 1 0 0 0 0 
+1 0 0 -1 0 0 1 -1 
+1 0 0 0 0 0 1 -1 
+T(S2): (1, l, 0, m, 0, n, 0)
+loop types (loop, loop, loop, loop, loop, loop, loop)
+
+Read accesses
+A[m+1][l+1][l+1]
+Write accesses
+A[m+1][l+1][l+1]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+Original loop: 2 -> yes
+
+--- Dep 1 from S1 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: A
+Dependence polyhedron
+13 11
+0 0 -1 0 0 1 0 0 0 0 1 
+0 -1 0 0 1 0 0 0 0 0 0 
+0 -1 0 1 0 0 0 0 0 0 -1 
+1 1 0 0 0 0 0 0 0 0 -1 
+1 -1 0 0 0 0 0 1 0 0 -2 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 -1 0 0 1 -1 
+1 -1 0 0 0 0 0 0 1 0 -2 
+1 0 0 0 0 0 0 0 0 1 -300 
+1 0 0 0 0 0 1 0 0 0 0 
+
+--- Dep 2 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: A
+Dependence polyhedron
+14 11
+0 0 -1 0 0 1 0 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 -1 
+1 -1 0 0 0 0 0 1 0 0 -2 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 0 
+1 1 -1 0 0 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 0 0 1 -300 
+1 0 0 1 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 0 1 -1 
+1 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 -1 0 0 1 -1 
+1 0 0 0 0 0 1 0 0 0 0 
+1 0 0 -1 0 0 1 0 0 0 -1 
+
+--- Dep 3 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: A
+Dependence polyhedron
+14 11
+0 0 -1 0 0 1 0 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 -1 
+1 -1 0 0 0 0 0 1 0 0 -2 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 0 
+1 1 -1 0 0 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 0 0 1 -300 
+1 0 0 1 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 0 1 -1 
+1 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 -1 0 0 1 -1 
+1 0 0 0 0 0 1 0 0 0 0 
+1 0 0 -1 0 0 1 0 0 0 -1 
+
+--- Dep 4 from S1 to S2; satisfied: 0, sat level: -1; Type: WAW
+on variable: A
+Dependence polyhedron
+13 11
+0 0 -1 0 0 1 0 0 0 0 1 
+0 -1 0 0 1 0 0 0 0 0 0 
+0 -1 0 1 0 0 0 0 0 0 -1 
+1 1 0 0 0 0 0 0 0 0 -1 
+1 -1 0 0 0 0 0 1 0 0 -2 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 -1 
+1 1 -1 0 0 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 -1 0 0 1 -1 
+1 -1 0 0 0 0 0 0 1 0 -2 
+1 0 0 0 0 0 0 0 0 1 -300 
+1 0 0 0 0 0 1 0 0 0 0 
+
+--- Dep 5 from S2 to S2; satisfied: 0, sat level: -1; Type: WAW
+on variable: A
+Dependence polyhedron
+14 11
+0 0 -1 0 0 1 0 0 0 0 0 
+0 -1 0 0 1 0 0 0 0 0 0 
+1 1 0 0 0 0 0 0 0 0 -1 
+1 -1 0 0 0 0 0 1 0 0 -2 
+1 0 0 0 0 0 0 1 0 0 -300 
+1 0 1 0 0 0 0 0 0 0 0 
+1 1 -1 0 0 0 0 0 0 0 -1 
+1 0 0 0 0 0 0 0 0 1 -300 
+1 0 0 1 0 0 0 0 0 0 0 
+1 0 0 -1 0 0 0 0 0 1 -1 
+1 0 0 0 0 0 0 0 1 0 -500 
+1 0 0 0 0 0 -1 0 0 1 -1 
+1 0 0 0 0 0 1 0 0 0 0 
+1 0 0 -1 0 0 1 0 0 0 -1 
+
+
+[zyj-debug] After affine transformations
+T(S1): (zT3, zT4, zT5, i, j, k, 0)
+loop types (loop, loop, loop, loop, loop, loop, scalar)
+
+T(S2): (zT3, zT4, zT5, l, m+1, l+n+1, 1)
+loop types (loop, loop, loop, loop, loop, loop, scalar)
+
+t1 --> parallel loop   (band 0)no-ujam
+t2 --> parallel loop   (band 0)no-ujam
+t3 --> fwd_dep  loop   (band 0)no-ujam
+t4 --> parallel loop   (band 0)no-ujam
+t5 --> parallel loop   (band 0)no-ujam
+t6 --> fwd_dep  loop   (band 0)no-ujam
+t7 --> fwd_dep  scalar (band 0)no-ujam
+
