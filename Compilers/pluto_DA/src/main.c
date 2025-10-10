@@ -234,8 +234,8 @@ osl_scop_p get_params_info(FILE *header_fp, osl_scop_p scop){
                 
                 format_checkpoint = 0;
 
-                // fprintf(stdout, "param_name: %s\n", param_name);
-                // fprintf(stdout, "param_val: %s\n", param_val);
+                fprintf(stdout, "param_name: %s\n", param_name);
+                fprintf(stdout, "param_val: %s\n", param_val);
 
                 for (int i = 0; i < scop->context->nb_parameters; i++) {
                     //# define PB_N (long long)1000

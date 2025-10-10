@@ -40,13 +40,13 @@ class CodeGenerator:
         
         self.extract_instructions()
         # print(f'[zyj-debug] arrays_write: {self.arrays_total.arrays_write}\n')
-        # print(f'[zyj-debug] arrays_read: {self.arrays_total.arrays_read}\n')
+        print(f'[zyj-debug] arrays_read: {self.arrays_total.arrays_read}\n')
         
         self.create_bounds_data()
         # print(f'[zyj-debug] bounds_data: {self.bounds_data}\n')
         
         arrays_in_stmts = self.parse_arrays()
-        # print(f'[zyj-debug] arrays_in_stmts: {arrays_in_stmts}\n')
+        print(f'[zyj-debug] arrays_in_stmts: {arrays_in_stmts}\n')
         
         self.convert_statements_to_expressions(arrays_in_stmts)
         # print(f'[zyj-debug] loop_body: {self.SCoP}\n')
@@ -297,7 +297,7 @@ class CodeGenerator:
             array_write in stmt {0}: array_name = 'A', array_access_function = [[2, 0, 0, -3], [1, 1, 1, 8]]
             -> 'A', [[2, 0, 0, -2], [1, 1, 1, 7]]
         """
-        # print(f'[zyj-debug] get_initial_array_info:\n array_data: {array_data}\n')
+        print(f'[zyj-debug] get_initial_array_info:\n array_data: {array_data}\n')
         
         array_write = self.arrays_total.arrays_write[array_data.write_stmt_id] 
         if not array_write.array_access_function:
@@ -307,11 +307,12 @@ class CodeGenerator:
         array_name = array_write.array_name
         
         if array_data.distance:
-            terms = self.generate_terms(range(len(array_data.distance)), max_degree)
-            self.apply_offsets_to_coeffs(array_access_function, terms, array_data.distance)
+            terms = self.generate_terms(range(len(array_access_function[0])-1), max_degree) # 获取和access function对应变量维数的基项
+            print(array_access_function, terms, array_data.distance)
+            array_access_function = self.apply_offsets_to_coeffs(array_access_function, terms, array_data.distance)
             
         array_data = ArrayData(array_name = array_name, array_access_function = array_access_function)
-        # print(f'[zyj-debug] get_initial_array_info:\n new array_data: {array_data}\n')
+        print(f'[zyj-debug] get_initial_array_info:\n new array_data: {array_data}\n')
         
         return array_data
 

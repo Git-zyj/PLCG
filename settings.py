@@ -24,8 +24,9 @@ params_multiplier = [1e3, 10, 10]
 
 # 固定参数 （TODO 部分调整为可变参数）
 depth_min = 1 # 最小循环深度
-max_degree = 2 # 最高次数（1=线性，2=二次）
-enable_multi_terms = True # 是否允许多基项
+prob_array_depth = [0.4, 0.6] # 维数为循环维度-1的数组生成概率：维数为循环维度的数组生成概率
+max_degree = 1 # 最高次数（1=线性，2=二次）
+enable_multi_terms = False # 是否允许多基项
 max_terms_per_func = 3 # 每个函数最多基项数（若启用多基项）
 
 header_string = r'''# if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
@@ -157,9 +158,10 @@ class Schedule_tree:
         # # 对数加权
         # weight = math.log1p(child_count - 1) / math.log1p(5)  # 以log(1+5)为基
         # weighted_prob = base_prob + (1 - base_prob) * (1 - 1 / (1 + weight)) # 大致为1：50%，2：58%，3：64%，...，6：75%
+        
         # 指数加权
         weighted_prob = 1 - (1 - base_prob) * 2 ** (1 - (child_count + 3) / 4) # 以2为底，大致为1：50%，2：58%，3：65%，...，5：75%
-        print(base_prob, child_count, weighted_prob)
+        
         # weighted_prob = base_prob
         return weighted_prob
 
@@ -200,6 +202,8 @@ class Schedule_tree:
             if visited:
                 if not node.children:  # 叶节点
                     node.cond_prob = base_prob
+                    # print(f'[zyj-debug] leaf node content:\n{node.content}')
+                    # print(f'[zyj-debug] leaf node prob:\n{node.cond_prob}\n')
                 else:
                     post_stack.append(node)
                     
@@ -207,6 +211,9 @@ class Schedule_tree:
                 stack.append((node, True))
                 for child in reversed(node.children):
                     stack.append((child, False))
+        
+        # scop_branch = '\n'.join(self.extract_tree('branch'))
+        # print(f'[zyj-debug] scop with branch:\n{scop_branch}\n')
         
         # 第二阶段：从叶节点到根节点的反向传播
         for node in post_stack:
@@ -219,12 +226,21 @@ class Schedule_tree:
             for child in node.children:
                 if child.cond:
                     decay *= decay_factor
-            # print(node.content, node.cond_prob, decay)
+            
             # 计算加权概率
-            node.cond_prob = self.calculate_weighted_cond_prob(
+            weighted_prob = self.calculate_weighted_cond_prob(
                 len(node.children), 
                 node.cond_prob * decay
             )
+            
+            print('============')
+            print(f'[zyj-debug] node content:\n{node.content}\n')
+            print(f'[zyj-debug] base prob after decay:\n{node.cond_prob:.2f} * {decay} = {node.cond_prob*decay:.2f}\n')
+            print(f'[zyj-debug] number of children of node:\n{len(node.children)}\n')
+            print(f'[zyj-debug] prob after weighted:\n{weighted_prob:.2f}\n')
+            print('============')
+            
+            node.cond_prob = weighted_prob
             # print(decay)
             
             if node == self.root:
@@ -265,7 +281,7 @@ class Schedule_tree:
             prints.append(f'{prefix}{node.sequence}')
         elif flag == 'branch':
             cond_prob = f" (Prob: {node.cond_prob:.2f})" if hasattr(node, 'cond_prob') else ""
-            prints.append(f'{prefix}{node.sequence} {cond_prob}')
+            prints.append(f'{prefix}{node.content} {cond_prob}')
         elif flag == 'code':
             prints.append(f'{prefix}{node.content}')
         

@@ -1,95 +1,141 @@
+/**
+ * This version is stamped on May 10, 2016
+ *
+ * Contact:
+ *   Louis-Noel Pouchet <pouchet.ohio-state.edu>
+ *   Tomofumi Yuki <tomofumi.yuki.fr>
+ *
+ * Web address: http://polybench.sourceforge.net
+ */
+/* jacobi-1d.c: this file is part of PolyBench/C */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
+
+/* Include polybench common header. */
 #include <polybench.h>
-#include <stdio.h>
-#include <time.h>
-#include <stdlib.h>
-#include "3214331112_2.h"
-#define max(x,y)    ((x) > (y)? (x) : (y))
-#define min(x,y)    ((x) < (y)? (x) : (y))
-#ifndef USE_INIT_SEED
-#define INIT_SEED time(NULL)
+
+/* Include benchmark-specific header. */
+#include "jacobi-1d.h"
+
+#include <omp.h>
+#define ceild(n,d)  ceil(((double)(n))/((double)(d)))
+#define floord(n,d) floor(((double)(n))/((double)(d)))
+#define max(x,y) ((x) > (y)? (x) : (y))
+#define min(x,y) ((x) < (y)? (x) : (y))
+#ifndef POLYBENCH_DUMP_ARRAYS
+#define DUMP 0
 #else
-#define INIT_SEED atoi(argv[1])
+#define DUMP 1
 #endif
-static void init_array(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xb,DATA_TYPE POLYBENCH_1D(B,xB,xb),int xc,int yc,DATA_TYPE POLYBENCH_2D(C,xC,yC,xc,yc),int seed)
+#ifndef POLYBENCH_CHECKSUM_ARRAYS
+#define CHECKSUM 0
+#else
+#define CHECKSUM 1
+#endif
+
+
+/* Array initialization. */
+static
+void init_array (int n,
+		 DATA_TYPE POLYBENCH_1D(A,N,n),
+		 DATA_TYPE POLYBENCH_1D(B,N,n))
 {
-srand(seed);
-int i,j,k,l;
-for (i = 0; i < xa; i++) {
-for (j = 0; j < ya; j++) {
-A[i][j] = rand()%3;;
-}}
-for (i = 0; i < xb; i++) {
-B[i] = rand()%3;;
+  int i;
+
+  for (i = 0; i < n; i++)
+      {
+	A[i] = ((DATA_TYPE) i+ 2) / n;
+	B[i] = ((DATA_TYPE) i+ 3) / n;
+      }
 }
-for (i = 0; i < xc; i++) {
-for (j = 0; j < yc; j++) {
-C[i][j] = rand()%3;;
-}}
-}
-static void print_array(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xb,DATA_TYPE POLYBENCH_1D(B,xB,xb),int xc,int yc,DATA_TYPE POLYBENCH_2D(C,xC,yC,xc,yc))
+
+
+/* DCE code. Must scan the entire live-out data.
+   Can be used also to check the correctness of the output. */
+static
+void print_array(int n,
+		 DATA_TYPE POLYBENCH_1D(A,N,n))
+
 {
-int i,j,k,l;
-POLYBENCH_DUMP_START;
-POLYBENCH_DUMP_BEGIN("A");
-for (i = 0; i < xa; i++) {
-for (j = 0; j < ya; j++) {
-fprintf (POLYBENCH_DUMP_TARGET, "\n");
-fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, A[i][j]);
-}}
-POLYBENCH_DUMP_END("A");
-POLYBENCH_DUMP_FINISH;
-POLYBENCH_DUMP_START;
-POLYBENCH_DUMP_BEGIN("B");
-for (i = 0; i < xb; i++) {
-fprintf (POLYBENCH_DUMP_TARGET, "\n");
-fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, B[i]);
+  int i;
+
+  POLYBENCH_DUMP_START;
+  POLYBENCH_DUMP_BEGIN("A");
+  DATA_TYPE tmp_A = 0;
+  for (i = 0; i < n; i++)
+    {
+    if (DUMP) {
+        if (i % 20 == 0) fprintf(POLYBENCH_DUMP_TARGET, "\n");
+        fprintf(POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, A[i]);
+    }
+    if (CHECKSUM) tmp_A += A[i];
+    }
+  if (CHECKSUM) {
+    fprintf(POLYBENCH_DUMP_TARGET,"\nchecksum: ");
+    fprintf(POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, tmp_A);
+  }
+  POLYBENCH_DUMP_END("A");
+  POLYBENCH_DUMP_FINISH;
 }
-POLYBENCH_DUMP_END("B");
-POLYBENCH_DUMP_FINISH;
-POLYBENCH_DUMP_START;
-POLYBENCH_DUMP_BEGIN("C");
-for (i = 0; i < xc; i++) {
-for (j = 0; j < yc; j++) {
-fprintf (POLYBENCH_DUMP_TARGET, "\n");
-fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, C[i][j]);
-}}
-POLYBENCH_DUMP_END("C");
-POLYBENCH_DUMP_FINISH;
-}
-void kernel_3214331112_2(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xb,DATA_TYPE POLYBENCH_1D(B,xB,xb),int xc,int yc,DATA_TYPE POLYBENCH_2D(C,xC,yC,xc,yc)){
-polybench_start_instruments;
+
+
+/* Main computational kernel. The whole function will be timed,
+   including the call and return. */
+static
+void kernel_jacobi_1d(int tsteps,
+			    int n,
+			    DATA_TYPE POLYBENCH_1D(A,N,n),
+			    DATA_TYPE POLYBENCH_1D(B,N,n))
+{
+  int t, i;
+
 #pragma scop
-for (int i = 2; i < PB_N; i++) {
-    for (int j = 0; j < PB_M-1; j++) {
-        A[i-1][i] = A[i-2][i] + B[i] - C[i][j+1] + C[i][j] * 6;
+  for (t = 0; t < _PB_TSTEPS; t++)
+    {
+      for (i = 1; i < _PB_N - 1; i++)
+	B[i] = 0.33333 * (A[i-1] + A[i] + A[i + 1]);
+      for (i = 1; i < _PB_N - 1; i++)
+	A[i] = 0.33333 * (B[i-1] + B[i] + B[i + 1]);
     }
-    for (int k = 0; k < PB_M-1; k++) {
-        A[k+1][k] = A[i][k] - C[k][k+1] * C[k+1][i] * 4;
-    }
-}
 #pragma endscop
-polybench_stop_instruments;
-polybench_print_instruments;
+
 }
+
+
 int main(int argc, char** argv)
 {
-int xa = xA;
-int ya = yA;
-int xb = xB;
-int xc = xC;
-int yc = yC;
-POLYBENCH_2D_ARRAY_DECL(A, DATA_TYPE,xA,yA,xa,ya);
-POLYBENCH_1D_ARRAY_DECL(B, DATA_TYPE,xB,xb);
-POLYBENCH_2D_ARRAY_DECL(C, DATA_TYPE,xC,yC,xc,yc);
-init_array(xa,ya,POLYBENCH_ARRAY(A),xb,POLYBENCH_ARRAY(B),xc,yc,POLYBENCH_ARRAY(C),INIT_SEED);
-kernel_3214331112_2(xa,ya,POLYBENCH_ARRAY(A),xb,POLYBENCH_ARRAY(B),xc,yc,POLYBENCH_ARRAY(C));
-polybench_prevent_dce(print_array(xa,ya,POLYBENCH_ARRAY(A),xb,POLYBENCH_ARRAY(B),xc,yc,POLYBENCH_ARRAY(C)));
-POLYBENCH_FREE_ARRAY(A);
-POLYBENCH_FREE_ARRAY(B);
-POLYBENCH_FREE_ARRAY(C);
-return 0;
+  /* Retrieve problem size. */
+  int n = N;
+  int tsteps = TSTEPS;
+
+  /* Variable declaration/allocation. */
+  POLYBENCH_1D_ARRAY_DECL(A, DATA_TYPE, N, n);
+  POLYBENCH_1D_ARRAY_DECL(B, DATA_TYPE, N, n);
+
+
+  /* Initialize array(s). */
+  init_array (n, POLYBENCH_ARRAY(A), POLYBENCH_ARRAY(B));
+
+  /* Start timer. */
+  polybench_start_instruments;
+
+  /* Run kernel. */
+  kernel_jacobi_1d(tsteps, n, POLYBENCH_ARRAY(A), POLYBENCH_ARRAY(B));
+
+  /* Stop and print timer. */
+  polybench_stop_instruments;
+  polybench_print_instruments;
+
+  /* Prevent dead-code elimination. All live-out data must be printed
+     by the function call in argument. */
+  polybench_prevent_dce(print_array(n, POLYBENCH_ARRAY(A)));
+
+  /* Be clean. */
+  POLYBENCH_FREE_ARRAY(A);
+  POLYBENCH_FREE_ARRAY(B);
+
+  return 0;
 }

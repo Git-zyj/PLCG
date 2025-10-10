@@ -1,10 +1,69 @@
 import re
 import numpy as np
 
-
 class extraction_tools:
-    def __init__(self) -> None:   
+    def __init__(self) -> None:
         pass
+
+    def extract_stdout_from_string(self, stdout_content):
+        """
+        从字符串中提取stdout信息（类似extract_stdout，但不需要文件）
+        """
+        lines = stdout_content.splitlines()
+        if not lines:
+            raise ValueError("Stdout内容为空！")
+
+        text_schedules = '\n'
+        text_stmts = []
+        text_deps = []
+        csts_stmts = []
+        iterators = []
+
+        nlines = len(lines)
+        i = 0
+        while i < nlines:
+            if lines[i][:3] == 'T(S' or lines[i][:11] == '[zyj-debug]' or lines[i][:10] == 'loop types':
+                text_schedules += lines[i] + '\n'
+            elif re.match(r'S\d+ \".*\"\n', lines[i]):
+                text_stmts.append(lines[i].replace(' ', ''))
+                if i + 4 >= nlines:
+                    raise ValueError("pluto优化失败！")
+                output = re.search(r'iterators: (.+)\n', lines[i + 2])
+                if output:
+                    iterators += output[1].split(', ')
+                if lines[i + 3] == 'Index set\n':
+                    csts = lines[i + 5: i + int(lines[i + 4][0])]
+                    csts_stmts.append(np.array([x.split() for x in csts], dtype=int))
+                i += 4 + int(lines[i + 4][0])
+            elif lines[i][:8] == '--- Dep ':
+                if i + 1 >= nlines:
+                    raise ValueError("pluto优化失败！")
+                text_deps.append([lines[i], lines[i + 1]])
+                i += 1
+            i += 1
+
+        iterators_set = list(set(iterators))
+        iterators_set.sort(key=iterators.index)
+        iterators = iterators_set
+
+        scops = []
+        info_before = re.findall(r'\[zyj-debug\] Before affine transformations\n(.*?)(?=\[zyj-debug\] After affine transformations\n)', text_schedules, re.DOTALL)
+        info_after = re.findall(r'\[zyj-debug\] After affine transformations\n(.*)', text_schedules, re.DOTALL)
+        if info_before and info_after:
+            scops.append(info_before[0])
+            scops.append(info_after[0])
+        else:
+            raise ValueError("pluto优化失败！")
+
+        schedules = []
+        loop_types = []
+        for i in range(2):
+            stmts = re.findall(r'T\(S\d+\):\s\((.*?)\)', scops[i])
+            schedules.append([stmt.split(', ') for stmt in stmts])
+            types_stmts = re.findall(r'loop types\s\((.*?)\)', scops[i])
+            loop_types.append([types_stmt.split(', ') for types_stmt in types_stmts])
+
+        return iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types
     
     def get_info(self, file_name, folder_stdout_path = './'):
         try :
