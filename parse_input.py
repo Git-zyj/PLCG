@@ -10,6 +10,7 @@ from typing import List, Tuple, Optional
 @dataclass
 class DataClass:
     params: dict
+    max_degree: int
     arrays: List
     instructions: List
     type: Optional[str] = "float"

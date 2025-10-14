@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Set, Union, Optional
 import math
 import random
 from collections import deque, defaultdict
+import numpy as np
 
 PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 # DATASET_PATH = "/home/zyj/Data0/Dataset_fuzzing" # PROJECT_PATH replace if needed
@@ -28,6 +29,7 @@ prob_array_depth = [0.4, 0.6] # 维数为循环维度-1的数组生成概率：�
 max_degree = 1 # 最高次数（1=线性，2=二次）
 enable_multi_terms = False # 是否允许多基项
 max_terms_per_func = 3 # 每个函数最多基项数（若启用多基项）
+enable_reverse_dim = False
 
 header_string = r'''# if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
 #  define DATA_TYPE_IS_DOUBLE
@@ -54,8 +56,8 @@ header_string = r'''# if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_D
 @dataclass(eq=True, frozen=True)
 class ArrayData:
     array_name: Union[list, str] = None
-    array_access_function: Tuple[Tuple] = None
-    distance: Tuple = None
+    array_access_function: np.ndarray = None
+    distance: np.ndarray = None
     write_stmt_id: int = None
 
 @dataclass
@@ -63,17 +65,29 @@ class Arrays_total:
     arrays_write: Dict[int, ArrayData] = None
     arrays_read: Dict[int, List] = None
     
+    def validate_dependence(self, filename: str) -> None:
+        """验证依赖关系的合理性"""
+        for stmt_id in self.arrays_write:
+            check_output = self.check_array_dependence(stmt_id)
+            if check_output != -1:
+                if check_output[1] == 0:
+                    error_msg = f'Stmt {check_output[0]}: No additional computation or dependence info for Write array in file {filename}.'
+                    raise ValueError(error_msg)
+                elif check_output[1] == 1:
+                    error_msg = f'Stmt {check_output[0]}: No available dependence or additional computation info for Write array in file {filename}'
+                    raise ValueError(error_msg)
+    
     def check_array_dependence(self, stmt_id: int, check_list: Set[int] = set()) -> Union[bool, List]:
         array_data = self.arrays_write[stmt_id]
         # print(f'[zyj-debug] check_array_dependence:\n array_data: {array_data}\n')
         if array_data.write_stmt_id == None:
-            if not array_data.array_access_function:
+            if array_data.array_access_function is None:
                 return [stmt_id, 0]
             else:
                 return -1 # find available dest
             
         elif stmt_id in check_list:
-            if not array_data.array_access_function:
+            if array_data.array_access_function is None:
                 return [stmt_id, 1]
             else:
                 # print(f'[zyj-debug] Stmt {stmt_id}: Drop the dependence info since get cycle dep here\n')
@@ -85,14 +99,14 @@ class Arrays_total:
             check_output = self.check_array_dependence(array_data.write_stmt_id, check_list)
             if check_output != -1:
                 if check_output != -2:
-                    if not array_data.array_access_function:
+                    if array_data.array_access_function is None:
                         return [stmt_id, 1]
                     else:
                         # print(f'[zyj-debug] Stmt {stmt_id}: Drop the dependence info since dependence is not available here\n')
                         self.arrays_write[stmt_id] = ArrayData(array_name = array_data.array_name, array_access_function = array_data.array_access_function)
                         # print(f'[zyj-debug] check_array_dependence:\n new array_data: {self.arrays_write[stmt_id]}\n')
                         return -2 # have to drop dependence           
-            elif array_data.array_access_function:
+            elif not array_data.array_access_function is None:
                 # print(f'[zyj-debug] Stmt {stmt_id}: Drop the additional computation info since get available dependence here\n')
                 self.arrays_write[stmt_id] = ArrayData(distance = array_data.distance, write_stmt_id = array_data.write_stmt_id)
                 # print(f'[zyj-debug] check_array_dependence:\n new array_data: {self.arrays_write[stmt_id]}\n')
@@ -233,12 +247,12 @@ class Schedule_tree:
                 node.cond_prob * decay
             )
             
-            print('============')
-            print(f'[zyj-debug] node content:\n{node.content}\n')
-            print(f'[zyj-debug] base prob after decay:\n{node.cond_prob:.2f} * {decay} = {node.cond_prob*decay:.2f}\n')
-            print(f'[zyj-debug] number of children of node:\n{len(node.children)}\n')
-            print(f'[zyj-debug] prob after weighted:\n{weighted_prob:.2f}\n')
-            print('============')
+            # print('============')
+            # print(f'[zyj-debug] node content:\n{node.content}\n')
+            # print(f'[zyj-debug] base prob after decay:\n{node.cond_prob:.2f} * {decay} = {node.cond_prob*decay:.2f}\n')
+            # print(f'[zyj-debug] number of children of node:\n{len(node.children)}\n')
+            # print(f'[zyj-debug] prob after weighted:\n{weighted_prob:.2f}\n')
+            # print('============')
             
             node.cond_prob = weighted_prob
             # print(decay)
@@ -276,14 +290,14 @@ class Schedule_tree:
         
         if not node:
             node = self.root
-            
-        if flag == 'init':
-            prints.append(f'{prefix}{node.sequence}')
-        elif flag == 'branch':
-            cond_prob = f" (Prob: {node.cond_prob:.2f})" if hasattr(node, 'cond_prob') else ""
-            prints.append(f'{prefix}{node.content} {cond_prob}')
-        elif flag == 'code':
-            prints.append(f'{prefix}{node.content}')
+        else:
+            if flag == 'init':
+                prints.append(f'{prefix}{node.sequence}')
+            elif flag == 'branch':
+                cond_prob = f" (Prob: {node.cond_prob:.2f})" if hasattr(node, 'cond_prob') else ""
+                prints.append(f'{prefix}{node.content} {cond_prob}')
+            elif flag == 'code':
+                prints.append(f'{prefix}{node.content}')
         
         if flag == 'code' and node.children and not level == 0:
             prints[-1] += ' {'

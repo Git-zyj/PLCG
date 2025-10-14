@@ -1,3 +1,0 @@
-Time for loop synthesis: 0.008078336715698242 s
-Files in /data/zyj/loop_transformation/loop_generator/input: 1
-Files in /data/zyj/loop_transformation/loop_generator/poly_code: 3

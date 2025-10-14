@@ -8,6 +8,7 @@ import itertools as it
 import time
 import subprocess as sp
 import datetime
+import logging
 
 today = datetime.datetime.now().strftime('%m%d')
 
@@ -26,8 +27,8 @@ if not os.path.exists(target_path):
 os.system(f'rsync -r --delete {empty_path}/ {json_input_path}/')
 os.system(f'rsync -r --delete {empty_path}/ {target_path}/')
 
-random_json_generator = Json_generator()
-c_code_generator = CodeGenerator()
+random_json_generator = Json_generator(log_level=logging.DEBUG)
+c_code_generator = CodeGenerator(log_level=logging.DEBUG)
 
 random.seed(0)
 
