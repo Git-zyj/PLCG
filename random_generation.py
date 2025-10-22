@@ -9,6 +9,7 @@ import time
 import subprocess as sp
 import datetime
 import logging
+import numpy as np
 
 today = datetime.datetime.now().strftime('%m%d')
 
@@ -31,6 +32,7 @@ random_json_generator = Json_generator(log_level=logging.DEBUG)
 c_code_generator = CodeGenerator(log_level=logging.DEBUG)
 
 random.seed(0)
+np.random.seed(0)
 
 def pool_err_call_back(err):
     print(f'error while multiprocessing: {str(err)}.\n')
@@ -40,8 +42,8 @@ def count_files(path):
     file_count = sum(1 for line in result.stdout.splitlines() if line.startswith('-'))
     return file_count
 
-def generate_files(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_narrays_read, arg_bounds_coef, arg_ndeps_read, arg_bounds_distance, arg_prob_dep_write_exist, id):
-    file_path = random_json_generator.generate_json_file(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_narrays_read, arg_bounds_coef, arg_ndeps_read, arg_bounds_distance, arg_prob_dep_write_exist, id)
+def generate_files(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_avg_narrays_read_per_stmt, arg_bounds_coef, arg_avg_ndeps_read_per_stmt, arg_bounds_distance, arg_prob_dep_write_exist, id):
+    file_path = random_json_generator.generate_json_file(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_avg_narrays_read_per_stmt, arg_bounds_coef, arg_avg_ndeps_read_per_stmt, arg_bounds_distance, arg_prob_dep_write_exist, id)
     c_code_generator.generate_c_code(file_path)
 
 def main(option = 0):
@@ -53,31 +55,35 @@ def main(option = 0):
         c_code_generator.generate_c_code(file_path)
 
     elif option == 1:
+        # 6
+        for arg_depth in range(2, 4):
+            for arg_nstmts in range(1, 4):
+                file_path = random_json_generator.generate_json_file(arg_depth=arg_depth, arg_nstmts=arg_nstmts)
+                c_code_generator.generate_c_code(file_path)
+                
+    elif option == 2:
         # 36
         for arg_depth in range(3, 4):
             for arg_nstmts in range(1, 7):
                 for arg_bounds_index in range(1, 4):
-                    for _ in range(2, 7, 2):
+                    for arg_prob_dep_write_exist in range(2, 7, 2):
                         for arg_narrays_per_dim in range(1, 4):
                             # print(arg_depth, arg_nstmts, arg_bounds_index, arg_narrays_per_dim)
-                            file_path = random_json_generator.generate_json_file(arg_depth=arg_depth, arg_nstmts=arg_nstmts, arg_bounds_index=arg_bounds_index, arg_narrays_per_dim=arg_narrays_per_dim, arg_prob_dep_write_exist=_)
-                            try:
-                                c_code_generator.generate_c_code(file_path)
-                            except Exception as e:
-                                print(f"An unexpected error occurred for {file_path}: {str(e)}")
+                            file_path = random_json_generator.generate_json_file(arg_depth=arg_depth, arg_nstmts=arg_nstmts, arg_bounds_index=arg_bounds_index, arg_narrays_per_dim=arg_narrays_per_dim, arg_prob_dep_write_exist=arg_prob_dep_write_exist)
+                            c_code_generator.generate_c_code(file_path)
 
     # (*)arg_depth暂定为2,表示循环维度范围为(1,2)
     # (*)arg_nstmts暂定为3,表示语句数量为3
     # (*)arg_bounds_index暂定为2,表示调度序号范围为(0,1,2),影响语句的疏密程度
     # arg_prob_bounds_exist暂定为4,表示循环边界被指定的几率为40%
     # (*)arg_narrays_per_dim暂定为2,表示每种数组维度下待选数组数量为2,影响数组的疏密程度
-    # arg_narrays_read暂定为2,表示每条语句读数组数量范围为(0,1,2)
+    # arg_avg_narrays_read_per_stmt:每条语句平均读数组数量，暂定为1，表示指定生成的读数组数量（additional_computation类的）应当为1*arg_nstmts
     # arg_bounds_coef暂定为2,表示数组下标常量系数范围为(-2,-1,0,1,2)
-    # arg_ndeps_read暂定为2,表示每条语句读依赖数量范围为(0,1,2)
+    # arg_avg_ndeps_read_per_stmt:每条语句平均读依赖数量，暂定为2，表示指定生成的读依赖数量（validate之前）应当为2*arg_nstmts
     # arg_bounds_distance暂定为2,表示依赖距离范围为(-2,-1,0,1,2)
     # (*)arg_dep_write_exist暂定为4,表示每条语句写依赖存在概率为40%
 
-    elif option == 2:
+    elif option == 3:
         # 349920
         pool = mp.Pool()
         pool.starmap_async(generate_files, it.product( \
@@ -96,7 +102,7 @@ def main(option = 0):
         pool.close()
         pool.join()
         
-    elif option == 3:
+    elif option == 4:
         # 349920
         pool = mp.Pool()
         pool.starmap_async(generate_files, it.product( \
@@ -125,6 +131,6 @@ def main(option = 0):
         
 if __name__ == "__main__":
     
-    option = 0 # 2
+    option = 1 # 2
     
     main(option)

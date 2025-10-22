@@ -11,7 +11,7 @@ from typing import Dict, List, Set, Tuple, Optional, Any
 from itertools import product, combinations_with_replacement
 
 from parse_input import parse_data
-from settings import ArrayData, Arrays_total, Schedule_tree, json_input_path, target_path, enable_reverse_dim
+from settings import ArrayData, Arrays_total, Schedule_tree, json_input_path, target_path, enable_if_branch, enable_reverse_dim
 from polybench_files_generation import polybench_pipeline_single_file
 
 
@@ -47,9 +47,10 @@ class CodeGenerator:
     def generate_c_code(self, filename: str) -> None:
         self._reset_data()  # 每次生成代码前重置数据
         
-        self.logger.debug("\nStart code generation\n")
-        
         self.filename = filename
+        
+        # self.logger.debug(f"\nStart code generation for file {self.filename}\n")
+        
         self._parsed_data = parse_data(self.filename)
         # self.logger.debug(f'Generation start for "{self.filename}".\n')
         # self.logger.debug(f'_parsed_data: {self._parsed_data}\n')
@@ -62,7 +63,7 @@ class CodeGenerator:
         # self.logger.debug(f'bounds_data: {self.bounds_data}\n')
         
         arrays_in_stmts = self.parse_arrays()
-        self.logger.debug(f'arrays_in_stmts: {arrays_in_stmts}\n')
+        # self.logger.debug(f'arrays_in_stmts: {arrays_in_stmts}\n')
         
         self.convert_statements_to_expressions(arrays_in_stmts)
         # self.logger.debug(f'loop_body: {self.SCoP}\n')
@@ -87,7 +88,8 @@ class CodeGenerator:
         for i, instruction in enumerate(self._parsed_data.instructions):
             # self.logger.debug(f'instruction: {instruction}\n')
             schedules.append(instruction['schedule'])
-            branchs.append(instruction['branch'])
+            if enable_if_branch:
+                branchs.append(instruction['branch'])
             
             self.variables.append([instruction['schedule'][j] for j in range(len(instruction['schedule'])) if j % 2 == 1])
             
@@ -96,61 +98,36 @@ class CodeGenerator:
             if 'dependency' in instruction:
                 dependency = instruction['dependency']
                 for dep in dependency:
+                    array = ArrayData(array_id=dep['array_id'], distance=np.array(dep['distance']), write_stmt_id=dep['write_stmt_id'])
                     if dep['category'] == "write": # get source array info when dep in WAW, or get write array info when dep is WAR or RAW
-                        write_distance = np.array(dep['distance'])
-                        write_stmt_id = dep['write_stmt_id']
-                        write_array = ArrayData(distance=write_distance, write_stmt_id=write_stmt_id)
-                        self.arrays_total.arrays_write[i] = write_array
-                        break
-                self.extract_dependency(i, dependency)
+                        self.arrays_total.arrays_write[i] = array
+                    else:
+                        self.arrays_total.arrays_read[i].append(array)
 
             if 'additional_computation' in instruction:
                 additional_computation = instruction['additional_computation']
                 for comp in additional_computation:
-                    if comp['array_type'] == "write": # get write array info for stmt
-                        write_distance = write_stmt_id = None
-                        if self.arrays_total.arrays_write[i]:
-                            write_distance = np.array(self.arrays_total.arrays_write[i].distance)
-                            write_stmt_id = self.arrays_total.arrays_write[i].write_stmt_id
-                        write_name = comp['array_name']
-                        write_access = np.array(comp['array_access_function'])
-                        write_array = ArrayData(write_name, write_access, write_distance, write_stmt_id)
-                        self.arrays_total.arrays_write[i] = write_array
-                        break
-                self.extract_additional_computation(i, additional_computation)
+                    array = ArrayData(array_id=comp['array_id'], array_name=comp['array_name'], array_access_function=np.array(comp['array_access_function']))
+                    if comp['array_type'] == "write":
+                        self.arrays_total.arrays_write[i] = array
+                    else:
+                        self.arrays_total.arrays_read[i].append(array)
             
         self.schedule_tree.add_paths(schedules, branchs)
         self.schedule_tree.check_tree()
         
         scop_init = '\n'.join(self.schedule_tree.extract_tree('code'))
-        self.logger.debug(f'initial scop: \n{scop_init}\n')
+        # self.logger.debug(f'initial scop: \n{scop_init}\n')
         
         # self.logger.debug(f'arrays_write before check: {self.arrays_total.arrays_write}\n')
         
         # 用于对json模板修改过后的二次检查
-        self.arrays_total.validate_dependence(self.filename)
+        # self.arrays_total.validate_dependence(self.filename)
                         
             
         # self.logger.debug(f'arrays_write after check: {self.arrays_total.arrays_write}\n')
         # self.logger.debug(f'arrays_read: {self.arrays_total.arrays_read}\n')
         # self.logger.debug(f'variables: {self.variables}\n')
-
-    def extract_dependency(self, id: int, dependency: List[Dict]) -> None:
-        """For each distance Tuple translate array name, distance value and id for source array (WAW) or write array (WAR or RAW) to ArrayData. Assign the source array to the target array Dict."""
-        for dep in dependency:
-            if dep["category"] != "write":
-                source_array = ArrayData(distance=dep['distance'], write_stmt_id=dep['write_stmt_id'])
-                self.arrays_total.arrays_read[id].append(source_array)
-
-    def extract_additional_computation(self, id: int, additional_computation: List[Dict]) -> None:
-        """For each additional computation translate array name, and array access function to ArrayData. Assign the source array to the target array Dict."""
-        for computation in additional_computation:
-            if computation["array_type"] != "write":
-                source_array = ArrayData(
-                    array_name=computation['array_name'], 
-                    array_access_function=np.array(computation['array_access_function'])
-                )
-                self.arrays_total.arrays_read[id].append(source_array)
         
     def create_bounds_data(self) -> None:
         """Create a dict that will store loop bounds for each loop variable."""
@@ -185,40 +162,50 @@ class CodeGenerator:
         """Transfer access info to array index and update loop bounds"""
         arrays_in_stmts = []
         
+        # self.logger.debug(f'arrays_write before parsing: {self.arrays_total.arrays_write}\n')
+        # self.logger.debug(f'arrays_read before parsing: {self.arrays_total.arrays_read}\n')
+        
         for stmt_id in self.arrays_total.arrays_read.keys():
-            array_write = self.arrays_total.arrays_write[stmt_id]
             arrays_in_stmt = []
             
-            if array_write.write_stmt_id is not None:
-                array_write = self.get_initial_array_info(array_write)  # recursively get array access function
-                self.arrays_total.arrays_write[stmt_id] = array_write
-                
-            indexed_array_access = self.get_indexed_array_access(stmt_id, array_write.array_access_function)
-                
-            for j, access_function in enumerate(array_write.array_access_function):
-                self.calculate_bounds(stmt_id, array_write.array_name, access_function.copy(), j)
+            # 处理写入数组
+            self.arrays_total.arrays_write[stmt_id], arrays_in_stmt = self._process_single_array_indexes(stmt_id, self.arrays_total.arrays_write[stmt_id], arrays_in_stmt)
             
-            arrays_in_stmt.append(array_write.array_name + self.concatenate_with_square_brackets(indexed_array_access))
-                
-            for i, array_read in enumerate(self.arrays_total.arrays_read[stmt_id]):
-                if array_read.write_stmt_id is not None:
-                    array_read = self.get_initial_array_info(array_read)
-                    self.arrays_total.arrays_read[stmt_id][i] = array_read
-                
-                indexed_array_access = self.get_indexed_array_access(stmt_id, array_read.array_access_function)
-                
-                for j, access_function in enumerate(array_read.array_access_function):
-                    self.calculate_bounds(stmt_id, array_read.array_name, access_function, j)
-
-                arrays_in_stmt.append(array_read.array_name + self.concatenate_with_square_brackets(indexed_array_access))    
+            # 处理读取数组
+            for i in range(len(self.arrays_total.arrays_read[stmt_id])):
+                self.arrays_total.arrays_read[stmt_id][i], arrays_in_stmt = self._process_single_array_indexes(stmt_id, self.arrays_total.arrays_read[stmt_id][i], arrays_in_stmt)
                 
             arrays_in_stmts.append(arrays_in_stmt)
             
-        # self.logger.debug(f'arrays_write: {self.arrays_total.arrays_write}\n')
-        # self.logger.debug(f'arrays_read: {self.arrays_total.arrays_read}\n')
+        # self.logger.debug(f'arrays_write after parsing: {self.arrays_total.arrays_write}\n')
+        # self.logger.debug(f'arrays_read after parsing: {self.arrays_total.arrays_read}\n')
         # self.logger.debug(f'bounds_data before calc:\n{self.bounds_data}\n')
             
         return arrays_in_stmts
+    
+    def _process_single_array_indexes(self, stmt_id: int, array_pre: ArrayData, arrays_in_stmt: List[str]) -> Tuple[ArrayData, List[str]]:
+        """处理单个数组的访问信息"""
+        # 递归获取数组访问函数
+        array = self.get_array_info(array_pre)
+        
+        # self.logger.debug(f'Processing array in stmt {stmt_id}: {array}\n')
+        
+        # 计算每个访问函数的边界
+        for j, access_function in enumerate(array.array_access_function):
+            self.calculate_bounds(stmt_id, array.array_name, access_function, j)
+        
+        # 获取索引数组访问
+        indexed_access = self.get_indexed_array_access(stmt_id, array.array_access_function)
+        
+        # self.logger.debug(f'Indexed access for array {array.array_id}: {indexed_access}\n')
+        
+        # 构建数组访问表示并添加到语句中
+        array_repr = array.array_name + ''.join(f'[{idx}]' for idx in indexed_access)
+        arrays_in_stmt.append(array_repr)
+        
+        # self.logger.debug(f'Array representation for stmt {stmt_id}: {arrays_in_stmt}\n')
+        
+        return array, arrays_in_stmt
     
     def get_indexed_array_access(self, stmt_id: int, array_access_function: np.ndarray) -> List[str]:
         """Translate all access functions within an array expressed as a matrix of numbers to expression with loop indexes.\n
@@ -245,8 +232,12 @@ class CodeGenerator:
         """
         terms = self.generate_terms(len(index_letters), self._parsed_data.max_degree)
         
+        # self.logger.debug(f'index_letters: {index_letters}')
+        # self.logger.debug(f'terms: {terms}')
+        # self.logger.debug(f'access_fun: {access_fun}')
+        
         # 构建多项式字典
-        poly_dict = {term: coeff for term, coeff in zip(terms, access_fun) if coeff != 0}
+        poly_dict = {term: coeff for term, coeff in zip(terms, access_fun)}
         
         # self.logger.debug(f'poly_dict: {poly_dict}')
         
@@ -299,13 +290,15 @@ class CodeGenerator:
         
         # self.logger.debug(f'poly_dict: {poly_dict}')
         
-        for term, coeff in sorted(poly_dict.items(), key=lambda x: (len(x[0]), x[0])):
+        for term, coeff in sorted(poly_dict.items(), key=lambda x: (len(x[0]), x[0]), reverse=True):
             if coeff == 0:
                 continue
             
             # self.logger.debug(f'term in poly_dict: {term}')
             
             var_counts = Counter(term)
+            
+            # self.logger.debug(f'var_counts: {var_counts}')
             
             # 转换为变量列表
             variables = [(var_names[var_idx], count) for var_idx, count in var_counts.items()]
@@ -319,38 +312,42 @@ class CodeGenerator:
         result = "".join(terms)
         return result[1:] if result.startswith('+') else result
 
-    def get_initial_array_info(self, array_data: ArrayData) -> ArrayData:
+    def get_array_info(self, child_array: ArrayData) -> ArrayData:
         """Return array with array access from write array (in WAR or RAW dep) or source array (in WAW) using write_stmt_id and distance.\n
         When the write array or source array doesn't have array access since it also depends on another array, try to recursively get array access from the initial array.\n
         Example:\n
-        array_data: write_stmt_id = 0, distance = [1,-1,0]\n
+        child_array: write_stmt_id = 0, distance = [1,-1,0]\n
         array_write in stmt {0}: array_name = 'A', array_access_function = [[2, 0, 0, -1], [-1, 1, 2, 0]]\n
         'A', ['2-k', '-1+i+2*j'] -> 'A', ['2-k', '-1+(i+1)+2*(j-1)']
         output: 'A', [[2, 0, 0, -1], [-2, 1, 2, 0]]
         """
             
-        self.logger.debug(f'get_initial_array_info:\narray_data: {array_data}\n')
+        # self.logger.debug(f'child_array before recursively search: {child_array}\n')
         
-        array_write = self.arrays_total.arrays_write[array_data.write_stmt_id] 
-        if array_write.array_access_function is None:
-            array_write = self.get_initial_array_info(array_write)
+        if child_array.write_stmt_id is not None:
+            parent_array = self.arrays_total.arrays_write[child_array.write_stmt_id] # get write array or source array (namely parent array)
+            parent_array = self.get_array_info(parent_array)
         
-        self.logger.debug(f'source array_write: {array_write}')
-        array_access_function = array_write.array_access_function
-        array_name = array_write.array_name
-        
-        if array_data.distance is not None:
-            # 获取和access function对应变量维数的基项(常数项会自动添加，所以先-1)
-            terms = self.generate_terms(len(array_access_function[0]) - 1, self._parsed_data.max_degree)
-            # self.logger.debug(f'array_access_function: {array_access_function}\n')
-            # self.logger.debug(f'terms: {terms}\n')
-            # self.logger.debug(f'array_data.distance: {array_data.distance}\n')
-            array_access_function = self.apply_offsets_to_coeffs(array_access_function, terms, array_data.distance)
+            # self.logger.debug(f'parent (source for WAW / write for WAR and RAW) array: {parent_array}')
+
+            self.arrays_total.arrays_write[child_array.write_stmt_id] = parent_array
             
-        array_data = ArrayData(array_name=array_name, array_access_function=array_access_function)
-        self.logger.debug(f'get_initial_array_info:\nnew array_data: {array_data}\n')
+            # self.logger.debug(f'array_access_function: {parent_array.array_access_function}\n')
+            # self.logger.debug(f'index_letters: {index_letters}\n')
+            # self.logger.debug(f'distance: {child_array.distance}\n')
+            
+            array_access_function = self.generate_access_functions_from_distance(parent_array, child_array)
+            
+            child_array = ArrayData(array_id=child_array.array_id, array_name=parent_array.array_name, array_access_function=array_access_function)
+            
+            # self.logger.debug(f'child_array after recursively search: {child_array}\n')
+            
+        elif child_array.array_access_function is None:
+            raise ValueError(f"Array access function is missing and cannot be resolved for array with write_stmt_id {child_array.write_stmt_id}")
+        else:
+            pass
         
-        return array_data
+        return child_array
 
     def generate_terms(self, num_variables: int, max_degree: int) -> List[Tuple]:
         """
@@ -388,18 +385,22 @@ class CodeGenerator:
             return {(var_idx,): coeff}
         return {(var_idx,): coeff, (): coeff * offset}
 
-    def apply_offsets_to_poly(self, term_dict: Dict[Tuple, float], offsets: List[float]) -> Dict[Tuple, float]:
+    def apply_offsets_to_poly(self, term_dict: Dict[Tuple, float], offsets: List[float], mapping_reverse: Dict[int, int]) -> Dict[Tuple, float]:
         """
         将偏移量应用到多项式并展开
         
         Args:
-            term_dict: 原始多项式项字典
-            offsets: 偏移向量（与terms一一对应，包括常数项）
+            term_dict: 原始多项式项字典（从access_fun解析而来）
+            offsets: 偏移向量（与terms中变量一一对应，不包括常数项）
+            mapping_reverse: 循环变量i对基项一次项x的映射，即
             
         Returns:
             应用偏移后的新多项式
         """
         new_poly = defaultdict(int)
+        
+        # self.logger.debug(f'term_dict: {term_dict}')
+        # self.logger.debug(f'offsets: {offsets}')
         
         for term, coeff in term_dict.items():
             if coeff == 0:
@@ -407,7 +408,7 @@ class CodeGenerator:
                 
             # 对常数项直接处理
             if not term:
-                new_poly[()] += coeff * (1 + offsets[0]) if offsets else coeff # 常数项的偏移量就是直接加到常数项上
+                new_poly[()] += coeff # 常数项不变
                 continue
                 
             # 初始化 substituted 为 {(): 1}（代表常数项1）
@@ -415,11 +416,11 @@ class CodeGenerator:
             
             # 对term中的每个变量应用偏移
             for var_idx in term:
-                if var_idx + 1 >= len(offsets):  # +1 因为offsets[0]对应常数项
-                    raise ValueError(f"变量索引 {var_idx} 超出偏移向量范围")
+                if var_idx > len(offsets): 
+                    raise ValueError(f"变量索引 {var_idx} 超出偏移向量范围 {len(offsets)}")
                 
-                # 获取该变量的偏移量（索引要+1，因为offsets[0]是常数项偏移）
-                var_offset = offsets[var_idx + 1]
+                # 获取该变量的偏移量
+                var_offset = offsets[mapping_reverse[var_idx]]
                 
                 # 创建 (var + offset) 的表达式
                 offset_var = self.create_offset_var(var_idx, 1, var_offset)
@@ -438,74 +439,141 @@ class CodeGenerator:
         # 移除零系数项
         return {k: v for k, v in new_poly.items() if v != 0}
 
-    def apply_offsets_to_coeffs(self, coeff_matrix: np.ndarray, terms: List[Tuple], offsets: List[float]) -> np.ndarray:
+    def generate_access_functions_from_distance(self, parent_array: ArrayData, child_array: ArrayData) -> np.ndarray:
         """
         应用偏移量到系数矩阵
         
         Args:
-            coeff_matrix: 原始系数矩阵（每行对应一个访问函数），如 [[2, 0, 0, -1], [1, 1, 1, 0]]，表示[2-k][1+i+j]
-            terms: 所有可能的项列表，如[(), (0,), (1,)]
-            offsets: 偏移向量（与terms一一对应，包括常数项），如 [0, 1, -1, 0] 表示 i→i+1, j→j-1, k→k+0
+            parent_array: 包含以下所需信息
+                array_id: 用于获取数组所在语句对应的变量列表index_letters_parent，如['i', 'j', 'k']
+                access_functions: 原始系数矩阵（每行对应一个访问函数），如 [[2, 0, 0, -1], [1, 1, 1, 0]]，表示[2-k][1+i+j]
+            child_array: 包含以下信息
+                array_id: 用于获取数组所在语句对应的变量列表index_letters_child，如['i', 'j', 'k']
+                distance: 距离向量（与terms中的循环变量一一对应），如 [1, -1, 0] 表示 i→i+1, j→j-1, k→k+0
             
         Returns:
-            新的系数矩阵
+            新的系数矩阵，如[[2, 0, 0, -1], [1, 1, 1, 0]]，表示[2-(k+0)][1+(i+1)+(j-1)]
         """
-        if coeff_matrix.shape[1] != len(terms):
-            raise ValueError("系数矩阵列数必须与项列表长度一致")
-            
-        if len(offsets) != len(terms):
-            raise ValueError(f"偏移向量长度必须与项列表长度一致，期望 {len(terms)}，实际 {len(offsets)}")
         
-        new_coeffs = []
-        for i, coeffs in enumerate(coeff_matrix):
+        index_letters_parent, index_letters_child = self.variables[child_array.array_id[0]], self.variables[parent_array.array_id[0]]
+        
+        # self.logger.debug(f'Applying distance to access functions:\naccess_functions:\n{parent_array.array_access_function}\nindex_letters_parent: {index_letters_parent}\nindex_letters_child: {index_letters_child}\ndistance: {child_array.distance}\n')
+            
+        # 获取和access function对应变量维数的基项
+        depth_stmt, depth_array = len(index_letters_child), parent_array.array_access_function.shape[0]
+        terms = self.generate_terms(depth_stmt, self._parsed_data.max_degree)
+        
+        if parent_array.array_access_function.shape[1] > len(terms):
+            raise ValueError(f"系数矩阵列数必须不大于项列表长度，期望不大于 {len(terms)}，实际 {parent_array.array_access_function.shape[1]}")
+            
+        if len(child_array.distance) > depth_stmt:
+            raise ValueError(f"距离向量长度必须不大于变量列表长度一致，期望不大于 {depth_stmt}，实际 {len(child_array.distance)}")
+        
+        prob_var_mapping = [1.0] * depth_stmt
+        
+        # 排除常数项（即prob_terms[()]），实际上无意义
+        prob_vars = {k: v for k, v in enumerate(prob_var_mapping)}
+        
+        # TODO: 调整多余变量权重(暂定从最外层开始，即previous_var_index之前的变量视作多余变量)
+        previous_var_index = depth_stmt - depth_array
+        for var in prob_vars.keys():
+            if var < previous_var_index:  # 检查是否为多余变量：权重除以4
+                prob_vars[var] *= 1/4
+        
+        mapping, mapping_reverse = {}, {} # 循环变量与基项一次项的一一映射
+        prob_vars_copy = prob_vars.copy() # 备份
+        
+        for i in range(parent_array.array_access_function.shape[1] - 1):
+            
+            if index_letters_parent[i] == index_letters_child[i]:
+                prob_vars[var] *= 4  # 检查是否为相同变量：权重乘以4
+            
+            # 确认当前维度对应循环变量：
+            corresponding_var_index = i + previous_var_index
+            
+            # 根据对应变量调整权重
+            prob_vars = prob_vars_copy.copy() # 初始化，避免前一维度选择影响当前维度
+            for var in prob_vars.keys():
+                if corresponding_var_index == var:  # 检查是否为对应循环变量：权重乘以2
+                    prob_vars[var] *= 2
+        
+            # self.logger.debug(f'prob_vars: {prob_vars}')
+        
+            idx = random.choices(list(prob_vars.keys()), weights=prob_vars.values())[0]
+                
+            mapping[i] = idx
+            mapping_reverse[idx] = i
+            prob_vars_copy[idx] = prob_vars[idx] = 0
+        
+        mapped_terms = [
+            tuple(mapping[var] for var in term)
+            for term in terms
+            if all(var in mapping for var in term)
+        ]
+        
+        # self.logger.debug(f'terms: {terms}')
+        # self.logger.debug(f"mapping: {[(f'x{k}: i{v}(即{index_letters_child[v]})')for k,v in mapping.items()]}")
+        # self.logger.debug(f'mapped_terms: {mapped_terms}')
+        
+        new_access_functions = []
+        for i, access_fun in enumerate(parent_array.array_access_function):
             # 将系数映射到项字典
-            term_dict = {term: coeff for term, coeff in zip(terms, coeffs) if coeff != 0}
+            poly_dict = {term: coeff for term, coeff in zip(mapped_terms, access_fun)}
+            
+            # self.logger.debug(f'poly_dict: {poly_dict}')
             
             # 应用偏移量并展开新多项式
-            new_poly = self.apply_offsets_to_poly(term_dict, offsets)
+            new_poly_dict = self.apply_offsets_to_poly(poly_dict, child_array.distance, mapping_reverse)
             
-            # self.logger.debug(f"原始多项式 {i}: {self._poly_to_str(term_dict, [f'x{i}' for i in range(len(terms))])}")
-            # self.logger.debug(f"变换后多项式 {i}: {self._poly_to_str(new_poly, [f'x{i}' for i in range(len(terms))])}\n")
+            # self.logger.debug(f'new_poly_dict: {new_poly_dict}')
+            
+            # self.logger.debug(f"原始多项式 {i}: {self._poly_to_str(poly_dict, index_letters_child)}")
+            # self.logger.debug(f"变换后多项式 {i}: {self._poly_to_str(new_poly_dict, index_letters_child)}\n")
             
             # 将新多项式转换回系数向量
-            new_coeff = [new_poly.get(term, 0) for term in terms]
-            new_coeffs.append(new_coeff)
+            new_access_fun = [new_poly_dict.get(term, 0) for term in terms]
+            new_access_functions.append(new_access_fun)
             
-        return np.array(new_coeffs, dtype=coeff_matrix.dtype)
+        # self.logger.debug(f'new_access_functions: {new_access_functions}')
+            
+        return np.array(new_access_functions, dtype=parent_array.array_access_function.dtype)
 
     def calculate_bounds(self, stmt_id: int, array_name: str, access_function: List[int], position: int) -> None:
         """Based on rank of the array_access_function update the min and max bounds."""
-        rank = self.get_rank(access_function[:1 + len(self.variables[stmt_id])])  # don't pass the numerical value
+        rank = self.get_rank(access_function[1:]) # don't pass the numerical value
 
         if rank == -1:  # we don't want to have an expression like C[-1] when access fun is [0,0,0, -1]
             value = access_function[0]
             param = self._parsed_data.array_sizes[array_name][position]
             max_array_size = self._parsed_data.params[param]
             if value not in range(0, max_array_size):
-                self.logger.debug(f'Constant array access function not within the array size bounds: {array_name + str(access_function)}, reverse the array access function for available generation\n')
+                self.logger.debug(f'The constant in the {position}th array access function {access_function} of {array_name} not within the array size bounds, reverse it for available generation\n')
                 access_function[0] = -access_function[0]
                 self.calculate_bounds(stmt_id, array_name, access_function, position)
         else:
-            value_at_rank = access_function[rank]
-            access_function_low = access_function[:1 + len(self.variables[stmt_id])]  # use lower terms of access function
-            access_function_low[rank] = 0  # very important step!
+            
+            access_function = access_function.copy() # 后续会修改access_function，避免污染！
+            
+            value_at_rank = access_function[rank + 1] # 常量维补回
+            
+            access_function[rank + 1] = 0  # ori value at rank reset to 0
 
-            right_bound = self._parsed_data.array_sizes[array_name][position]  # left bound is always 0 in C
+            right_bound = self._parsed_data.array_sizes[array_name][position]  # TODO: left bound is always 0 now
             fun = None
             lower_bound, upper_bound = [], []
             
             if value_at_rank == 1:
-                lower_bound = self.get_opposite_numbers(access_function_low)
+                lower_bound = self.get_opposite_numbers(access_function)
                 upper_bound = lower_bound[:]
                 upper_bound[0] = self.build_simple_expression(right_bound, 1, upper_bound[0])
             elif value_at_rank == -1:
-                upper_bound = access_function_low[:]
+                upper_bound = access_function[:]
                 lower_bound = upper_bound[:]
                 lower_bound[0] = self.build_simple_expression(right_bound, -1, lower_bound[0])
             elif value_at_rank > 1:
                 alpha = value_at_rank
                 alpha_min_1 = alpha - 1
-                lower_bound = self.get_opposite_numbers(access_function_low)
+                lower_bound = self.get_opposite_numbers(access_function)
                 lower_bound[0] += alpha_min_1
                 upper_bound = lower_bound[:]
                 upper_bound[0] = self.build_simple_expression(right_bound, 1, upper_bound[0])
@@ -513,9 +581,9 @@ class CodeGenerator:
             elif value_at_rank < -1:
                 alpha = value_at_rank * (-1)
                 alpha_min_1 = alpha - 1
-                lower_bound = access_function_low[:]
+                lower_bound = access_function[:]
                 lower_bound[0] = self.build_simple_expression(right_bound, -1, alpha_min_1 + lower_bound[0])
-                upper_bound = access_function_low[:]
+                upper_bound = access_function[:]
                 upper_bound[0] = alpha_min_1 + upper_bound[0]
                 fun = self.write_as_fraction
                 
@@ -583,14 +651,14 @@ class CodeGenerator:
     def update_bounds_based_on_access_function(self, stmt_id: int, bounds: List[List[int]], rank: int, expr_min_max: str, value_at_rank: int, fun: Optional[callable] = None) -> None:
         """Update bounds by evaluating access function."""
         # extract only the access function that will be an only element of the result array
-        access_function = self.get_indexed_array_access(stmt_id, bounds)[0]
+        indexed_access = self.get_indexed_array_access(stmt_id, bounds)[0]
 
         if fun:
-            access_function = fun(access_function, abs(value_at_rank))
+            indexed_access = fun(indexed_access, abs(value_at_rank))
         
         # self.logger.debug(f'access_function: {access_function}\n')
         
-        eval_output = self.evaluate_expression(access_function)
+        eval_output = self.evaluate_expression(indexed_access)
         
         if eval_output[-1]:
             self.bounds_data[self.variables[stmt_id][rank - 1]][expr_min_max][eval_output[0]][eval_output[-1]].add(eval_output[1])
@@ -804,11 +872,11 @@ class CodeGenerator:
             
         self.bounds_data[key][func[id].__name__]['bound_value'] = str(bound)
 
-    def generate_for_loop_structure(self, key: str, reverse_label: bool) -> None:
+    def generate_for_loop_structure(self, key: str, is_reverse: bool) -> None:
         """Return formatted for loop structure filled with bounds."""
         lower_bound = self.bounds_data[key]['min']['bound_value']
         upper_bound = self.bounds_data[key]['max']['bound_value']
-        if reverse_label:
+        if is_reverse:
             loop_expression = f'for (int {key} = {upper_bound} - 1; {key} >= {lower_bound}; {key}--)'
         else:
             loop_expression = f'for (int {key} = {lower_bound}; {key} < {upper_bound}; {key}++)'

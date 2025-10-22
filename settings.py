@@ -5,6 +5,7 @@ import math
 import random
 from collections import deque, defaultdict
 import numpy as np
+from enum import Enum
 
 PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 # DATASET_PATH = "/home/zyj/Data0/Dataset_fuzzing" # PROJECT_PATH replace if needed
@@ -20,12 +21,14 @@ dimension_names = 'xyzvw'
 
 params_range = [range(4, 9), range(6, 11), [3, 4, 5], [8, 9, 10]]
 # params_multiplier = [1e7, 1e3, 1e2, 1e1]
-params_multiplier = [1e3, 10, 10]
+params_multiplier = [1e3, 10, 10, 1]
 # params_multiplier = [10, 1, 1]
 
 # 固定参数 （TODO 部分调整为可变参数）
 depth_min = 1 # 最小循环深度
-prob_array_depth = [0.4, 0.6] # 维数为循环维度-1的数组生成概率：维数为循环维度的数组生成概率
+prob_array_depth = [1.5, 8, 0.5] # 维数为循环维度-1的数组生成概率:维数为循环维度的数组生成概率:循环维度+1的数组生成概率为1.5:8:0.5
+prob_dep_region = [4, 1] # 强相关（共享循环变量）依赖生成概率:全局依赖生成概率为4:1
+enable_if_branch = False # 是否启用if分支
 max_degree = 1 # 最高次数（1=线性，2=二次）
 enable_multi_terms = False # 是否允许多基项
 max_terms_per_func = 3 # 每个函数最多基项数（若启用多基项）
@@ -53,8 +56,15 @@ header_string = r'''# if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_D
 # endif
 '''
 
+class DependenceCheckResult(Enum):
+    VALID = 0           # 找到有效依赖路径
+    INVALID_ENDPOINT = 1 # 终点无效（无依赖也无计算）
+    CIRCULAR_DEPENDENCY = 2 # 循环依赖
+    DEPENDENCE_CLEARED = 3 # 依赖被清除
+
 @dataclass(eq=True, frozen=True)
 class ArrayData:
+    array_id: Tuple[int, int] = None
     array_name: Union[list, str] = None
     array_access_function: np.ndarray = None
     distance: np.ndarray = None
@@ -67,51 +77,104 @@ class Arrays_total:
     
     def validate_dependence(self, filename: str) -> None:
         """验证依赖关系的合理性"""
-        for stmt_id in self.arrays_write:
-            check_output = self.check_array_dependence(stmt_id)
-            if check_output != -1:
-                if check_output[1] == 0:
-                    error_msg = f'Stmt {check_output[0]}: No additional computation or dependence info for Write array in file {filename}.'
-                    raise ValueError(error_msg)
-                elif check_output[1] == 1:
-                    error_msg = f'Stmt {check_output[0]}: No available dependence or additional computation info for Write array in file {filename}'
-                    raise ValueError(error_msg)
-    
-    def check_array_dependence(self, stmt_id: int, check_list: Set[int] = set()) -> Union[bool, List]:
-        array_data = self.arrays_write[stmt_id]
-        # print(f'[zyj-debug] check_array_dependence:\n array_data: {array_data}\n')
-        if array_data.write_stmt_id == None:
-            if array_data.array_access_function is None:
-                return [stmt_id, 0]
-            else:
-                return -1 # find available dest
+        errors = []
+        
+        for stmt_id in list(self.arrays_write.keys()):
+            result, related_id = self.check_array_dependence(stmt_id)
             
-        elif stmt_id in check_list:
+            if result == DependenceCheckResult.INVALID_ENDPOINT:
+                errors.append(f'Stmt {related_id}: No additional computation or dependence info for Write array in file {filename}.')
+            elif result == DependenceCheckResult.CIRCULAR_DEPENDENCY:
+                errors.append(f'Stmt {related_id}: No available dependence or additional computation info for Write array in file {filename}')
+            elif result == DependenceCheckResult.DEPENDENCE_CLEARED:
+                # 记录日志但不报错
+                print(f'Stmt {related_id}: Dependence cleared in file {filename}')
+        
+        if errors:
+            raise ValueError('\n'.join(errors))
+    
+    def check_array_dependence(self, stmt_id: int, visited: Set[int] = None) -> Tuple[DependenceCheckResult, Optional[int]]:
+        """
+        检查数组依赖关系的有效性
+        
+        Returns:
+            Tuple[结果类型, 相关stmt_id]: 检查结果和相关的语句ID
+        """
+        if visited is None:
+            visited = set()
+        
+        array_data = self.arrays_write[stmt_id]
+        
+        # 情况1: 到达依赖链终点
+        if array_data.write_stmt_id is None:
             if array_data.array_access_function is None:
-                return [stmt_id, 1]
+                return DependenceCheckResult.INVALID_ENDPOINT, stmt_id
             else:
-                # print(f'[zyj-debug] Stmt {stmt_id}: Drop the dependence info since get cycle dep here\n')
-                self.arrays_write[stmt_id] = ArrayData(array_name = array_data.array_name, array_access_function = array_data.array_access_function)
-                # print(f'[zyj-debug] check_array_dependence:\n new array_data: {self.arrays_write[stmt_id]}\n')
-                return -2 # have to drop dependence  
-        else:
-            check_list.add(array_data.write_stmt_id)
-            check_output = self.check_array_dependence(array_data.write_stmt_id, check_list)
-            if check_output != -1:
-                if check_output != -2:
-                    if array_data.array_access_function is None:
-                        return [stmt_id, 1]
-                    else:
-                        # print(f'[zyj-debug] Stmt {stmt_id}: Drop the dependence info since dependence is not available here\n')
-                        self.arrays_write[stmt_id] = ArrayData(array_name = array_data.array_name, array_access_function = array_data.array_access_function)
-                        # print(f'[zyj-debug] check_array_dependence:\n new array_data: {self.arrays_write[stmt_id]}\n')
-                        return -2 # have to drop dependence           
-            elif not array_data.array_access_function is None:
-                # print(f'[zyj-debug] Stmt {stmt_id}: Drop the additional computation info since get available dependence here\n')
-                self.arrays_write[stmt_id] = ArrayData(distance = array_data.distance, write_stmt_id = array_data.write_stmt_id)
-                # print(f'[zyj-debug] check_array_dependence:\n new array_data: {self.arrays_write[stmt_id]}\n')
+                return DependenceCheckResult.VALID, None
+        
+        # 情况2: 检测到循环依赖
+        if stmt_id in visited:
+            if array_data.array_access_function is None:
+                return DependenceCheckResult.CIRCULAR_DEPENDENCY, stmt_id
+            else:
+                # 清除循环依赖，保留计算信息
+                self._clear_dependence_keep_computation(stmt_id, array_data)
+                return DependenceCheckResult.DEPENDENCE_CLEARED, stmt_id
+        
+        # 情况3: 递归检查依赖链
+        visited.add(stmt_id)
+        result, related_id = self.check_array_dependence(array_data.write_stmt_id, visited)
+        visited.remove(stmt_id)
+        
+        # 处理递归结果
+        return self._handle_recursive_result(result, related_id, stmt_id, array_data)
+
+    def _clear_dependence_keep_computation(self, stmt_id: int, array_data) -> None:
+        """清除依赖信息但保留计算信息"""
+        self.arrays_write[stmt_id] = ArrayData(
+            array_id=(stmt_id, 0), 
+            array_name=array_data.array_name, 
+            array_access_function=array_data.array_access_function
+        )
+
+    def _keep_dependence_only(self, stmt_id: int, array_data) -> None:
+        """只保留依赖信息，清除计算信息"""
+        self.arrays_write[stmt_id] = ArrayData(
+            array_id=(stmt_id, 0), 
+            distance=array_data.distance,
+            write_stmt_id=array_data.write_stmt_id
+        )
+
+    def _handle_recursive_result(self, result: DependenceCheckResult, related_id: Optional[int], 
+                            stmt_id: int, array_data):
+        """处理递归检查的结果"""
+        if result == DependenceCheckResult.VALID:
+            # 子依赖有效，根据当前情况决定处理方式
+            if array_data.array_access_function is not None:
+                # 有计算信息，清除计算信息只保留依赖
+                self._keep_dependence_only(stmt_id, array_data)
+            return DependenceCheckResult.VALID, None
+            
+        elif result in [DependenceCheckResult.INVALID_ENDPOINT, DependenceCheckResult.CIRCULAR_DEPENDENCY]:
+            # 子依赖无效，处理当前依赖
+            if array_data.array_access_function is None:
+                return result, stmt_id  # 传播错误
+            else:
+                # 有计算信息，清除依赖
+                self._clear_dependence_keep_computation(stmt_id, array_data)
+                return DependenceCheckResult.DEPENDENCE_CLEARED, stmt_id
                 
-            return -1 # find available dependence path
+        elif result == DependenceCheckResult.DEPENDENCE_CLEARED:
+            # 子依赖被清除，处理当前依赖
+            if array_data.array_access_function is None:
+                return DependenceCheckResult.CIRCULAR_DEPENDENCY, stmt_id
+            else:
+                self._clear_dependence_keep_computation(stmt_id, array_data)
+                return DependenceCheckResult.DEPENDENCE_CLEARED, stmt_id
+        
+        return result, related_id
+
+
 
 class Schdule_node:
     def __init__(self, sequence: Optional[Union[int, str]] = None, content: Optional[Union[int, str]] = None, schedule_dim: Optional[int] = None, stmt_id: Optional[int] = None):
@@ -169,6 +232,11 @@ class Schedule_tree:
 
     def calculate_weighted_cond_prob(self, child_count, base_prob=0.5):
         """基于子节点数量计算if分支出现的加权概率"""
+        
+        # TODO: 临时添加，避免不考虑if branch时依然存在生成概率
+        if base_prob == 0:
+            return 0
+        
         # # 对数加权
         # weight = math.log1p(child_count - 1) / math.log1p(5)  # 以log(1+5)为基
         # weighted_prob = base_prob + (1 - base_prob) * (1 - 1 / (1 + weight)) # 大致为1：50%，2：58%，3：64%，...，6：75%
@@ -262,7 +330,7 @@ class Schedule_tree:
             
             # 决定当前节点是否标记flag
             node.cond = random.random() < node.cond_prob
-            self.split_children_into_branch(node)
+            self.split_children_into_branch(node) # TODO: 要将函数功能拆分，避免过于耦合，程序即使不考虑if branch的情况下也要计算一遍
 
     def check_tree(self, node = None, level = -1):
         if node:
@@ -337,7 +405,7 @@ class Schedule_tree:
             
         return prints
     
-    def extract_stmt_infos(self, node = None, branch_id=None):
+    def extract_stmt_infos(self, node = None, branch_id='b3'):
         if not node:
             node = self.root
             current_path = []
