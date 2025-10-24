@@ -131,6 +131,6 @@ def main(option = 0):
         
 if __name__ == "__main__":
     
-    option = 1 # 2
+    option = 2 # 2
     
     main(option)

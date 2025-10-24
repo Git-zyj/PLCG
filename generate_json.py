@@ -19,8 +19,8 @@ from itertools import combinations_with_replacement, product
 class Json_generator:
     def __init__(self, log_level: int = logging.WARNING) -> None:
         """初始化JSON生成器，设置默认数据结构"""
-        self._setup_logging(log_level)
         self._reset_data()
+        self._setup_logging(log_level)
     
     def _setup_logging(self, log_level: int) -> None:
         """独立的日志设置方法"""
@@ -30,13 +30,24 @@ class Json_generator:
         # 确保有handler
         if not self.logger.handlers:
             handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+            formatter = logging.Formatter(f'{self.filename} - %(name)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
     
+    def update_logging(self) -> None:
+        """更新文件名并立即更新logger格式"""
+        
+        # 如果logger已创建，更新其formatter
+        if hasattr(self, 'logger') and self.logger.handlers:
+            new_format = f'{os.path.basename(self.filename)} - %(name)s - %(levelname)s - %(message)s'
+            new_formatter = logging.Formatter(new_format)
+            
+            for handler in self.logger.handlers:
+                handler.setFormatter(new_formatter)
+    
     def _reset_data(self) -> None:
         """重置数据，但不影响logger"""
-        self.filename = None
+        self.filename = ""
         self.arrays_total = Arrays_total()
         self.schedules = []
         self.branchs = []
@@ -152,13 +163,13 @@ class Json_generator:
             else:
                 depth_array_write = random.choices([depth_stmt, depth_stmt + 1], prob_array_depth[1:])[0] #循环维数为1时，只允许相同和相对于循环维度+1的情况
             
-            self.logger.debug(f"depth_array_write for array_write in stmt {i}: {depth_array_write}")
+            # self.logger.debug(f"depth_array_write for array_write in stmt {i}: {depth_array_write}")
             array_write_access_function = self.generate_access_function(
                 (i, 0), depth_stmt, depth_array_write, prob_terms[i], prob_vars, prob_consts
             )  # 指定语句写数组访存⑧(有待扩充)
             
             array_write = ArrayData(
-                array_id=(i, 0), # 0仅作占位
+                array_id=(i, 0), # 0表示首个数组，即写数组
                 array_name=indexed_array_names[i],  # 指定语句写数组名⑦(必定存在)
                 array_access_function=array_write_access_function
             )
@@ -197,11 +208,11 @@ class Json_generator:
                 
                 # self.logger.debug(f"Start array_access_function generation for the {j}th array_read in stmt {i}")
                 array_read_access_function = self.generate_access_function(
-                    (i, j), depth_stmt, depth_array_read, prob_terms[i], prob_vars, prob_consts
+                    (i, j + 1), depth_stmt, depth_array_read, prob_terms[i], prob_vars, prob_consts
                 )  # 指定语句读数组访存⑾(有待扩充)
                     
                 array_read = ArrayData(
-                    array_id=(i, j), # 先分配additional_computation标识，后续再分配dependency标识
+                    array_id=(i, j + 1), # 先分配additional_computation标识，后续再分配dependency标识，+1避免和write冲突
                     array_name=arrays_name[(depth_array_read, array_read_id)], 
                     array_access_function=array_read_access_function
                 )
@@ -209,20 +220,34 @@ class Json_generator:
 
         self.arrays_total = Arrays_total(arrays_write, arrays_read)
 
+    def generate_terms(self, num_variables: int, max_degree: int) -> List[Tuple]:
+        """
+        生成所有可能的项（常数项、线性项、二次项等）
+        
+        Args:
+            num_variables: 变量数量
+            max_degree: 最大次数
+            
+        Returns:
+            所有可能的项列表，按次数排序
+        """
+        terms = [()]  # 常数项
+        
+        for degree in range(1, max_degree + 1):
+            # 生成所有可能的d次项（允许重复变量）
+            terms.extend(list(combinations_with_replacement(range(num_variables), degree)))
+        
+        return terms
+
     def _prepare_base_terms(self, nstmts: int) -> List[Dict[Tuple[int], float]]:
         """预计算所有语句的基项和权重"""
         prob_terms_all = []
         
         for i in range(nstmts):
             depth_stmt = len(self.schedules[i]) // 2
-            variables = list(range(depth_stmt))
             
             # 基项生成
-            terms = [()]  # 常数项
-            terms.extend([(v,) for v in variables])  # 线性项
-            
-            if max_degree >= 2:
-                terms.extend(combinations_with_replacement(variables, 2))  # 二次项
+            terms = self.generate_terms(depth_stmt, max_degree)
                 
             # 创建项到权重的映射字典
             prob_terms = {}
@@ -264,8 +289,9 @@ class Json_generator:
         # 记录每个循环维度中被选取的变量
         selected_variables = set()
         
-        # 排除常数项（即prob_terms[()]），实际上无意义
-        prob_terms_var = {k: v for k, v in prob_terms.items() if k != ()}
+        # TODO: 常数项（即prob_terms[()]）实际上无意义，此处作为空选占位
+        prob_terms_var = {k: v for k, v in prob_terms.items()}
+        prob_terms_var[()] *= 1/32 # TODO: 空选概率设置暂定为1/32
         
         # TODO: 调整多余变量权重(暂定从最外层开始，即previous_var_index之前的变量视作多余变量)
         previous_var_index = depth_stmt - depth_array
@@ -295,6 +321,8 @@ class Json_generator:
             j = 0
             continue_prob = 1.0  # 初始继续选择基项概率为1*(2/3)^j
             
+            # TODO: 目前一定会至少选择一个基项，即A[i][0]不会在comp中出现
+            
             while True:
                 # 决定是否继续选择基项（不满足概率或者不允许多基项或超过最大基项数）
                 if not enable_multi_terms and j >= 1:
@@ -308,15 +336,16 @@ class Json_generator:
                 if random.random() > continue_prob:
                     # self.logger.debug(f"Stop the {j}th term selection because not meet selection prob")
                     break  # 终止选择
-                
-                if all(value == 0 for value in prob_terms_var.values()):
-                    self.logger.debug(f'Stop the {j}th term selection for the {i}th dim in array {array_id} because no available terms')
-                    break
 
                 idx = random.choices(list(prob_terms_var.keys()), weights=prob_terms_var.values())[0]
                 
-                selected_indices.append(idx)
-                prob_terms_var_copy[idx] = prob_terms_var[idx] = 0  # TODO: 目前禁用已选项，即不会有重复变量出现在数组不同维度中
+                selected_prob = prob_terms_var[idx]/8 # TODO: 目前对于已选项，采用/8以减小继续出现概率，但不为0（即目前会有重复变量出现在数组不同维度中）
+                prob_terms_var_copy[idx] = prob_terms_var[idx] = selected_prob  
+
+                if idx != (): # 空选即类似A[0]的结果
+                    selected_indices.append(idx)
+                else:
+                    self.logger.warning(f"No terms are selected in the {j}th term selection for the {i}th dim in array {array_id}")
 
                 # 衰减继续概率：(2/3)^n
                 continue_prob *= 2/3
@@ -425,7 +454,8 @@ class Json_generator:
                     self.arrays_total.arrays_write[i] = ArrayData(array_id=(i, 0), array_name=self.arrays_total.arrays_write[i].array_name, array_access_function=self.arrays_total.arrays_write[i].array_access_function, write_stmt_id=dep_write_id) # 保留先前生成的comp信息作为依赖生成失败的回退
             
             else:
-                self.logger.debug(f'stmt {i} has no WAW dep due to arg_prob_dep_write_exist')
+                # self.logger.debug(f'stmt {i} has no WAW dep due to arg_prob_dep_write_exist')
+                pass
             
             
                     
@@ -480,7 +510,7 @@ class Json_generator:
                     
                     dep_read_id = random.choices(range(nstmts), weights=prob_weights_read, k=1)[0]  # 指定读依赖的write语句⒂
                     
-                    self.arrays_total.arrays_read[i].append(ArrayData(array_id=(i, narrays_read_comp + j), write_stmt_id=dep_read_id)) # 依赖读数组标识在computation读数组标识基础上继续编号
+                    self.arrays_total.arrays_read[i].append(ArrayData(array_id=(i, narrays_read_comp + j + 1), write_stmt_id=dep_read_id)) # 依赖读数组标识在computation读数组标识基础上继续编号
             else:
                 self.logger.debug(f'stmt {i} has no RAW or WAR dep due to ndeps_read=0')
         
@@ -509,29 +539,29 @@ class Json_generator:
                     parent_array, array_write, parent_array_distances[parent_array.array_id], prob_consts
                 )
                 self.arrays_total.arrays_write[i] = ArrayData(
-                    array_id=(i, 0), 
+                    array_id=array_write.array_id, 
                     # array_name=parent_array.array_name, 
                     # array_access_function=parent_array.array_access_function, 
                     distance=distance_dep_write, 
                     write_stmt_id=array_write.write_stmt_id
                 )
                 
-                # 更新已分配距离记录
+                # 更新已分配距离记录，array_write的dep要完全避免重复
                 parent_array_distances[parent_array.array_id].append(tuple(distance_dep_write))
                 
                 # self.logger.debug(f"array_write in stmt {i} with dep distance: {self.arrays_total.arrays_write[i]}")
         
         # 处理读依赖距离
-        parent_array_distances = defaultdict(list)  # 重置，允许读依赖和写依赖距离相同，但读依赖之间依然不能重复
+        parent_array_distances = defaultdict(list)  # 重置，允许读依赖和写依赖距离相同，但同语句读依赖之间依然不能重复
         for i, arrays_read in list(self.arrays_total.arrays_read.items()):
             for j, array_read in enumerate(arrays_read):
                 if array_read.write_stmt_id is not None:
                     parent_array = self._get_parent_array_for_mapping(array_read)
                     distance_dep_read = self._calculate_dependency_distance(
-                        parent_array, array_read, parent_array_distances[parent_array.array_id], prob_consts
+                        parent_array, array_read, parent_array_distances[(parent_array.array_id, i)], prob_consts
                     )
                     self.arrays_total.arrays_read[i][j] = ArrayData(
-                        array_id=(i, j),
+                        array_id=array_read.array_id,
                         # array_name=parent_array.array_name, 
                         # array_access_function=parent_array.array_access_function, 
                         distance=distance_dep_read, 
@@ -539,7 +569,7 @@ class Json_generator:
                     )
                     
                     # 更新已分配距离记录
-                    parent_array_distances[parent_array.array_id].append(distance_dep_read)
+                    parent_array_distances[(parent_array.array_id, i)].append(tuple(distance_dep_read))
                     
                     # self.logger.debug(f"The {j}th array_read in stmt {i} with dep distance: {self.arrays_total.arrays_read[i][j]}")
 
@@ -548,11 +578,15 @@ class Json_generator:
         
         depth, dim = len(parent_array.array_access_function), len(parent_array.array_access_function[0]) # 获取依赖中source数组的维度
         
+        terms = self.generate_terms(dim, max_degree)
+        
         # 步骤1: 确定需要随机化的变量维度位置
-        randomize_positions_vars = []
-        for j in range(1, dim):  # 从第1列开始，跳过首列常数项
+        randomize_positions_terms = set()
+        for j in range(1, dim):  # 从第1列开始，跳过首列常数项，另外dim=len(terms)
             if any(parent_array.array_access_function[k][j] != 0 for k in range(depth)):
-                randomize_positions_vars.append(j - 1) # 计算依赖距离时不考虑常数项，因此位置-1
+                randomize_positions_terms.update(terms[j])
+        
+        randomize_positions_vars = list(randomize_positions_terms)
         
         # 如果没有需要随机化的维度，返回全0距离
         if not randomize_positions_vars:
@@ -562,24 +596,25 @@ class Json_generator:
         # 步骤2: 生成所有可能的distance组合
         all_possible_distances = self._generate_all_distance_combinations(dim - 1, randomize_positions_vars, list(prob_consts.keys())) # 注意维度要-1，去掉常数维度
         
-        # 步骤3: 根据used_distances调整权重
-        all_possible_distances = self._calculate_weights_for_combinations(all_possible_distances, prob_consts, used_distances)
-        
         if parent_array.array_id[0] == child_array.array_id[0]:
             # 如果是同一语句的依赖，调整权重，避免0距离依赖(实际上这就不是依赖了)
-            # self.logger.debug('The same stmt for parent and child array')
+            # self.logger.debug(f'Parent and child arrays are in the same stmt for array {child_array.array_id}')
             all_possible_distances[(0,) * (dim - 1)] = 0
         
-        # self.logger.debug(f'Weights after adjust for array {child_array.array_id}: {all_possible_distances}')
+        # 步骤3: 根据used_distances调整权重
+        all_possible_distances_weighted = self._calculate_weights_for_combinations(all_possible_distances, prob_consts, used_distances)
+        
+        # self.logger.debug(f'Weights after adjust for array {child_array.array_id}: {all_possible_distances_weighted}')
         
         # 步骤4: 根据调整后的权重进行随机选择
-        if sum(all_possible_distances.values()) > 0:
-            dep_distance = random.choices(list(all_possible_distances.keys()), weights=list(all_possible_distances.values()))[0]
-            return list(dep_distance)
+        if sum(all_possible_distances_weighted.values()) > 0:
+            dep_distance = random.choices(list(all_possible_distances_weighted.keys()), weights=list(all_possible_distances_weighted.values()))[0]
         else:
             # 如果没有可用组合，回退到原始方法
-            self.logger.warning("No available unique distance combinations, using fallback")
-            return self._fallback_distance_calculation(dim - 1, randomize_positions_vars, prob_consts)
+            self.logger.warning(f"No available unique distance combinations for array {child_array.array_id}, using fallback:\n{all_possible_distances_weighted}\n")
+            dep_distance = random.choices(list(all_possible_distances.keys()), weights=list(all_possible_distances.values()))[0]
+            
+        return list(dep_distance)
 
     def _generate_all_distance_combinations(self, dim_var: int, randomize_positions_vars: List[int], value_consts: List[int]) -> Dict[Tuple[int], float]:
         """生成所有可能的距离组合"""
@@ -599,10 +634,15 @@ class Json_generator:
     def _calculate_weights_for_combinations(self, all_combinations: Dict[Tuple[int], float], prob_consts: Dict[int, float], used_distances: List[Tuple[int]]) -> Dict[Tuple[int], float]:
         """计算所有可能组合的权重，已使用的组合权重设为0"""
         
+        all_combinations = all_combinations.copy()
+        
         for combination in all_combinations.keys():
             # 如果该组合已被使用，权重设为0
             if combination in used_distances:
                 all_combinations[combination] = 0
+                continue
+            
+            if all_combinations[combination] == 0:
                 continue
             
             # 计算该组合的原始概率权重（各维度值的概率乘积）
@@ -657,7 +697,7 @@ class Json_generator:
         # self.logger.debug(f'params_info:\n{self.params_info}\n')
         # self.logger.debug(f'arrays_info:\n{self.arrays_info}\n')
 
-    def _get_parent_array_for_mapping(self, array: ArrayData) -> Optional[ArrayData]:
+    def _get_parent_array_for_mapping(self, array: ArrayData) -> ArrayData:
         """获取用于维度映射的源数组"""
         if array.write_stmt_id is not None: # write_stmt_id优先
             parent_array = self.arrays_total.arrays_write[array.write_stmt_id]
@@ -822,7 +862,7 @@ class Json_generator:
         self._reset_data()
 
         self.filename = f'{arg_depth}{arg_nstmts}{arg_bounds_index}{arg_prob_bounds_exist}{arg_narrays_per_dim}{arg_avg_narrays_read_per_stmt}{arg_bounds_coef}{arg_avg_ndeps_read_per_stmt}{arg_bounds_distance}{arg_prob_dep_write_exist}{arg_prob_branch}_{id:02d}.json'
-
+        self.update_logging()
         # self.logger.debug("Start json generation for file {self.filename}\n")
 
         file_content = self.generate_json_info(
@@ -835,5 +875,5 @@ class Json_generator:
         with open(file_destination, 'w') as fp:
             json.dump(file_content, fp, indent=4)
             
-        self.logger.debug(f'Random json generation done in "{file_destination}".\n')
+        # self.logger.debug(f'Random json generation done in "{file_destination}".\n')
         return file_destination

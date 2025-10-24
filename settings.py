@@ -118,6 +118,7 @@ class Arrays_total:
                 return DependenceCheckResult.CIRCULAR_DEPENDENCY, stmt_id
             else:
                 # 清除循环依赖，保留计算信息
+                # print("检测到循环依赖")
                 self._clear_dependence_keep_computation(stmt_id, array_data)
                 return DependenceCheckResult.DEPENDENCE_CLEARED, stmt_id
         
@@ -131,6 +132,7 @@ class Arrays_total:
 
     def _clear_dependence_keep_computation(self, stmt_id: int, array_data) -> None:
         """清除依赖信息但保留计算信息"""
+        # print("清除依赖信息但保留计算信息")
         self.arrays_write[stmt_id] = ArrayData(
             array_id=(stmt_id, 0), 
             array_name=array_data.array_name, 
@@ -139,6 +141,7 @@ class Arrays_total:
 
     def _keep_dependence_only(self, stmt_id: int, array_data) -> None:
         """只保留依赖信息，清除计算信息"""
+        # print("只保留依赖信息，清除计算信息")
         self.arrays_write[stmt_id] = ArrayData(
             array_id=(stmt_id, 0), 
             distance=array_data.distance,

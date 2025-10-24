@@ -19,28 +19,28 @@
 
 ** To compile a benchmark without any monitoring:
 
-$> gcc poly_code/filename.c polybench/polybench.c -I polybench/ -I poly_code -lm -o execution/filename.out
+$> gcc poly_code/{filename}.c polybench/polybench.c -I polybench/ -I poly_code -lm -o execution/{filename}.out
 
 ** To compile a benchmark with execution time reporting:
---------------------------------------------------------
+---------------------------------------------------
 
-$> gcc poly_code/filename.c polybench/polybench.c -I polybench/ -I poly_code -lm -DPOLYBENCH_TIME -o execution/filename.out
+$> gcc poly_code/{filename}.c polybench/polybench.c -I polybench/ -I poly_code -lm -DPOLYBENCH_TIME -o execution/{filename}.out
 
 ** To generate the reference array sum output of a benchmark:
 ---------------------------------------------------
 
-$> gcc poly_code/filename.c polybench/polybench.c -I polybench/ -I poly_code -lm -DUSE_INIT_SEED -DPOLYBENCH_CHECKSUM_ARRAYS -o execution/filename.out
-$> ./execution/filename.out 0 2>out.log
+$> gcc poly_code/{filename}.c polybench/polybench.c -I polybench/ -I poly_code -lm -DUSE_INIT_SEED -DPOLYBENCH_CHECKSUM_ARRAYS -o execution/{filename}.out
+$> ./execution/{filename}.out 0 2>out.log
 
 ** To generate the reference array elements output of a benchmark:
 ---------------------------------------------------
 
-$> gcc poly_code/filename.c polybench/polybench.c -I polybench/ -I poly_code -lm -DUSE_INIT_SEED -DPOLYBENCH_DUMP_ARRAYS -o execution/filename.out
-$> ./execution/filename.out 0 2>out.log
+$> gcc poly_code/{filename}.c polybench/polybench.c -I polybench/ -I poly_code -lm -DUSE_INIT_SEED -DPOLYBENCH_DUMP_ARRAYS -o execution/{filename}.out
+$> ./execution/{filename}.out 0 2>out.log
 
 
 
-## Filename and parameters
+## {filename} and parameters
 #### e.g. 2324222224_0.c
 1. (*)arg_depth specifies the maximum loop depth of SCoP. Here is 2, indicating that the loop dimension range is (1, 2).
 2. (*)arg_nstmts specifies the number of statements in SCoP. Here is 3, indicating that the number of statements is 3.
