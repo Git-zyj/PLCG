@@ -5,7 +5,7 @@
         "PB_P": 30
     },
     "max_degree": 1,
-    "loop_bounds": {
+    "special_loop_bounds": {
         "j": [
             0,
             "i"
@@ -95,7 +95,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -106,7 +106,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 },
                 {
                     "array_id": [
@@ -117,7 +117,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -128,7 +128,7 @@
                     "distance": [
                         -1
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 },
                 {
                     "array_id": [
@@ -139,7 +139,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 }
             ]
         },
@@ -160,7 +160,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 5
+                    "passive_stmt_id": 5
                 }
             ]
         },
@@ -204,7 +204,7 @@
                     "distance": [
                         -1
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 },
                 {
                     "array_id": [
@@ -215,7 +215,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 2
+                    "passive_stmt_id": 2
                 },
                 {
                     "array_id": [
@@ -226,7 +226,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 5
+                    "passive_stmt_id": 5
                 },
                 {
                     "array_id": [
@@ -237,7 +237,7 @@
                     "distance": [
                         -1
                     ],
-                    "write_stmt_id": 2
+                    "passive_stmt_id": 2
                 }
             ]
         },
@@ -291,7 +291,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 2
+                    "passive_stmt_id": 2
                 }
             ]
         },
@@ -375,7 +375,7 @@
                         0,
                         0
                     ],
-                    "write_stmt_id": 4
+                    "passive_stmt_id": 4
                 },
                 {
                     "array_id": [
@@ -388,7 +388,7 @@
                         0,
                         0
                     ],
-                    "write_stmt_id": 4
+                    "passive_stmt_id": 4
                 },
                 {
                     "array_id": [
@@ -401,7 +401,7 @@
                         0,
                         -1
                     ],
-                    "write_stmt_id": 4
+                    "passive_stmt_id": 4
                 }
             ]
         },
@@ -451,7 +451,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 5
+                    "passive_stmt_id": 5
                 },
                 {
                     "array_id": [
@@ -462,7 +462,7 @@
                     "distance": [
                         -1
                     ],
-                    "write_stmt_id": 5
+                    "passive_stmt_id": 5
                 }
             ]
         }

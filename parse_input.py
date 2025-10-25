@@ -15,7 +15,7 @@ class DataClass:
     instructions: List
     type: Optional[str] = "float"
     init_with: Optional[str] = "random"
-    loop_bounds: Optional[dict] = None
+    special_loop_bounds: Optional[dict] = None
     array_sizes: dict = field(init=False)
 
     def __post_init__(self):

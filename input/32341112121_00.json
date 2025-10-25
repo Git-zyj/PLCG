@@ -4,7 +4,7 @@
         "PB_L": 100
     },
     "max_degree": 1,
-    "loop_bounds": {
+    "special_loop_bounds": {
         "j": [
             0,
             "i"
@@ -56,7 +56,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -67,7 +67,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -78,7 +78,7 @@
                     "distance": [
                         -1
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 }
             ]
         },
@@ -128,7 +128,7 @@
                     "distance": [
                         -1
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -139,7 +139,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 }
             ]
         }

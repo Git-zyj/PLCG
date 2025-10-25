@@ -4,7 +4,7 @@
         "PB_M": 60
     },
     "max_degree": 1,
-    "loop_bounds": {},
+    "special_loop_bounds": {},
     "arrays": [
         "A[PB_N,PB_M]",
         "B[PB_N,PB_M,PB_M]",
@@ -93,7 +93,7 @@
                         0,
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 }
             ]
         },
@@ -143,7 +143,7 @@
                         0,
                         -1
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -155,7 +155,7 @@
                         -1,
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -167,7 +167,7 @@
                         -1,
                         1
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 }
             ]
         }

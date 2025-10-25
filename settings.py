@@ -68,7 +68,7 @@ class ArrayData:
     array_name: Union[list, str] = None
     array_access_function: np.ndarray = None
     distance: np.ndarray = None
-    write_stmt_id: int = None
+    passive_stmt_id: int = None
 
 
 

@@ -6,7 +6,7 @@
         "PB_Q": 40
     },
     "max_degree": 1,
-    "loop_bounds": {
+    "special_loop_bounds": {
         "j": [
             0,
             "i"
@@ -112,7 +112,7 @@
                         -1,
                         0
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 }
             ]
         },
@@ -187,7 +187,7 @@
                         0,
                         0
                     ],
-                    "write_stmt_id": 5
+                    "passive_stmt_id": 5
                 },
                 {
                     "array_id": [
@@ -199,7 +199,7 @@
                         0,
                         1
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 }
             ]
         },
@@ -254,7 +254,7 @@
                         1,
                         1
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -267,7 +267,7 @@
                         0,
                         -1
                     ],
-                    "write_stmt_id": 2
+                    "passive_stmt_id": 2
                 }
             ]
         },
@@ -327,7 +327,7 @@
                         1,
                         0
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -339,7 +339,7 @@
                         0,
                         1
                     ],
-                    "write_stmt_id": 5
+                    "passive_stmt_id": 5
                 },
                 {
                     "array_id": [
@@ -351,7 +351,7 @@
                         1,
                         -1
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -363,7 +363,7 @@
                         0,
                         -1
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -375,7 +375,7 @@
                         1,
                         1
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 }
             ]
         },
@@ -452,7 +452,7 @@
                         0,
                         -1
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 }
             ]
         },
@@ -497,7 +497,7 @@
                         0,
                         0
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -509,7 +509,7 @@
                         0,
                         0
                     ],
-                    "write_stmt_id": 5
+                    "passive_stmt_id": 5
                 },
                 {
                     "array_id": [
@@ -521,7 +521,7 @@
                         -1,
                         0
                     ],
-                    "write_stmt_id": 5
+                    "passive_stmt_id": 5
                 }
             ]
         }

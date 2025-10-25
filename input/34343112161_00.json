@@ -6,7 +6,7 @@
         "PB_P": 80
     },
     "max_degree": 1,
-    "loop_bounds": {
+    "special_loop_bounds": {
         "k": [
             0,
             "i"
@@ -62,7 +62,7 @@
                         -1,
                         0
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 },
                 {
                     "array_id": [
@@ -73,7 +73,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -85,7 +85,7 @@
                         -1,
                         -1
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 }
             ]
         },
@@ -121,7 +121,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -132,7 +132,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -143,7 +143,7 @@
                     "distance": [
                         -1
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 }
             ]
         },
@@ -207,7 +207,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -219,7 +219,7 @@
                         -1,
                         0
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 }
             ]
         },
@@ -269,7 +269,7 @@
                     "distance": [
                         1
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -280,7 +280,7 @@
                     "distance": [
                         -1
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 }
             ]
         }

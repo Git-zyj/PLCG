@@ -53,7 +53,7 @@ class Json_generator:
         self.schedules = []
         self.branchs = []
         self.params_info = {}
-        self.loop_bounds = defaultdict(list)
+        self.special_loop_bounds = defaultdict(list)
         self.arrays_info = defaultdict(list)
 
     def generate_schedule(self, arg_depth: int = 2, arg_nstmts: int = 3, arg_bounds_index: int = 3, arg_prob_bounds_exist: int = 4, arg_prob_branch: int = 1) -> None:
@@ -73,11 +73,11 @@ class Json_generator:
         
         schedules_init = -np.ones([nstmts, 2 * depth_max + 1])
         
-        for i in range(nstmts):
+        for stmt_id in range(nstmts):
             depth = random.randint(depth_min, depth_max)  # 指定各个语句所处维度
-            for j in range(depth + 1):
+            for schedule_dim_var_id in range(depth + 1):
                 index = random.randint(0, arg_bounds_index)  # 指定该维度下语句的具体序号③
-                schedules_init[i][2 * j] = index  # 在调度的常量维进行记录
+                schedules_init[stmt_id][2 * schedule_dim_var_id] = index  # 在调度的常量维进行记录
         
         # self.logger.debug(f'Initial schedules:\n{schedules_init}')
         schedule_tree_init = Schedule_tree()
@@ -101,8 +101,8 @@ class Json_generator:
         # self.logger.debug(f'Schedules:\n{self.schedules}')
         # self.logger.debug(f'Branchs:\n{self.branchs}')
         
-        for child in schedule_tree_init.root.children:  # loop_bounds固定
-            self.generate_loop_bounds(arg_prob_bounds_exist, child)
+        for active in schedule_tree_init.root.children:  # loop_bounds固定
+            self.generate_loop_bounds(arg_prob_bounds_exist, active)
             
     def generate_loop_bounds(self, prob_bounds_exist: float, node: object, ancestors: List = []) -> None:
         '''
@@ -119,10 +119,10 @@ class Json_generator:
             if bounds_exist < prob_bounds_exist / 10:
                 prob_bounds_exist *= 0.5  # 后续继续指定的几率*50%
                 tmp_bound = random.choice(ancestors)
-                self.loop_bounds[node.content] = [0, tmp_bound]  # TODO: 目前只有右下三角值域（有待扩充）
+                self.special_loop_bounds[node.content] = [0, tmp_bound]  # TODO: 目前只有右下三角值域（有待扩充）
                 
-        for child in node.children:
-            self.generate_loop_bounds(prob_bounds_exist, child, ancestors + [node.content])
+        for active in node.children:
+            self.generate_loop_bounds(prob_bounds_exist, active, ancestors + [node.content])
             
     def generate_additional_computation(self, arg_narrays_per_dim: int = 2, arg_avg_narrays_read_per_stmt: int = 1, arg_bounds_coef: int = 2) -> None:
         '''
@@ -153,8 +153,8 @@ class Json_generator:
         
         
         
-        for i in range(nstmts):
-            depth_stmt = len(self.schedules[i]) // 2
+        for stmt_id in range(nstmts):
+            depth_stmt = len(self.schedules[stmt_id]) // 2
             
             # 优化数组位置选择逻辑
             if depth_stmt > 1:
@@ -162,17 +162,17 @@ class Json_generator:
             else:
                 depth_array_write = random.choices([depth_stmt, depth_stmt + 1], prob_array_depth[1:])[0] #循环维数为1时，只允许相同和相对于循环维度+1的情况
             
-            # self.logger.debug(f"depth_array_write for array_write in stmt {i}: {depth_array_write}")
+            # self.logger.debug(f"depth_array_write for array_write in stmt {stmt_id}: {depth_array_write}")
             array_write_access_function = self.generate_access_function(
-                (i, 0), depth_stmt, depth_array_write, prob_terms[i], prob_vars, prob_consts
+                (stmt_id, 0), depth_stmt, depth_array_write, prob_terms[stmt_id], prob_vars, prob_consts
             )  # 指定语句写数组访存⑧(有待扩充)
             
             array_write = ArrayData(
-                array_id=(i, 0), # 0表示首个数组，即写数组
-                array_name=indexed_array_names[i],  # 指定语句写数组名⑦(必定存在)
+                array_id=(stmt_id, 0), # 0表示首个数组，即写数组
+                array_name=indexed_array_names[stmt_id],  # 指定语句写数组名⑦(必定存在)
                 array_access_function=array_write_access_function
             )
-            self.arrays_write[i] = array_write # 先对每条语句的write_array都生成一个comp，作为后续依赖生成失败的回退
+            self.arrays_write[stmt_id] = array_write # 先对每条语句的write_array都生成一个comp，作为后续依赖生成失败的回退
         
         
         
@@ -182,13 +182,13 @@ class Json_generator:
         # TODO: 是直接指定读依赖数量还是限制范围？
         narrays_read = np.random.multinomial(nstmts * arg_avg_narrays_read_per_stmt, [1/nstmts] * nstmts) # 指定语句读数组个数⑨
         
-        for i in range(nstmts):
-            depth_stmt = len(self.schedules[i]) // 2
+        for stmt_id in range(nstmts):
+            depth_stmt = len(self.schedules[stmt_id]) // 2
               
             # narrays_read = random.randint(0, arg_avg_narrays_read_per_stmt)  # 指定语句读数组个数⑨
-            # self.logger.debug(f"narrays_read in stmt {i}:{narrays_read[i]}")
+            # self.logger.debug(f"narrays_read in stmt {stmt_id}:{narrays_read[stmt_id]}")
             
-            for j in range(narrays_read[i]):
+            for comp_read_id in range(narrays_read[stmt_id]):
                 
                 if array_name_id >= len(indexed_array_names):
                     raise IndexError(f'需要更多数组名称，当前有{len(indexed_array_names)}个，实际需要{array_name_id}个')
@@ -204,17 +204,17 @@ class Json_generator:
                     arrays_name[(depth_array_read, array_read_id)] = indexed_array_names[array_name_id] # 指定语句读数组名⑩
                     array_name_id += 1
                 
-                # self.logger.debug(f"Start array_access_function generation for the {j}th array_read in stmt {i}")
+                # self.logger.debug(f"Start array_access_function generation for the {comp_read_id}th array_read in stmt {stmt_id}")
                 array_read_access_function = self.generate_access_function(
-                    (i, j + 1), depth_stmt, depth_array_read, prob_terms[i], prob_vars, prob_consts
+                    (stmt_id, comp_read_id + 1), depth_stmt, depth_array_read, prob_terms[stmt_id], prob_vars, prob_consts
                 )  # 指定语句读数组访存⑾(有待扩充)
                     
                 array_read = ArrayData(
-                    array_id=(i, j + 1), # 先分配additional_computation标识，后续再分配dependency标识，+1避免和write冲突
+                    array_id=(stmt_id, comp_read_id + 1), # 先分配additional_computation标识，后续再分配dependency标识，+1避免和write冲突
                     array_name=arrays_name[(depth_array_read, array_read_id)], 
                     array_access_function=array_read_access_function
                 )
-                self.arrays_reads[i][j + 1] = array_read
+                self.arrays_reads[stmt_id][comp_read_id + 1] = array_read
 
     def generate_terms(self, num_variables: int, max_degree: int) -> List[Tuple]:
         """
@@ -239,8 +239,8 @@ class Json_generator:
         """预计算所有语句的基项和权重"""
         prob_terms_all = []
         
-        for i in range(nstmts):
-            depth_stmt = len(self.schedules[i]) // 2
+        for stmt_id in range(nstmts):
+            depth_stmt = len(self.schedules[stmt_id]) // 2
             
             # 基项生成
             terms = self.generate_terms(depth_stmt, max_degree)
@@ -298,12 +298,12 @@ class Json_generator:
         
         prob_terms_var_copy = prob_terms_var.copy() # 备份
         
-        for i in range(depth_array):
+        for array_dim_id in range(depth_array):
             access_function = [0] * len(prob_terms)
             selected_indices = [()]  # 必定包含常数项，关键在于取值
             
             # 确认当前维度对应循环变量：
-            corresponding_var_index = i + previous_var_index
+            corresponding_var_index = array_dim_id + previous_var_index
             
             # 根据对应变量调整权重
             prob_terms_var = prob_terms_var_copy.copy() # 初始化，避免前一维度选择影响当前维度
@@ -312,25 +312,25 @@ class Json_generator:
                     # 包含对应变量：权重乘以2
                     prob_terms_var[term] *= 2
             
-            # self.logger.debug(f"Adjusted prob_terms_var for dimension {i}: {prob_terms_var}")
+            # self.logger.debug(f"Adjusted prob_terms_var for dimension {array_dim_id}: {prob_terms_var}")
             
-            j = 0
-            continue_prob = 1.0  # 初始继续选择基项概率为1*(2/3)^j
+            selection_turn = 0
+            continue_prob = 1.0  # 初始继续选择基项概率为1*(2/3)^selection_turn
             
-            # TODO: 目前一定会至少选择一个基项，即A[i][0]不会在comp中出现
+            # TODO: 目前一定会至少选择一个基项，即A[array_dim_id][0]不会在comp中出现
             
             while True:
                 # 决定是否继续选择基项（不满足概率或者不允许多基项或超过最大基项数）
-                if not enable_multi_terms and j >= 1:
-                    # self.logger.debug(f"Stop the {j}th term selection because multi_terms is disabled")
+                if not enable_multi_terms and selection_turn >= 1:
+                    # self.logger.debug(f"Stop the {selection_turn}th term selection because multi_terms is disabled")
                     break  # 不允许多基项
                 
-                if j >= max_terms_per_func - 1:
-                    # self.logger.debug(f"Stop the {j}th term selection because exceed max_terms_per_func")
+                if selection_turn >= max_terms_per_func - 1:
+                    # self.logger.debug(f"Stop the {selection_turn}th term selection because exceed max_terms_per_func")
                     break  # 超过最大基项数
                 
                 if random.random() > continue_prob:
-                    # self.logger.debug(f"Stop the {j}th term selection because not meet selection prob")
+                    # self.logger.debug(f"Stop the {selection_turn}th term selection because not meet selection prob")
                     break  # 终止选择
 
                 idx = random.choices(list(prob_terms_var.keys()), weights=prob_terms_var.values())[0]
@@ -341,22 +341,22 @@ class Json_generator:
                 if idx != (): # 空选即类似A[0]的结果
                     selected_indices.append(idx)
                 else:
-                    self.logger.warning(f"No terms are selected in the {j}th term selection for the {i}th dim in array {array_id}")
+                    self.logger.warning(f"No terms are selected in the {selection_turn}th term selection for the {array_dim_id}th dim in array {array_id}")
 
                 # 衰减继续概率：(2/3)^n
                 continue_prob *= 2/3
                 
-                j += 1
+                selection_turn += 1
 
             # 为选中的基项分配系数
-            for i, term in enumerate(selected_indices):
+            for term in selected_indices:
                 if term == ():  # consts
                     coef = random.choices(list(prob_consts.keys()), prob_consts.values())[0]
                 else:  # vars
                     coef = random.choices(list(prob_vars.keys()), prob_vars.values())[0]
                 access_function[list(prob_terms.keys()).index(term)] = coef
 
-            # self.logger.debug(f"The {i}th dim in access_function for array {array_id}: {access_function}")
+            # self.logger.debug(f"The {array_dim_id}th dim in access_function for array {array_id}: {access_function}")
             
             selected_variables.update(selected_indices)
             array_access_function.append(access_function)
@@ -381,9 +381,9 @@ class Json_generator:
         # 计算调度变量和前缀
         schedules_var = []
         schedules_var_prefix = []
-        for s in self.schedules:
+        for schedule in self.schedules:
             # 计算完整调度变量
-            var_full = [s[i] for i in range(1, len(s), 2)]
+            var_full = [schedule[i] for i in range(1, len(schedule), 2)]
             schedules_var.append(var_full)
             # 计算前缀（避免空范围）
             if len(var_full) > 1:
@@ -403,98 +403,102 @@ class Json_generator:
             else:
                 prob_consts[i] = 1/3/(2 * arg_bounds_distance)  # prob for value in const coef in indexes
         
-        for i, array_write in self.arrays_write.items():
+        
+        
+        for active_stmt_id, array_write in self.arrays_write.items():
             # 确认读、写依赖数量
             dep_write_exist = random.random() > arg_prob_dep_write_exist / 10 # 指定语句写依赖是否存在，影响依赖密度
                 
             if dep_write_exist:
                 
                 candidates_var_write = [
-                    j for j in range(nstmts) 
-                    if i != j and 
+                    stmt_id for stmt_id in range(nstmts) 
+                    if active_stmt_id != stmt_id and 
                     (
-                        schedules_var[j] == schedules_var[i] or 
-                        schedules_var[j] == schedules_var_prefix[i]
+                        schedules_var[stmt_id] == schedules_var[active_stmt_id] or 
+                        schedules_var[stmt_id] == schedules_var_prefix[active_stmt_id]
                     )
-                ] # TODO: 寻找自身i之外j为共享变量维或者共享变量维的除去最后一维的部分（配合之前的loc_array_write中允许出现相同和相对于循环维度+-1的情况，但目前仅限于j=i-1）（限制依赖必须在同一loop之间）
+                ] # TODO: 寻找自身active_stmt_id之外stmt_id为共享变量维或者共享变量维的除去最后一维的部分（配合之前的loc_array_write中允许出现相同和相对于循环维度+-1的情况，但目前仅限于stmt_id=active_stmt_id-1）（限制依赖必须在同一loop之间）
                 
                 candidates_dim_write = [
-                    j for j in range(nstmts) 
-                    if i != j and
-                    not j in candidates_var_write and 
-                    (len(schedules_var[j]) - len(schedules_var[i]) == -1 or
-                    len(schedules_var[j]) - len(schedules_var[i]) == 0)
-                ] # 寻找自身i之外j为调度变量维维数近似的语句（目前仅限于j=i-1）（将依赖放宽至全局）
+                    stmt_id for stmt_id in range(nstmts) 
+                    if active_stmt_id != stmt_id and
+                    not stmt_id in candidates_var_write and 
+                    (len(schedules_var[stmt_id]) - len(schedules_var[active_stmt_id]) == -1 or
+                    len(schedules_var[stmt_id]) - len(schedules_var[active_stmt_id]) == 0)
+                ] # 寻找自身active_stmt_id之外stmt_id为调度变量维维数近似的语句（目前仅限于stmt_id=active_stmt_id-1）（将依赖放宽至全局）
                 
                 if not candidates_var_write and not candidates_dim_write:
-                    self.logger.warning(f'no available stmts in candidates_write for stmt {i} to construct WAW dep')
+                    self.logger.warning(f'no available stmts in candidates_write for stmt {active_stmt_id} to construct WAW dep')
                 else:
                     prob_weights_write = [0] * nstmts  # 概率初始化
                     
                     num_var, num_dim = len(candidates_var_write), len(candidates_dim_write)
                     
                     # 权重分配
-                    for j in range(nstmts):
-                        if j in candidates_var_write:
-                            prob_weights_write[j] = prob_dep_region[0] / num_var
-                        elif j in candidates_dim_write:
-                            prob_weights_write[j] = prob_dep_region[1] / num_dim
+                    for stmt_id in range(nstmts):
+                        if stmt_id in candidates_var_write:
+                            prob_weights_write[stmt_id] = prob_dep_region[0] / num_var
+                        elif stmt_id in candidates_dim_write:
+                            prob_weights_write[stmt_id] = prob_dep_region[1] / num_dim
                         else:
                             pass # 依然为0
                     
-                    # self.logger.debug(f"candidates_write for stmt{i}: {candidates_var_write + candidates_dim_write}")
-                    # self.logger.debug(f"prob_weights_write for stmt{i}: {prob_weights_write}")
+                    # self.logger.debug(f"candidates_write for stmt{active_stmt_id}: {candidates_var_write + candidates_dim_write}")
+                    # self.logger.debug(f"prob_weights_write for stmt{active_stmt_id}: {prob_weights_write}")
                     
-                    parent_array = array_write
+                    passive_array = array_write
                     
-                    # self.logger.debug(f'parent_array: {parent_array}\narray_write: {array_write}')
+                    # self.logger.debug(f'passive_array: {passive_array}\narray_write: {array_write}')
                     
-                    while parent_array.array_id == array_write.array_id: # 确保parent_array溯源到自身，即依赖不会成环
+                    while passive_array.array_id == array_write.array_id: # 确保passive_array溯源到自身，即依赖不会成环
                         
                         if sum(prob_weights_write) == 0:
-                            self.logger.warning(f'To avoid dpendence cycle, stmt {i} can not have WAW dep.')
-                            dep_write_id = None
+                            self.logger.warning(f'To avoid dpendence cycle, stmt {active_stmt_id} can not have WAW dep.')
+                            dep_write_passive_stmt_id = None
                             break
                         
-                        dep_write_id = random.choices(range(nstmts), weights=prob_weights_write, k=1)[0]  # 指定写依赖的source语句⑿
+                        dep_write_passive_stmt_id = random.choices(range(nstmts), weights=prob_weights_write, k=1)[0]  # 指定写依赖的source语句⑿
                         
-                        prob_weights_write[dep_write_id] = 0  # 避免再次选择语句
+                        prob_weights_write[dep_write_passive_stmt_id] = 0  # 避免再次选择语句
                         
-                        parent_array = self._get_parent_array_for_mapping(self.arrays_write[dep_write_id])
+                        passive_array = self._get_passive_array_for_mapping(self.arrays_write[dep_write_passive_stmt_id])
                         
-                        # self.logger.debug(f'parent_array: {parent_array}\narray_write: {array_write}')
+                        # self.logger.debug(f'passive_array: {passive_array}\narray_write: {array_write}')
                     
-                    self.arrays_write[i] = ArrayData(array_id=(i, 0), array_name=array_write.array_name, array_access_function=array_write.array_access_function, write_stmt_id=dep_write_id) # 保留先前生成的comp信息作为依赖生成失败的回退
+                    self.arrays_write[active_stmt_id] = ArrayData(array_id=(active_stmt_id, 0), array_name=array_write.array_name, array_access_function=array_write.array_access_function, passive_stmt_id=dep_write_passive_stmt_id) # 保留先前生成的comp信息作为依赖生成失败的回退
             
             else:
-                # self.logger.debug(f'stmt {i} has no WAW dep due to arg_prob_dep_write_exist')
+                # self.logger.debug(f'stmt {active_stmt_id} has no WAW dep due to arg_prob_dep_write_exist')
                 pass
             
-            
+        
+                    
+        
                     
         # TODO: 是直接指定读依赖数量还是限制范围？(和narrays_read类似)
         ndeps_read = np.random.multinomial(nstmts * arg_avg_ndeps_read_per_stmt, [1/nstmts] * nstmts) # 指定读依赖数量⒁
         
         
-        for i in range(nstmts):
+        for active_stmt_id in range(nstmts):
             
             # ndeps_read = random.randint(0, arg_avg_ndeps_read_per_stmt)  # 指定读依赖数量⒁
-            # self.logger.debug(f"ndeps_read in stmt {i}:{ndeps_read[i]}")
+            # self.logger.debug(f"ndeps_read in stmt {active_stmt_id}:{ndeps_read[active_stmt_id]}")
             
-            if ndeps_read[i]: # 确认读依赖数量非零
+            if ndeps_read[active_stmt_id]: # 确认读依赖数量非零
                 candidates_var_read = [
-                    j for j in range(nstmts) 
+                    stmt_id for stmt_id in range(nstmts) 
                     if (
-                        schedules_var[j] == schedules_var[i] or 
-                        schedules_var[j] == schedules_var_prefix[i]
+                        schedules_var[stmt_id] == schedules_var[active_stmt_id] or 
+                        schedules_var[stmt_id] == schedules_var_prefix[active_stmt_id]
                     )
                 ] # 和candidates_write略有不同，允许同语句的读写数组之间的依赖
                 
                 candidates_dim_read = [
-                    j for j in range(nstmts) 
-                    if not j in candidates_var_read and
-                    (len(schedules_var[j]) - len(schedules_var[i]) == -1 or
-                    len(schedules_var[j]) - len(schedules_var[i]) == 0)
+                    stmt_id for stmt_id in range(nstmts) 
+                    if not stmt_id in candidates_var_read and
+                    (len(schedules_var[stmt_id]) - len(schedules_var[active_stmt_id]) == -1 or
+                    len(schedules_var[stmt_id]) - len(schedules_var[active_stmt_id]) == 0)
                 ] # 同上
                 
                 # 无需判断是否为空列表，因为至少有语句自身
@@ -504,28 +508,28 @@ class Json_generator:
                 num_var, num_dim = len(candidates_var_read), len(candidates_dim_read)
                 
                 # 权重分配
-                for j in range(nstmts):
-                    if j in candidates_var_read:
-                        prob_weights_read[j] = prob_dep_region[0] / num_var
-                    elif j in candidates_dim_read:
-                        prob_weights_read[j] = prob_dep_region[1] / num_dim
+                for stmt_id in range(nstmts):
+                    if stmt_id in candidates_var_read:
+                        prob_weights_read[stmt_id] = prob_dep_region[0] / num_var
+                    elif stmt_id in candidates_dim_read:
+                        prob_weights_read[stmt_id] = prob_dep_region[1] / num_dim
                     else:
                         pass # 仍然为0
                 
-                # self.logger.debug(f"candidates_read for stmt{i}: {candidates_var_read + candidates_dim_read}")
-                # self.logger.debug(f"prob_weights_read for stmt{i}: {prob_weights_read}")
+                # self.logger.debug(f"candidates_read for stmt{active_stmt_id}: {candidates_var_read + candidates_dim_read}")
+                # self.logger.debug(f"prob_weights_read for stmt{active_stmt_id}: {prob_weights_read}")
                 
-                # self.logger.debug(f'ndeps_read for stmt{i}: {ndeps_read[i]}')
+                # self.logger.debug(f'ndeps_read for stmt{active_stmt_id}: {ndeps_read[active_stmt_id]}')
                 
-                narrays_read_comp = len(self.arrays_reads[i])
+                narrays_read_comp = len(self.arrays_reads[active_stmt_id])
                 
-                for j in range(ndeps_read[i]):
+                for dep_read_id in range(ndeps_read[active_stmt_id]):
                     
-                    dep_read_id = random.choices(range(nstmts), weights=prob_weights_read, k=1)[0]  # 指定读依赖的write语句⒂
+                    dep_read_passive_stmt_id = random.choices(range(nstmts), weights=prob_weights_read, k=1)[0]  # 指定读依赖的write语句⒂
                     
-                    self.arrays_reads[i][narrays_read_comp + j + 1] = ArrayData(array_id=(i, narrays_read_comp + j + 1), write_stmt_id=dep_read_id) # 依赖读数组标识在computation读数组标识基础上继续编号
+                    self.arrays_reads[active_stmt_id][narrays_read_comp + dep_read_id + 1] = ArrayData(array_id=(active_stmt_id, narrays_read_comp + dep_read_id + 1), passive_stmt_id=dep_read_passive_stmt_id) # 依赖读数组标识在computation读数组标识基础上继续编号
             else:
-                self.logger.debug(f'stmt {i} has no RAW or WAR dep due to ndeps_read=0')
+                self.logger.debug(f'stmt {active_stmt_id} has no RAW or WAR dep due to ndeps_read=0')
         
         
         
@@ -539,60 +543,60 @@ class Json_generator:
         """处理依赖距离计算"""
         # 处理写依赖距离
         # 用于记录每个源数组已分配的依赖距离
-        parent_array_distances = defaultdict(list)  # key: parent_array(source array for WAW, write array for WAR and RAW)标识, value: 已分配的distance列表
-        for i, array_write in self.arrays_write.items():
-            if array_write.write_stmt_id is not None:
-                parent_array = self._get_parent_array_for_mapping(array_write)
+        passive_array_distances = defaultdict(list)  # key: passive_array(source array for WAW, write array for WAR and RAW)标识, value: 已分配的distance列表
+        for active_stmt_id, array_write in self.arrays_write.items():
+            if array_write.passive_stmt_id is not None:
+                passive_array = self._get_passive_array_for_mapping(array_write)
                 distance_dep_write = self._calculate_dependency_distance(
-                    parent_array, array_write, parent_array_distances[parent_array.array_id], prob_consts
+                    passive_array, array_write, passive_array_distances[passive_array.array_id], prob_consts
                 )
-                self.arrays_write[i] = ArrayData(
+                self.arrays_write[active_stmt_id] = ArrayData(
                     array_id=array_write.array_id, 
-                    # array_name=parent_array.array_name, 
-                    # array_access_function=parent_array.array_access_function, 
+                    # array_name=passive_array.array_name, 
+                    # array_access_function=passive_array.array_access_function, 
                     distance=distance_dep_write, 
-                    write_stmt_id=array_write.write_stmt_id
+                    passive_stmt_id=array_write.passive_stmt_id
                 )
                 
                 # 更新已分配距离记录，array_write的dep要完全避免重复
-                parent_array_distances[parent_array.array_id].append(tuple(distance_dep_write))
+                passive_array_distances[passive_array.array_id].append(tuple(distance_dep_write))
                 
-                # self.logger.debug(f"array_write in stmt {i} with dep distance: {self.arrays_write[i]}")
+                # self.logger.debug(f"array_write in stmt {active_stmt_id} with dep distance: {self.arrays_write[active_stmt_id]}")
         
         # 处理读依赖距离
-        parent_array_distances = defaultdict(list)  # 重置，允许读依赖和写依赖距离相同，但同语句读依赖之间依然不能重复
-        for i, arrays_read in self.arrays_reads.items():
-            for j, array_read in arrays_read.items():
-                if array_read.write_stmt_id is not None:
-                    parent_array = self._get_parent_array_for_mapping(array_read)
+        passive_array_distances = defaultdict(list)  # 重置，允许读依赖和写依赖距离相同，但同语句读依赖之间依然不能重复
+        for active_stmt_id, arrays_read in self.arrays_reads.items():
+            for dep_read_id, array_read in arrays_read.items():
+                if array_read.passive_stmt_id is not None:
+                    passive_array = self._get_passive_array_for_mapping(array_read)
                     distance_dep_read = self._calculate_dependency_distance(
-                        parent_array, array_read, parent_array_distances[(parent_array.array_id, i)], prob_consts
+                        passive_array, array_read, passive_array_distances[(passive_array.array_id, active_stmt_id)], prob_consts
                     )
-                    self.arrays_reads[i][j] = ArrayData(
+                    self.arrays_reads[active_stmt_id][dep_read_id] = ArrayData(
                         array_id=array_read.array_id,
-                        # array_name=parent_array.array_name, 
-                        # array_access_function=parent_array.array_access_function, 
+                        # array_name=passive_array.array_name, 
+                        # array_access_function=passive_array.array_access_function, 
                         distance=distance_dep_read, 
-                        write_stmt_id=array_read.write_stmt_id
+                        passive_stmt_id=array_read.passive_stmt_id
                     )
                     
                     # 更新已分配距离记录
-                    parent_array_distances[(parent_array.array_id, i)].append(tuple(distance_dep_read))
+                    passive_array_distances[(passive_array.array_id, active_stmt_id)].append(tuple(distance_dep_read))
                     
-                    # self.logger.debug(f"The {j}th array_read in stmt {i} with dep distance: {self.arrays_reads[i][j]}")
+                    # self.logger.debug(f"The {dep_read_id}th array_read in stmt {active_stmt_id} with dep distance: {self.arrays_reads[active_stmt_id][dep_read_id]}")
 
-    def _calculate_dependency_distance(self, parent_array: ArrayData, child_array: ArrayData, used_distances: List[Tuple[int]], prob_consts: Dict[int, float]) -> List[int]:
+    def _calculate_dependency_distance(self, passive_array: ArrayData, active_array: ArrayData, used_distances: List[Tuple[int]], prob_consts: Dict[int, float]) -> List[int]:
         """计算依赖距离"""
         
-        depth, dim = len(parent_array.array_access_function), len(parent_array.array_access_function[0]) # 获取依赖中source数组的维度
+        depth, dim = len(passive_array.array_access_function), len(passive_array.array_access_function[0]) # 获取依赖中source数组的维度
         
         terms = self.generate_terms(dim, max_degree)
         
         # 步骤1: 确定需要随机化的变量维度位置
         randomize_positions_terms = set()
-        for j in range(1, dim):  # 从第1列开始，跳过首列常数项，另外dim=len(terms)
-            if any(parent_array.array_access_function[k][j] != 0 for k in range(depth)):
-                randomize_positions_terms.update(terms[j])
+        for dim_id in range(1, dim):  # 从第1列开始，跳过首列常数项，另外dim=len(terms)
+            if any(passive_array.array_access_function[depth_id][dim_id] != 0 for depth_id in range(depth)):
+                randomize_positions_terms.update(terms[dim_id])
         
         randomize_positions_vars = list(randomize_positions_terms)
         
@@ -604,22 +608,22 @@ class Json_generator:
         # 步骤2: 生成所有可能的distance组合
         all_possible_distances = self._generate_all_distance_combinations(dim - 1, randomize_positions_vars, list(prob_consts.keys())) # 注意维度要-1，去掉常数维度
         
-        if parent_array.array_id[0] == child_array.array_id[0]:
+        if passive_array.array_id[0] == active_array.array_id[0]:
             # 如果是同一语句的依赖，调整权重，避免0距离依赖(实际上这就不是依赖了)
-            # self.logger.debug(f'Parent and child arrays are in the same stmt for array {child_array.array_id}')
+            # self.logger.debug(f'passive and active arrays are in the same stmt for array {active_array.array_id}')
             all_possible_distances[(0,) * (dim - 1)] = 0
         
         # 步骤3: 根据used_distances调整权重
         all_possible_distances_weighted = self._calculate_weights_for_combinations(all_possible_distances, prob_consts, used_distances)
         
-        # self.logger.debug(f'Weights after adjust for array {child_array.array_id}: {all_possible_distances_weighted}')
+        # self.logger.debug(f'Weights after adjust for array {active_array.array_id}: {all_possible_distances_weighted}')
         
         # 步骤4: 根据调整后的权重进行随机选择
         if sum(all_possible_distances_weighted.values()) > 0:
             dep_distance = random.choices(list(all_possible_distances_weighted.keys()), weights=list(all_possible_distances_weighted.values()))[0]
         else:
             # 如果没有可用组合，回退到原始方法
-            self.logger.warning(f"No available unique distance combinations for array {child_array.array_id}, using fallback:\n{all_possible_distances_weighted}\n")
+            self.logger.warning(f"No available unique distance combinations for array {active_array.array_id}, using fallback:\n{all_possible_distances_weighted}\n")
             dep_distance = random.choices(list(all_possible_distances.keys()), weights=list(all_possible_distances.values()))[0]
             
         return list(dep_distance)
@@ -684,16 +688,16 @@ class Json_generator:
          
         # 处理写数组
         for array in self.arrays_write.values():
-            parent_array = self._get_parent_array_for_mapping(array)
-            if self.arrays_info[parent_array.array_name] == []:
-                params_unused = self._assign_array_dimensions(parent_array, num_params, params_unused)
+            passive_array = self._get_passive_array_for_mapping(array)
+            if self.arrays_info[passive_array.array_name] == []:
+                params_unused = self._assign_array_dimensions(passive_array, num_params, params_unused)
         
         # 处理读数组
         for arrays in self.arrays_reads.values():
             for array in arrays.values():
-                parent_array = self._get_parent_array_for_mapping(array)
-                if self.arrays_info[parent_array.array_name] == []:
-                    params_unused = self._assign_array_dimensions(parent_array, num_params, params_unused)
+                passive_array = self._get_passive_array_for_mapping(array)
+                if self.arrays_info[passive_array.array_name] == []:
+                    params_unused = self._assign_array_dimensions(passive_array, num_params, params_unused)
 
         # 清理未使用的参数
         for param in params_unused:
@@ -705,17 +709,17 @@ class Json_generator:
         # self.logger.debug(f'params_info:\n{self.params_info}\n')
         # self.logger.debug(f'arrays_info:\n{self.arrays_info}\n')
 
-    def _get_parent_array_for_mapping(self, array: ArrayData) -> ArrayData:
+    def _get_passive_array_for_mapping(self, array: ArrayData) -> ArrayData:
         """获取用于维度映射的源数组"""
-        if array.write_stmt_id is not None: # write_stmt_id优先
-            parent_array = self.arrays_write[array.write_stmt_id]
-            while parent_array.write_stmt_id is not None:
-                parent_array = self.arrays_write[parent_array.write_stmt_id]
-            return parent_array
+        if array.passive_stmt_id is not None: # passive_stmt_id优先
+            passive_array = self.arrays_write[array.passive_stmt_id]
+            while passive_array.passive_stmt_id is not None:
+                passive_array = self.arrays_write[passive_array.passive_stmt_id]
+            return passive_array
         elif array.array_access_function:
             return array
         else:
-            raise ValueError("Array must have either write_stmt_id or array_access_function defined.")
+            raise ValueError("Array must have either passive_stmt_id or array_access_function defined.")
 
     def _assign_array_dimensions(self, array: ArrayData, num_params: int, params_unused: Set[str]) -> Set[str]:
         """为数组分配维度参数"""        
@@ -770,7 +774,7 @@ class Json_generator:
         
         json_info['params'] = self.params_info
         json_info['max_degree'] = max_degree
-        json_info['loop_bounds'] = self.loop_bounds
+        json_info['special_loop_bounds'] = self.special_loop_bounds
         json_info['arrays'] = self._build_arrays_list()
         
         nstmts = len(self.schedules)
@@ -805,15 +809,15 @@ class Json_generator:
         dependencies = defaultdict(list)
         
         # 处理写数组
-        for i, array in self.arrays_write.items():
-            if array.write_stmt_id is not None: # write_stmt_id优先
+        for stmt_id, array in self.arrays_write.items():
+            if array.passive_stmt_id is not None: # passive_stmt_id优先
                 dependency = {
                     'array_id': array.array_id, 
                     'category': 'write',
                     'distance': array.distance,
-                    'write_stmt_id': array.write_stmt_id
+                    'passive_stmt_id': array.passive_stmt_id
                 }
-                dependencies[i].append(dependency)
+                dependencies[stmt_id].append(dependency)
             else:
                 additional_computation = {
                     'array_id': array.array_id, 
@@ -821,19 +825,19 @@ class Json_generator:
                     'array_type': 'write',
                     'array_access_function': array.array_access_function
                 }
-                additional_computations[i].append(additional_computation)
+                additional_computations[stmt_id].append(additional_computation)
                 
         # 处理读数组
-        for i, arrays_read in self.arrays_reads.items():
+        for stmt_id, arrays_read in self.arrays_reads.items():
             for array_read in arrays_read.values():
-                if array_read.write_stmt_id is not None: # 同理
+                if array_read.passive_stmt_id is not None: # 同理
                     dependency = {
                         'array_id': array_read.array_id, 
                         'category': 'read',
                         'distance': array_read.distance,
-                        'write_stmt_id': array_read.write_stmt_id
+                        'passive_stmt_id': array_read.passive_stmt_id
                     }
-                    dependencies[i].append(dependency)
+                    dependencies[stmt_id].append(dependency)
                 else:
                     additional_computation = {
                         'array_id': array_read.array_id, 
@@ -841,7 +845,7 @@ class Json_generator:
                         'array_type': 'read',
                         'array_access_function': array_read.array_access_function
                     }
-                    additional_computations[i].append(additional_computation)
+                    additional_computations[stmt_id].append(additional_computation)
         
         return additional_computations, dependencies
 

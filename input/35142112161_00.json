@@ -7,7 +7,7 @@
         "PB_Q": 30
     },
     "max_degree": 1,
-    "loop_bounds": {
+    "special_loop_bounds": {
         "j": [
             0,
             "i"
@@ -128,7 +128,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -139,7 +139,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 },
                 {
                     "array_id": [
@@ -150,7 +150,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 0
+                    "passive_stmt_id": 0
                 }
             ]
         },
@@ -173,7 +173,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 2
+                    "passive_stmt_id": 2
                 },
                 {
                     "array_id": [
@@ -184,7 +184,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 1
+                    "passive_stmt_id": 1
                 },
                 {
                     "array_id": [
@@ -195,7 +195,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 2
+                    "passive_stmt_id": 2
                 },
                 {
                     "array_id": [
@@ -206,7 +206,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -217,7 +217,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 }
             ]
         },
@@ -253,7 +253,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -264,7 +264,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 2
+                    "passive_stmt_id": 2
                 }
             ]
         },
@@ -318,7 +318,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -329,7 +329,7 @@
                     "distance": [
                         0
                     ],
-                    "write_stmt_id": 3
+                    "passive_stmt_id": 3
                 }
             ]
         },
@@ -385,7 +385,7 @@
                         0,
                         0
                     ],
-                    "write_stmt_id": 4
+                    "passive_stmt_id": 4
                 }
             ]
         }

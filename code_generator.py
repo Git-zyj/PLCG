@@ -53,7 +53,7 @@ class CodeGenerator:
         self.arrays_write = defaultdict(ArrayData)
         self.arrays_reads = defaultdict(lambda: defaultdict(ArrayData))
         self.bounds_data = {}
-        self.variables = []
+        self.variables_stmts = []
         self.schedule_tree = Schedule_tree()
         self.loop_structure = {}
         self.SCoP = []
@@ -98,31 +98,31 @@ class CodeGenerator:
         schedules = []
         branchs = []
         
-        for i, instruction in enumerate(self._parsed_data.instructions):
+        for stmt_id, instruction in enumerate(self._parsed_data.instructions):
             # self.logger.debug(f'instruction: {instruction}\n')
             schedules.append(instruction['schedule'])
             if enable_if_branch:
                 branchs.append(instruction['branch'])
             
-            self.variables.append([instruction['schedule'][j] for j in range(len(instruction['schedule'])) if j % 2 == 1])
+            self.variables_stmts.append([instruction['schedule'][j] for j in range(len(instruction['schedule'])) if j % 2 == 1])
             
             if 'dependency' in instruction:
                 dependency = instruction['dependency']
                 for dep in dependency:
-                    array = ArrayData(array_id=dep['array_id'], distance=np.array(dep['distance']), write_stmt_id=dep['write_stmt_id'])
+                    array = ArrayData(array_id=dep['array_id'], distance=np.array(dep['distance']), passive_stmt_id=dep['passive_stmt_id'])
                     if dep['category'] == "write": # get source array info when dep in WAW, or get write array info when dep is WAR or RAW
-                        self.arrays_write[i] = array
+                        self.arrays_write[stmt_id] = array
                     else:
-                        self.arrays_reads[i][dep['array_id'][0]] = array
+                        self.arrays_reads[stmt_id][dep['array_id'][0]] = array
 
             if 'additional_computation' in instruction:
                 additional_computation = instruction['additional_computation']
                 for comp in additional_computation:
                     array = ArrayData(array_id=comp['array_id'], array_name=comp['array_name'], array_access_function=np.array(comp['array_access_function']))
                     if comp['array_type'] == "write":
-                        self.arrays_write[i] = array
+                        self.arrays_write[stmt_id] = array
                     else:
-                        self.arrays_reads[i][comp['array_id'][0]] = array
+                        self.arrays_reads[stmt_id][comp['array_id'][0]] = array
             
         self.schedule_tree.add_paths(schedules, branchs)
         self.schedule_tree.check_tree()
@@ -132,36 +132,36 @@ class CodeGenerator:
         
         # self.logger.debug(f'arrays_write: {self.arrays_write}\n')
         # self.logger.debug(f'arrays_reads: {self.arrays_reads}\n')
-        # self.logger.debug(f'variables: {self.variables}\n')
+        # self.logger.debug(f'variables_stmts: {self.variables_stmts}\n')
         
     def create_bounds_data(self) -> None:
         """Create a dict that will store loop bounds for each loop variable."""
-        vars = {x for tmp in self.variables for x in tmp}
-        for var in vars:
-            self.bounds_data[var] = {
+        iterators = {variable for variables_stmt in self.variables_stmts for variable in variables_stmt}
+        for iterator in iterators:
+            self.bounds_data[iterator] = {
                 'min': {'numerical': set(), 'string': set(), 'variable': defaultdict(set), 'bound_value': None},
                 'max': {'numerical': set(), 'string': set(), 'variable': defaultdict(set), 'bound_value': None}
             }
         
         # check assigned loop_bounds
-        if self._parsed_data.loop_bounds and self._parsed_data.params:
-            # self.logger.debug(f'loop_bounds: {loop_bounds}\n')
-            for key, value in self._parsed_data.loop_bounds.items():
-                # self.logger.debug(f'key: {key}, value: {value}\n')
-                min_value, max_value = value
-                self._process_bound_value(key, 'min', min_value, vars)
-                self._process_bound_value(key, 'max', max_value, vars)
+        if self._parsed_data.special_loop_bounds and self._parsed_data.params:
+            # self.logger.debug(f'special_loop_bounds: {self._parsed_data.special_loop_bounds}\n')
+            for iterator, bound in self._parsed_data.special_loop_bounds.items():
+                # self.logger.debug(f'iterator: {iterator}, value: {value}\n')
+                min_value, max_value = bound
+                self._process_bound_value(iterator, 'min', min_value, iterators)
+                self._process_bound_value(iterator, 'max', max_value, iterators)
     
-    def _process_bound_value(self, key: str, bound_type: str, value: Any, vars: Set[str]) -> None:
+    def _process_bound_value(self, iterator_key: str, bound_type: str, value: Any, iterators: Set[str]) -> None:
         """处理边界值并将其分类到相应的集合中"""
         if isinstance(value, str):
-            for var in vars:
-                if var in value:
-                    self.bounds_data[key][bound_type]['variable'][var].add(value)
+            for iterator in iterators:
+                if iterator in value:
+                    self.bounds_data[iterator_key][bound_type]['variable'][iterator].add(value)
                     return
-            self.bounds_data[key][bound_type]['string'].add(value)
+            self.bounds_data[iterator_key][bound_type]['string'].add(value)
         else:
-            self.bounds_data[key][bound_type]['numerical'].add(value)
+            self.bounds_data[iterator_key][bound_type]['numerical'].add(value)
     
     def parse_arrays(self) -> List[List[str]]:
         """Transfer access info to array index and update loop bounds"""
@@ -178,8 +178,8 @@ class CodeGenerator:
             arrays_in_stmt.append(array_repr)
             
             # 处理读取数组
-            for i in self.arrays_reads[stmt_id]:
-                array_repr = self._process_single_array_indexes((stmt_id, i))
+            for dep_read_id in self.arrays_reads[stmt_id]:
+                array_repr = self._process_single_array_indexes((stmt_id, dep_read_id))
                 arrays_in_stmt.append(array_repr)
                 
             arrays_in_stmts.append(arrays_in_stmt)
@@ -208,8 +208,8 @@ class CodeGenerator:
             self.arrays_reads[array_id[0]][array_id[1]] = array
         
         # 计算每个访问函数的边界
-        for j, access_function in enumerate(array.array_access_function):
-            self.calculate_bounds(array_id[0], array.array_name, access_function, j)
+        for array_depth_id, access_function in enumerate(array.array_access_function):
+            self.calculate_bounds(array_id[0], array.array_name, access_function, array_depth_id)
         
         # 获取索引数组访问
         indexed_access = self.get_indexed_array_access(array_id[0], array.array_access_function)
@@ -228,7 +228,7 @@ class CodeGenerator:
         Example:\n
         array_name = 'A', array_access_function = [[2, 0, 0, -1], [-1, 1, 2, 0]] -> 'A', ['2-k', '-1+i+2*j']
         """
-        index_letters = self.variables[stmt_id]
+        index_letters = self.variables_stmts[stmt_id]
         # self.logger.debug(f'index_letters: {index_letters}\n')
         # self.logger.debug(f'array_access_function: {array_access_function}\n')
         
@@ -328,42 +328,42 @@ class CodeGenerator:
         result = "".join(terms)
         return result[1:] if result.startswith('+') else result
 
-    def get_array_info(self, child_array: ArrayData) -> ArrayData:
-        """Return array with array access from write array (in WAR or RAW dep) or source array (in WAW) using write_stmt_id and distance.\n
+    def get_array_info(self, active_array: ArrayData) -> ArrayData:
+        """Return array with array access from write array (in WAR or RAW dep) or source array (in WAW) using passive_stmt_id and distance.\n
         When the write array or source array doesn't have array access since it also depends on another array, try to recursively get array access from the initial array.\n
         Example:\n
-        child_array: write_stmt_id = 0, distance = [1,-1,0]\n
+        active_array: passive_stmt_id = 0, distance = [1,-1,0]\n
         array_write in stmt {0}: array_name = 'A', array_access_function = [[2, 0, 0, -1], [-1, 1, 2, 0]]\n
         'A', ['2-k', '-1+i+2*j'] -> 'A', ['2-k', '-1+(i+1)+2*(j-1)']
         output: 'A', [[2, 0, 0, -1], [-2, 1, 2, 0]]
         """
             
-        # self.logger.debug(f'child_array before recursively search: {child_array}\n')
+        # self.logger.debug(f'active_array before recursively search: {active_array}\n')
         
-        if child_array.write_stmt_id is not None:
-            parent_array = self.arrays_write[child_array.write_stmt_id] # get write array or source array (namely parent array)
-            parent_array = self.get_array_info(parent_array)
+        if active_array.passive_stmt_id is not None:
+            passive_array = self.arrays_write[active_array.passive_stmt_id] # get write array or source array (namely passive array)
+            passive_array = self.get_array_info(passive_array)
         
-            # self.logger.debug(f'parent (source for WAW / write for WAR and RAW) array: {parent_array}')
+            # self.logger.debug(f'passive (source for WAW / write for WAR and RAW) array: {passive_array}')
 
-            self.arrays_write[child_array.write_stmt_id] = parent_array
+            self.arrays_write[active_array.passive_stmt_id] = passive_array
             
-            # self.logger.debug(f'array_access_function: {parent_array.array_access_function}\n')
+            # self.logger.debug(f'array_access_function: {passive_array.array_access_function}\n')
             # self.logger.debug(f'index_letters: {index_letters}\n')
-            # self.logger.debug(f'distance: {child_array.distance}\n')
+            # self.logger.debug(f'distance: {active_array.distance}\n')
             
-            array_access_function = self.generate_access_functions_from_distance(parent_array, child_array)
+            array_access_function = self.generate_access_functions_from_distance(passive_array, active_array)
             
-            child_array = ArrayData(array_id=child_array.array_id, array_name=parent_array.array_name, array_access_function=array_access_function)
+            active_array = ArrayData(array_id=active_array.array_id, array_name=passive_array.array_name, array_access_function=array_access_function)
             
-            # self.logger.debug(f'child_array after recursively search: {child_array}\n')
+            # self.logger.debug(f'active_array after recursively search: {active_array}\n')
             
-        elif child_array.array_access_function is None:
-            raise ValueError(f"Array access function is missing and cannot be resolved for array with write_stmt_id {child_array.write_stmt_id}")
+        elif active_array.array_access_function is None:
+            raise ValueError(f"Array access function is missing and cannot be resolved for array with passive_stmt_id {active_array.passive_stmt_id}")
         else:
             pass
         
-        return child_array
+        return active_array
 
     def generate_terms(self, num_variables: int, max_degree: int) -> List[Tuple]:
         """
@@ -457,56 +457,56 @@ class CodeGenerator:
             result[merged_term] += c1 * c2
         return result
 
-    def generate_access_functions_from_distance(self, parent_array: ArrayData, child_array: ArrayData) -> np.ndarray:
+    def generate_access_functions_from_distance(self, passive_array: ArrayData, active_array: ArrayData) -> np.ndarray:
         """
         应用偏移量到系数矩阵
         
         Args:
-            parent_array: 包含以下所需信息
-                array_id: 用于获取数组所在语句对应的变量列表index_letters_parent，如['i', 'j', 'k']
+            passive_array: 包含以下所需信息
+                array_id: 用于获取数组所在语句对应的变量列表index_letters_passive，如['i', 'j', 'k']
                 access_functions: 原始系数矩阵（每行对应一个访问函数），如 [[2, 0, 0, -1], [1, 1, 1, 0]]，表示[2-k][1+i+j]
-            child_array: 包含以下信息
-                array_id: 用于获取数组所在语句对应的变量列表index_letters_child，如['i', 'j', 'k']
+            active_array: 包含以下信息
+                array_id: 用于获取数组所在语句对应的变量列表index_letters_active，如['i', 'j', 'k']
                 distance: 距离向量（与terms中的循环变量一一对应），如 [1, -1, 0] 表示 i→i+1, j→j-1, k→k+0
             
         Returns:
             新的系数矩阵，如[[2, 0, 0, -1], [1, 1, 1, 0]]，表示[2-(k+0)][1+(i+1)+(j-1)]
         """
         
-        index_letters_parent, index_letters_child = self.variables[parent_array.array_id[0]], self.variables[child_array.array_id[0]]
+        index_letters_passive, index_letters_active = self.variables_stmts[passive_array.array_id[0]], self.variables_stmts[active_array.array_id[0]]
             
         # 获取和access function对应变量维数的基项
-        depth_stmt, depth_array = len(index_letters_child), parent_array.array_access_function.shape[0]
-        terms_child = self.generate_terms(depth_stmt, self._parsed_data.max_degree)
-        terms_parent = self.generate_terms(len(index_letters_parent), self._parsed_data.max_degree)
+        depth_stmt_active, depth_array_passive = len(index_letters_active), passive_array.array_access_function.shape[0]
+        terms_active = self.generate_terms(depth_stmt_active, self._parsed_data.max_degree)
+        terms_passive = self.generate_terms(len(index_letters_passive), self._parsed_data.max_degree)
         
-        # self.logger.debug(f'Applying distance to access functions:\nchild_array.array_id:{child_array.array_id}\naccess_functions:\n{parent_array.array_access_function}\nindex_letters_parent: {index_letters_parent}\nindex_letters_child: {index_letters_child}\ndistance: {child_array.distance}\n')
+        # self.logger.debug(f'Applying distance to access functions:\nactive_array.array_id:{active_array.array_id}\naccess_functions:\n{passive_array.array_access_function}\nindex_letters_passive: {index_letters_passive}\nindex_letters_active: {index_letters_active}\ndistance: {active_array.distance}\n')
         
         # 输入验证
-        if parent_array.array_access_function.shape[1] > len(terms_child):
-            self.logger.error(f"系数矩阵列数必须不大于项列表长度，期望不大于 {len(terms_child)}，实际 {parent_array.array_access_function.shape[1]}")
+        if passive_array.array_access_function.shape[1] > len(terms_active):
+            self.logger.error(f"系数矩阵列数必须不大于项列表长度，期望不大于 {len(terms_active)}，实际 {passive_array.array_access_function.shape[1]}")
             
-        if len(child_array.distance) > depth_stmt:
-            self.logger.error(f"距离向量长度必须不大于变量列表长度一致，期望不大于 {depth_stmt}，实际 {len(child_array.distance)}")
+        if len(active_array.distance) > depth_stmt_active:
+            self.logger.error(f"距离向量长度必须不大于变量列表长度一致，期望不大于 {depth_stmt_active}，实际 {len(active_array.distance)}")
         
         # 确定需要随机化的变量维度位置并提取对应access_fun
-        randomize_positions_vars, trimmed_access_functions = self._get_randomize_positions(parent_array, depth_array, terms_parent)
+        randomize_positions_iterators, trimmed_access_functions = self._get_randomize_positions(passive_array, depth_array_passive, terms_passive)
         
         # 构建变量映射和填充的距离向量
         mapping, padded_distance = self._build_variable_mapping(
-            index_letters_parent, index_letters_child, randomize_positions_vars, child_array.distance, depth_stmt, depth_array
+            index_letters_passive, index_letters_active, randomize_positions_iterators, active_array.distance, depth_stmt_active, depth_array_passive
         )
         
         # 生成映射后的项
         mapped_terms = [
             tuple(mapping[var] for var in term)
-            for term in terms_child
+            for term in terms_active
             if all(var in mapping for var in term)
         ]
         
-        mapping_presentation = [(f'x{k}: i{v}(即{index_letters_child[v]})') for k, v in mapping.items()]
+        mapping_presentation = [(f'x{k}: i{v}(即{index_letters_active[v]})') for k, v in mapping.items()]
         
-        # self.logger.debug(f'trimmed_access_functions: {trimmed_access_functions}\nterms_child: {terms_child}\nmapping: {mapping_presentation}\nmapped_terms: {mapped_terms}\npadded_distance: {padded_distance}\n')
+        # self.logger.debug(f'trimmed_access_functions: {trimmed_access_functions}\nterms_active: {terms_active}\nmapping: {mapping_presentation}\nmapped_terms: {mapped_terms}\npadded_distance: {padded_distance}\n')
         
         # 应用偏移量生成新的访问函数
         new_access_functions = []
@@ -522,37 +522,37 @@ class CodeGenerator:
             
             # self.logger.debug(f'new_poly_dict: {new_poly_dict}')
             
-            # self.logger.debug(f"原始多项式 {i}: {self._poly_to_str(poly_dict, index_letters_child)}")
-            # self.logger.debug(f"变换后多项式 {i}: {self._poly_to_str(new_poly_dict, index_letters_child)}\n")
+            # self.logger.debug(f"原始多项式 {i}: {self._poly_to_str(poly_dict, index_letters_active)}")
+            # self.logger.debug(f"变换后多项式 {i}: {self._poly_to_str(new_poly_dict, index_letters_active)}\n")
             
             # 将新多项式转换回系数向量
-            new_access_fun = [new_poly_dict.get(term, 0) for term in terms_child]
+            new_access_fun = [new_poly_dict.get(term, 0) for term in terms_active]
             new_access_functions.append(new_access_fun)
             
         # self.logger.debug(f'new_access_functions: {new_access_functions}')
             
-        return np.array(new_access_functions, dtype=parent_array.array_access_function.dtype)
+        return np.array(new_access_functions, dtype=passive_array.array_access_function.dtype)
 
-    def _get_randomize_positions(self, parent_array: ArrayData, depth_array: int, terms_parent: List[Tuple]) -> Tuple[List[int], List[List]]:
+    def _get_randomize_positions(self, passive_array: ArrayData, depth_array: int, terms_passive: List[Tuple]) -> Tuple[List[int], List[List]]:
         """确定需要随机化的变量维度位置以及对应的提取access_functions"""
         
-        num_columns = len(terms_parent)
-        access_functions = parent_array.array_access_function
+        num_columns = len(terms_passive)
+        access_functions = passive_array.array_access_function
         
         # 单次遍历找出所有需要的信息
         non_zero_columns = []
         randomize_positions_terms = set()
         
-        for j in range(1, num_columns):
+        for dim_id in range(1, num_columns):
             has_non_zero = False
-            for k in range(depth_array):
-                if access_functions[k][j] != 0:
+            for depth_id in range(depth_array):
+                if access_functions[depth_id][dim_id] != 0:
                     has_non_zero = True
                     break
             
             if has_non_zero:
-                non_zero_columns.append(j)
-                randomize_positions_terms.update(terms_parent[j])
+                non_zero_columns.append(dim_id)
+                randomize_positions_terms.update(terms_passive[dim_id])
         
         # 构建最终结果
         columns = [0] + non_zero_columns  # non_zero_columns已经按顺序
@@ -565,7 +565,7 @@ class CodeGenerator:
         
         return randomize_positions_vars, extracted_access_functions
 
-    def _build_variable_mapping(self, index_letters_parent: List[str], index_letters_child: List[str], randomize_positions_vars: List[int], distance: List[float], depth_stmt: int, depth_array: int) -> Tuple[bidict[int, int], List[float]]:
+    def _build_variable_mapping(self, index_letters_passive: List[str], index_letters_active: List[str], randomize_positions_iterators: List[int], distance: List[float], depth_stmt_active: int, depth_array_passive: int) -> Tuple[bidict[int, int], List[float]]:
         """
         构建变量映射和填充的距离向量
         
@@ -573,61 +573,59 @@ class CodeGenerator:
             Tuple[循环变量i对基项一次项x的一一映射字典, 填充后的距离向量]
         """
         mapping = bidict({})
-        padded_distance = [0] * len(index_letters_child)
+        padded_distance = [0] * len(index_letters_active)
         
         # 初始化变量权重
-        prob_vars = self._initialize_variable_weights(depth_stmt, depth_array)
-        prob_vars_copy = prob_vars.copy()
+        prob_iterators = self._initialize_iterator_weights(depth_stmt_active, depth_array_passive)
+        prob_iterators_copy = prob_iterators.copy()
         
         distance_id = 0
-        for i in randomize_positions_vars:  # 仅对需要随机化的变量维度进行处理
-            if i >= len(index_letters_parent):
+        for passive_iterator_id in randomize_positions_iterators:  # 仅对需要随机化的变量维度进行处理
+            if passive_iterator_id >= len(index_letters_passive):
                 continue
                 
             # 调整权重并选择映射
-            idx = self._select_variable_mapping(i, index_letters_parent, index_letters_child, depth_array, prob_vars_copy)
+            active_iterator_id = self._select_variable_mapping(passive_iterator_id, index_letters_passive, index_letters_active, depth_array_passive, prob_iterators_copy)
             
-            mapping[i] = idx
-            prob_vars_copy[idx] = 0  # 避免重复选择
-            padded_distance[idx] = distance[distance_id]
+            mapping[passive_iterator_id] = active_iterator_id
+            prob_iterators_copy[active_iterator_id] = 0  # 避免重复选择
+            padded_distance[active_iterator_id] = distance[distance_id]
             distance_id += 1
         
         return mapping, padded_distance
 
-    def _initialize_variable_weights(self, depth_stmt: int, depth_array: int) -> Dict[int, float]:
+    def _initialize_iterator_weights(self, depth_stmt_active: int, depth_array_passive: int) -> Dict[int, float]:
         """初始化变量权重"""
-        prob_vars = {k: 1.0 for k in range(depth_stmt)}
+        prob_iterators = {k: 1.0 for k in range(depth_stmt_active)}
         
         # TODO: 调整多余变量权重(暂定从最外层开始，即previous_var_index之前的变量视作多余变量)
-        previous_var_index = depth_stmt - depth_array
-        for var in prob_vars:
-            if var < previous_var_index:  # 检查是否为多余变量：权重除以4
-                prob_vars[var] *= 0.25
+        previous_iterator_index = depth_stmt_active - depth_array_passive
+        for iterator in prob_iterators:
+            if iterator < previous_iterator_index:  # 检查是否为多余变量：权重除以4
+                prob_iterators[iterator] *= 0.25
         
-        return prob_vars
+        return prob_iterators
 
-    def _select_variable_mapping(self, i: int, index_letters_parent: List[str], index_letters_child: List[str], depth_array: int, prob_vars_copy: Dict[int, float]) -> int:
+    def _select_variable_mapping(self, passive_iterator_id: int, index_letters_passive: List[str], index_letters_active: List[str], depth_array_passive: int, prob_vars_copy: Dict[int, float]) -> int:
         """选择变量映射"""
         # 重置权重
         current_weights = prob_vars_copy.copy()
         
         # 检查是否为相同变量：权重乘以4
-        if i < len(index_letters_parent) and i < len(index_letters_child) and index_letters_parent[i] == index_letters_child[i]:
-            for var in current_weights:
-                current_weights[var] *= 4
+        if passive_iterator_id < len(index_letters_passive) and passive_iterator_id < len(index_letters_active) and index_letters_passive[passive_iterator_id] == index_letters_active[passive_iterator_id]:
+            for iterator in current_weights:
+                current_weights[iterator] *= 4
         
         # 确认当前维度对应循环变量并调整权重
-        previous_var_index = len(index_letters_child) - depth_array
-        corresponding_var_index = i + previous_var_index
+        previous_iterator_index = len(index_letters_active) - depth_array_passive
+        corresponding_iterator_index = passive_iterator_id + previous_iterator_index
         
-        for var in current_weights:
-            if corresponding_var_index == var:  # 检查是否为对应循环变量：权重乘以2
-                current_weights[var] *= 2
+        for iterator in current_weights:
+            if corresponding_iterator_index == iterator:  # 检查是否为对应循环变量：权重乘以2
+                current_weights[iterator] *= 2
 
         # 根据权重随机选择变量
-        variables = list(current_weights.keys())
-        weights = [current_weights[var] for var in variables]
-        return random.choices(variables, weights=weights)[0]
+        return random.choices(list(current_weights.keys()), weights=list(current_weights.values()))[0]
 
     def calculate_bounds(self, stmt_id: int, array_name: str, access_function: List[int], position: int) -> None:
         """Based on rank of the array_access_function update the min and max bounds."""
@@ -756,9 +754,9 @@ class CodeGenerator:
         eval_output = self.evaluate_expression(indexed_access)
         
         if eval_output[-1]:
-            self.bounds_data[self.variables[stmt_id][rank - 1]][expr_min_max][eval_output[0]][eval_output[-1]].add(eval_output[1])
+            self.bounds_data[self.variables_stmts[stmt_id][rank - 1]][expr_min_max][eval_output[0]][eval_output[-1]].add(eval_output[1])
         else:
-            self.bounds_data[self.variables[stmt_id][rank - 1]][expr_min_max][eval_output[0]].add(eval_output[1])
+            self.bounds_data[self.variables_stmts[stmt_id][rank - 1]][expr_min_max][eval_output[0]].add(eval_output[1])
 
     def evaluate_expression(self, expression: str) -> List[Any]:
         """Try to evaluate the expression (especially common fractions from calculating bounds).
@@ -777,7 +775,7 @@ class CodeGenerator:
             expression = math.floor(eval(expression))
             expression_type = 'numerical'
         except NameError:
-            vars = {x for tmp in self.variables for x in tmp}
+            vars = {x for tmp in self.variables_stmts for x in tmp}
             vars_used = ''.join(c for c in expression if c in vars)
             expression_type = 'variable' if vars_used else 'string'
                 
