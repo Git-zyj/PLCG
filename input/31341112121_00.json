@@ -1,13 +1,19 @@
 {
     "params": {
-        "PB_M": 90,
-        "PB_L": 90
+        "PB_N": 30,
+        "PB_M": 50,
+        "PB_L": 50
     },
     "max_degree": 1,
-    "loop_bounds": {},
+    "loop_bounds": {
+        "k": [
+            0,
+            "i"
+        ]
+    },
     "arrays": [
         "A[PB_M,PB_L]",
-        "B[PB_M,PB_M]"
+        "B[PB_N,PB_M]"
     ],
     "instructions": [
         {
@@ -16,6 +22,8 @@
                 "i",
                 0,
                 "j",
+                0,
+                "k",
                 0
             ],
             "additional_computation": [
@@ -29,10 +37,12 @@
                     "array_access_function": [
                         [
                             0,
+                            0,
                             1,
                             0
                         ],
                         [
+                            0,
                             0,
                             0,
                             1
@@ -48,11 +58,13 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            -1,
+                            1,
+                            0,
                             1,
                             0
                         ],
                         [
+                            0,
                             0,
                             0,
                             1
@@ -69,7 +81,8 @@
                     "category": "read",
                     "distance": [
                         0,
-                        -1
+                        0,
+                        1
                     ],
                     "write_stmt_id": 0
                 },
@@ -80,8 +93,9 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1,
-                        0
+                        0,
+                        -1,
+                        -1
                     ],
                     "write_stmt_id": 0
                 }

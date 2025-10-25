@@ -1,26 +1,17 @@
 #ifndef _36143112121_00_H
 #define _36143112121_00_H
 /* params start */
-# define PB_M (long long)40
-# define PB_L (long long)50
-# define PB_P (long long)40
-# define PB_Q (long long)40
+# define PB_N (long long)80
+# define PB_M (long long)100
+# define PB_L (long long)80
 /* params end */
-# define xC PB_M
+# define xF PB_L
 # define xG PB_M
-# define xH PB_M
-# define yH PB_P
-# define zH PB_P
-# define xI PB_L
-# define yI PB_Q
-# define zI PB_Q
+# define yG PB_L
+# define xH PB_N
+# define yH PB_L
+# define xI PB_M
 # define xJ PB_M
-# define yJ PB_P
-# define zJ PB_Q
-# define vJ PB_Q
-# define xK PB_M
-# define yK PB_L
-# define zK PB_P
 # if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
 #  define DATA_TYPE_IS_DOUBLE
 # endif

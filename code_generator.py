@@ -13,7 +13,7 @@ from typing import Dict, List, Set, Tuple, Optional, Any
 from itertools import product, combinations_with_replacement
 
 from parse_input import parse_data
-from settings import ArrayData, Arrays_total, Schedule_tree, json_input_path, target_path, enable_if_branch, enable_reverse_dim
+from settings import ArrayData, Schedule_tree, json_input_path, target_path, enable_if_branch, enable_reverse_dim
 from polybench_files_generation import polybench_pipeline_single_file
 
 
@@ -50,7 +50,8 @@ class CodeGenerator:
         """重置数据，但不影响logger"""
         self.filename = ""
         self._parsed_data = None
-        self.arrays_total = Arrays_total()
+        self.arrays_write = defaultdict(ArrayData)
+        self.arrays_reads = defaultdict(lambda: defaultdict(ArrayData))
         self.bounds_data = {}
         self.variables = []
         self.schedule_tree = Schedule_tree()
@@ -69,21 +70,22 @@ class CodeGenerator:
         # self.logger.debug(f'_parsed_data: {self._parsed_data}\n')
         
         self.extract_instructions()
-        # self.logger.debug(f'arrays_write: {self.arrays_total.arrays_write}\n')
-        # self.logger.debug(f'arrays_read: {self.arrays_total.arrays_read}\n')
+        # self.logger.debug(f'arrays_write: {self.arrays_write}\n')
+        # self.logger.debug(f'arrays_reads: {self.arrays_reads}\n')
         
         self.create_bounds_data()
-        # self.logger.debug(f'bounds_data: {self.bounds_data}\n')
+        # self.logger.debug(f'initial bounds_data: {self.bounds_data}\n')
         
         arrays_in_stmts = self.parse_arrays()
         # self.logger.debug(f'arrays_in_stmts: {arrays_in_stmts}\n')
+        # self.logger.debug(f'bounds_data after filled: {self.bounds_data}\n')
         
         self.convert_statements_to_expressions(arrays_in_stmts)
         # self.logger.debug(f'loop_body: {self.SCoP}\n')
         
         self.translate_calculated_values_to_bounds()
         # self.logger.debug(f'loop_structure: {self.loop_structure}\n')
-        # self.logger.debug(f'bounds_data: {self.bounds_data}\n')
+        # self.logger.debug(f'final bounds_data: {self.bounds_data}\n')
         
         self.get_final_loop()
         scop = '\n'.join(self.SCoP)
@@ -95,8 +97,6 @@ class CodeGenerator:
         """Extract 'dependency' and 'additional_computation' instructions from the DSL"""
         schedules = []
         branchs = []
-        self.arrays_total.arrays_write = defaultdict(ArrayData)
-        self.arrays_total.arrays_read = defaultdict(list)
         
         for i, instruction in enumerate(self._parsed_data.instructions):
             # self.logger.debug(f'instruction: {instruction}\n')
@@ -106,25 +106,23 @@ class CodeGenerator:
             
             self.variables.append([instruction['schedule'][j] for j in range(len(instruction['schedule'])) if j % 2 == 1])
             
-            self.arrays_total.arrays_read[i] = []
-            
             if 'dependency' in instruction:
                 dependency = instruction['dependency']
                 for dep in dependency:
                     array = ArrayData(array_id=dep['array_id'], distance=np.array(dep['distance']), write_stmt_id=dep['write_stmt_id'])
                     if dep['category'] == "write": # get source array info when dep in WAW, or get write array info when dep is WAR or RAW
-                        self.arrays_total.arrays_write[i] = array
+                        self.arrays_write[i] = array
                     else:
-                        self.arrays_total.arrays_read[i].append(array)
+                        self.arrays_reads[i][dep['array_id'][0]] = array
 
             if 'additional_computation' in instruction:
                 additional_computation = instruction['additional_computation']
                 for comp in additional_computation:
                     array = ArrayData(array_id=comp['array_id'], array_name=comp['array_name'], array_access_function=np.array(comp['array_access_function']))
                     if comp['array_type'] == "write":
-                        self.arrays_total.arrays_write[i] = array
+                        self.arrays_write[i] = array
                     else:
-                        self.arrays_total.arrays_read[i].append(array)
+                        self.arrays_reads[i][comp['array_id'][0]] = array
             
         self.schedule_tree.add_paths(schedules, branchs)
         self.schedule_tree.check_tree()
@@ -132,14 +130,8 @@ class CodeGenerator:
         scop_init = '\n'.join(self.schedule_tree.extract_tree('code'))
         # self.logger.debug(f'initial scop: \n{scop_init}\n')
         
-        # self.logger.debug(f'arrays_write before check: {self.arrays_total.arrays_write}\n')
-        
-        # 用于对json模板修改过后的二次检查
-        # self.arrays_total.validate_dependence(self.filename)
-                        
-            
-        # self.logger.debug(f'arrays_write after check: {self.arrays_total.arrays_write}\n')
-        # self.logger.debug(f'arrays_read: {self.arrays_total.arrays_read}\n')
+        # self.logger.debug(f'arrays_write: {self.arrays_write}\n')
+        # self.logger.debug(f'arrays_reads: {self.arrays_reads}\n')
         # self.logger.debug(f'variables: {self.variables}\n')
         
     def create_bounds_data(self) -> None:
@@ -175,44 +167,52 @@ class CodeGenerator:
         """Transfer access info to array index and update loop bounds"""
         arrays_in_stmts = []
         
-        # self.logger.debug(f'arrays_write before parsing: {self.arrays_total.arrays_write}\n')
-        # self.logger.debug(f'arrays_read before parsing: {self.arrays_total.arrays_read}\n')
+        # self.logger.debug(f'arrays_write before parsing:\n{self.arrays_write}\n')
+        # self.logger.debug(f'arrays_reads before parsing:\n{self.arrays_reads}\n')
         
-        for stmt_id in self.arrays_total.arrays_read.keys():
+        for stmt_id in self.arrays_write:
             arrays_in_stmt = []
             
             # 处理写入数组
-            self.arrays_total.arrays_write[stmt_id], array_repr = self._process_single_array_indexes(stmt_id, self.arrays_total.arrays_write[stmt_id])
-            
+            array_repr = self._process_single_array_indexes((stmt_id, 0))
             arrays_in_stmt.append(array_repr)
             
             # 处理读取数组
-            for i in range(len(self.arrays_total.arrays_read[stmt_id])):
-                self.arrays_total.arrays_read[stmt_id][i], array_repr = self._process_single_array_indexes(stmt_id, self.arrays_total.arrays_read[stmt_id][i])
-                
+            for i in self.arrays_reads[stmt_id]:
+                array_repr = self._process_single_array_indexes((stmt_id, i))
                 arrays_in_stmt.append(array_repr)
                 
             arrays_in_stmts.append(arrays_in_stmt)
             
-        # self.logger.debug(f'arrays_write after parsing: {self.arrays_total.arrays_write}\n')
-        # self.logger.debug(f'arrays_read after parsing: {self.arrays_total.arrays_read}\n')
+        # self.logger.debug(f'arrays_write after parsing: {self.arrays_write}\n')
+        # self.logger.debug(f'arrays_reads after parsing: {self.arrays_reads}\n')
         # self.logger.debug(f'bounds_data before calc:\n{self.bounds_data}\n')
             
         return arrays_in_stmts
     
-    def _process_single_array_indexes(self, stmt_id: int, array_pre: ArrayData) -> Tuple[ArrayData, str]:
+    def _process_single_array_indexes(self, array_id: Tuple[int]) -> str:
         """处理单个数组的访问信息"""
+        if array_id[1] == 0: # write
+            array_pre = self.arrays_write[array_id[0]]
+        else: # read
+            array_pre = self.arrays_reads[array_id[0]][array_id[1]]
+        
         # 递归获取数组访问函数
         array = self.get_array_info(array_pre)
         
         # self.logger.debug(f'Finish info processing for array {array.array_id}: {array}\n')
         
+        if array_id[1] == 0:
+            self.arrays_write[array_id[0]] = array
+        else:
+            self.arrays_reads[array_id[0]][array_id[1]] = array
+        
         # 计算每个访问函数的边界
         for j, access_function in enumerate(array.array_access_function):
-            self.calculate_bounds(stmt_id, array.array_name, access_function, j)
+            self.calculate_bounds(array_id[0], array.array_name, access_function, j)
         
         # 获取索引数组访问
-        indexed_access = self.get_indexed_array_access(stmt_id, array.array_access_function)
+        indexed_access = self.get_indexed_array_access(array_id[0], array.array_access_function)
         
         # self.logger.debug(f'Indexed access for array {array.array_id}: {indexed_access}\n')
         
@@ -221,7 +221,7 @@ class CodeGenerator:
         
         # self.logger.debug(f'Array representation for array {array.array_id}: {array_repr}\n')
         
-        return array, array_repr
+        return array_repr
     
     def get_indexed_array_access(self, stmt_id: int, array_access_function: np.ndarray) -> List[str]:
         """Translate all access functions within an array expressed as a matrix of numbers to expression with loop indexes.\n
@@ -341,12 +341,12 @@ class CodeGenerator:
         # self.logger.debug(f'child_array before recursively search: {child_array}\n')
         
         if child_array.write_stmt_id is not None:
-            parent_array = self.arrays_total.arrays_write[child_array.write_stmt_id] # get write array or source array (namely parent array)
+            parent_array = self.arrays_write[child_array.write_stmt_id] # get write array or source array (namely parent array)
             parent_array = self.get_array_info(parent_array)
         
             # self.logger.debug(f'parent (source for WAW / write for WAR and RAW) array: {parent_array}')
 
-            self.arrays_total.arrays_write[child_array.write_stmt_id] = parent_array
+            self.arrays_write[child_array.write_stmt_id] = parent_array
             
             # self.logger.debug(f'array_access_function: {parent_array.array_access_function}\n')
             # self.logger.debug(f'index_letters: {index_letters}\n')
@@ -652,6 +652,9 @@ class CodeGenerator:
             access_function[rank] = 0  # ori value at rank reset to 0
 
             right_bound = self._parsed_data.array_sizes[array_name][position]  # TODO: left bound is always 0 now
+            
+            # self.logger.debug(f'access_fun: {access_function}\nrank: {rank}\nright_bound: {right_bound}\n')
+            
             fun = None
             lower_bound, upper_bound = [], []
             
@@ -683,9 +686,8 @@ class CodeGenerator:
             # self.logger.debug(f'upp: {upper_bound}\n')
             # self.logger.debug(f'low: {lower_bound}\n')
             
-            if lower_bound and upper_bound:
-                self.update_bounds_based_on_access_function(stmt_id, [lower_bound], rank, 'min', value_at_rank, fun)
-                self.update_bounds_based_on_access_function(stmt_id, [upper_bound], rank, 'max', value_at_rank, fun)
+            self.update_bounds(stmt_id, [lower_bound], rank, 'min', value_at_rank, fun)
+            self.update_bounds(stmt_id, [upper_bound], rank, 'max', value_at_rank, fun)
     
     def get_rank(self, sequence: List[int]) -> int:
         """Return the position in the sequence that is the last one to have the value != 0."""
@@ -699,7 +701,7 @@ class CodeGenerator:
         return [-el for el in sequence]    
     
     def build_simple_expression(self, var_name: Optional[str] = None, var_coeff: float = 0, constant: float = 0) -> str:
-        """构建简单表达式（优化版的var_add_num）
+        """构建简单表达式
         
         Args:
             var_name: 变量名，如果为None则不包含变量
@@ -741,7 +743,7 @@ class CodeGenerator:
         """Form a common fraction and return as a string."""
         return f'({numerator})/{abs(denominator)}'
     
-    def update_bounds_based_on_access_function(self, stmt_id: int, bounds: List[List[int]], rank: int, expr_min_max: str, value_at_rank: int, fun: Optional[callable] = None) -> None:
+    def update_bounds(self, stmt_id: int, bounds: List[List[int]], rank: int, expr_min_max: str, value_at_rank: int, fun: Optional[callable] = None) -> None:
         """Update bounds by evaluating access function."""
         # extract only the access function that will be an only element of the result array
         indexed_access = self.get_indexed_array_access(stmt_id, bounds)[0]
@@ -749,7 +751,7 @@ class CodeGenerator:
         if fun:
             indexed_access = fun(indexed_access, abs(value_at_rank))
         
-        # self.logger.debug(f'access_function: {access_function}\n')
+        # self.logger.debug(f'indexed_access: {indexed_access}\n')
         
         eval_output = self.evaluate_expression(indexed_access)
         
@@ -861,8 +863,9 @@ class CodeGenerator:
             
             for bound_param in self.bounds_data[key][func[id].__name__]['string']:
                 str_to_val[bound_param] = eval(bound_param, params_and_vars)
-                
-            bound = func[-id-1](str_to_val, key=str_to_val.get)
+            
+            extreme_val = func[-id-1](str_to_val.values())
+            bound = sorted([k for k, v in str_to_val.items() if v == extreme_val])[0]
             bound_val = str_to_val[bound]
             
             # self.logger.debug(f'bound till string: {bound} <-> {bound_val}\n')
@@ -883,7 +886,9 @@ class CodeGenerator:
                 for expr in exprs:
                     tmp_bound_val_vars[expr] = eval(expr, params_and_vars)
 
-                bounds_var.append(func[-id-1](tmp_bound_val_vars, key=tmp_bound_val_vars.get))
+                extreme_val = func[-id-1](tmp_bound_val_vars.values())
+                extreme_keys = sorted([k for k, v in tmp_bound_val_vars.items() if v == extreme_val])
+                bounds_var.append(extreme_keys[0])
                 
             # self.logger.debug(f'bounds_var: {bounds_var}\n')
             vals_var_0 = {}
@@ -922,7 +927,9 @@ class CodeGenerator:
             # self.logger.debug(f"{func[-id-1].__name__} bound value containing vairables: {vals_var_0}\n")
             # self.logger.debug(f"{func[id].__name__} bound value containing vairables: {vals_var_1}\n")
             
-            tmp_extreme = func[-id-1](vals_var_0, key=vals_var_0.get)
+            extreme_val = func[-id-1](vals_var_0.values())
+            tmp_extreme = sorted([k for k, v in vals_var_0.items() if v == extreme_val])[0]
+
             if vals_var_0[tmp_extreme] != vals_var_0[bound]:
                 bound_set = []
                 '''

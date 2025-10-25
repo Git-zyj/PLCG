@@ -1,36 +1,28 @@
 #ifndef _36143112161_00_H
 #define _36143112161_00_H
 /* params start */
-# define PB_N (long long)30
-# define PB_M (long long)30
-# define PB_L (long long)40
-# define PB_P (long long)50
-# define PB_Q (long long)30
+# define PB_N (long long)50
+# define PB_M (long long)40
+# define PB_L (long long)30
+# define PB_P (long long)30
+# define PB_Q (long long)40
 /* params end */
 # define xF PB_M
-# define xB PB_M
-# define yB PB_L
-# define zB PB_L
-# define xE PB_N
-# define yE PB_L
-# define zE PB_Q
-# define xD PB_M
-# define yD PB_M
-# define zD PB_L
-# define xG PB_M
-# define yG PB_L
-# define zG PB_P
+# define xC PB_N
+# define xD PB_L
+# define yD PB_P
+# define zD PB_P
+# define xE PB_L
+# define yE PB_P
+# define zE PB_P
+# define xG PB_N
 # define xH PB_M
-# define yH PB_L
-# define zH PB_L
 # define xI PB_M
 # define yI PB_L
-# define zI PB_P
+# define zI PB_L
 # define xJ PB_M
-# define yJ PB_P
+# define yJ PB_L
 # define zJ PB_Q
-# define vJ PB_Q
-# define xK PB_M
 # if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
 #  define DATA_TYPE_IS_DOUBLE
 # endif

@@ -24,17 +24,20 @@
 #else
 #define CHECKSUM 1
 #endif
-static void init_array(int xf,DATA_TYPE POLYBENCH_1D(F,xF,xf),int xb,int yb,int zb,DATA_TYPE POLYBENCH_3D(B,xB,yB,zB,xb,yb,zb),int xe,int ye,int ze,DATA_TYPE POLYBENCH_3D(E,xE,yE,zE,xe,ye,ze),int xd,int yd,int zd,DATA_TYPE POLYBENCH_3D(D,xD,yD,zD,xd,yd,zd),int xg,int yg,int zg,DATA_TYPE POLYBENCH_3D(G,xG,yG,zG,xg,yg,zg),int xh,int yh,int zh,DATA_TYPE POLYBENCH_3D(H,xH,yH,zH,xh,yh,zh),int xi,int yi,int zi,DATA_TYPE POLYBENCH_3D(I,xI,yI,zI,xi,yi,zi),int xj,int yj,int zj,int vj,DATA_TYPE POLYBENCH_4D(J,xJ,yJ,zJ,vJ,xj,yj,zj,vj),int xk,DATA_TYPE POLYBENCH_1D(K,xK,xk),int seed)
+static void init_array(int xf,DATA_TYPE POLYBENCH_1D(F,xF,xf),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc),int xd,int yd,int zd,DATA_TYPE POLYBENCH_3D(D,xD,yD,zD,xd,yd,zd),int xe,int ye,int ze,DATA_TYPE POLYBENCH_3D(E,xE,yE,zE,xe,ye,ze),int xg,DATA_TYPE POLYBENCH_1D(G,xG,xg),int xh,DATA_TYPE POLYBENCH_1D(H,xH,xh),int xi,int yi,int zi,DATA_TYPE POLYBENCH_3D(I,xI,yI,zI,xi,yi,zi),int xj,int yj,int zj,DATA_TYPE POLYBENCH_3D(J,xJ,yJ,zJ,xj,yj,zj),int seed)
 {
 srand(seed);
 int i,j,k,l;
 for (i = 0; i < xf; i++) {
     F[i] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
 }
-for (i = 0; i < xb; i++) {
-    for (j = 0; j < yb; j++) {
-        for (k = 0; k < zb; k++) {
-            B[i][j][k] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
+for (i = 0; i < xc; i++) {
+    C[i] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
+}
+for (i = 0; i < xd; i++) {
+    for (j = 0; j < yd; j++) {
+        for (k = 0; k < zd; k++) {
+            D[i][j][k] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
         }
     }
 }
@@ -45,26 +48,11 @@ for (i = 0; i < xe; i++) {
         }
     }
 }
-for (i = 0; i < xd; i++) {
-    for (j = 0; j < yd; j++) {
-        for (k = 0; k < zd; k++) {
-            D[i][j][k] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
-        }
-    }
-}
 for (i = 0; i < xg; i++) {
-    for (j = 0; j < yg; j++) {
-        for (k = 0; k < zg; k++) {
-            G[i][j][k] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
-        }
-    }
+    G[i] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
 }
 for (i = 0; i < xh; i++) {
-    for (j = 0; j < yh; j++) {
-        for (k = 0; k < zh; k++) {
-            H[i][j][k] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
-        }
-    }
+    H[i] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
 }
 for (i = 0; i < xi; i++) {
     for (j = 0; j < yi; j++) {
@@ -76,17 +64,12 @@ for (i = 0; i < xi; i++) {
 for (i = 0; i < xj; i++) {
     for (j = 0; j < yj; j++) {
         for (k = 0; k < zj; k++) {
-            for (l = 0; l < vj; l++) {
-                J[i][j][k][l] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
-            }
+            J[i][j][k] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
         }
     }
 }
-for (i = 0; i < xk; i++) {
-    K[i] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
 }
-}
-static void print_array(int xf,DATA_TYPE POLYBENCH_1D(F,xF,xf),int xb,int yb,int zb,DATA_TYPE POLYBENCH_3D(B,xB,yB,zB,xb,yb,zb),int xe,int ye,int ze,DATA_TYPE POLYBENCH_3D(E,xE,yE,zE,xe,ye,ze),int xd,int yd,int zd,DATA_TYPE POLYBENCH_3D(D,xD,yD,zD,xd,yd,zd),int xg,int yg,int zg,DATA_TYPE POLYBENCH_3D(G,xG,yG,zG,xg,yg,zg),int xh,int yh,int zh,DATA_TYPE POLYBENCH_3D(H,xH,yH,zH,xh,yh,zh),int xi,int yi,int zi,DATA_TYPE POLYBENCH_3D(I,xI,yI,zI,xi,yi,zi),int xj,int yj,int zj,int vj,DATA_TYPE POLYBENCH_4D(J,xJ,yJ,zJ,vJ,xj,yj,zj,vj),int xk,DATA_TYPE POLYBENCH_1D(K,xK,xk))
+static void print_array(int xf,DATA_TYPE POLYBENCH_1D(F,xF,xf),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc),int xd,int yd,int zd,DATA_TYPE POLYBENCH_3D(D,xD,yD,zD,xd,yd,zd),int xe,int ye,int ze,DATA_TYPE POLYBENCH_3D(E,xE,yE,zE,xe,ye,ze),int xg,DATA_TYPE POLYBENCH_1D(G,xG,xg),int xh,DATA_TYPE POLYBENCH_1D(H,xH,xh),int xi,int yi,int zi,DATA_TYPE POLYBENCH_3D(I,xI,yI,zI,xi,yi,zi),int xj,int yj,int zj,DATA_TYPE POLYBENCH_3D(J,xJ,yJ,zJ,xj,yj,zj))
 {
 int i,j,k,l;
 POLYBENCH_DUMP_START;
@@ -97,26 +80,12 @@ if (DUMP) {
         fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, F[i]);
     }
     POLYBENCH_DUMP_END("F");
-    POLYBENCH_DUMP_BEGIN("B");
-    for (i = 0; i < xb; i++) {
-        for (j = 0; j < yb; j++) {
-            for (k = 0; k < zb; k++) {
-                fprintf(POLYBENCH_DUMP_TARGET, "\n");
-                fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, B[i][j][k]);
-            }
-        }
+    POLYBENCH_DUMP_BEGIN("C");
+    for (i = 0; i < xc; i++) {
+        fprintf(POLYBENCH_DUMP_TARGET, "\n");
+        fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, C[i]);
     }
-    POLYBENCH_DUMP_END("B");
-    POLYBENCH_DUMP_BEGIN("E");
-    for (i = 0; i < xe; i++) {
-        for (j = 0; j < ye; j++) {
-            for (k = 0; k < ze; k++) {
-                fprintf(POLYBENCH_DUMP_TARGET, "\n");
-                fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, E[i][j][k]);
-            }
-        }
-    }
-    POLYBENCH_DUMP_END("E");
+    POLYBENCH_DUMP_END("C");
     POLYBENCH_DUMP_BEGIN("D");
     for (i = 0; i < xd; i++) {
         for (j = 0; j < yd; j++) {
@@ -127,24 +96,26 @@ if (DUMP) {
         }
     }
     POLYBENCH_DUMP_END("D");
-    POLYBENCH_DUMP_BEGIN("G");
-    for (i = 0; i < xg; i++) {
-        for (j = 0; j < yg; j++) {
-            for (k = 0; k < zg; k++) {
+    POLYBENCH_DUMP_BEGIN("E");
+    for (i = 0; i < xe; i++) {
+        for (j = 0; j < ye; j++) {
+            for (k = 0; k < ze; k++) {
                 fprintf(POLYBENCH_DUMP_TARGET, "\n");
-                fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, G[i][j][k]);
+                fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, E[i][j][k]);
             }
         }
+    }
+    POLYBENCH_DUMP_END("E");
+    POLYBENCH_DUMP_BEGIN("G");
+    for (i = 0; i < xg; i++) {
+        fprintf(POLYBENCH_DUMP_TARGET, "\n");
+        fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, G[i]);
     }
     POLYBENCH_DUMP_END("G");
     POLYBENCH_DUMP_BEGIN("H");
     for (i = 0; i < xh; i++) {
-        for (j = 0; j < yh; j++) {
-            for (k = 0; k < zh; k++) {
-                fprintf(POLYBENCH_DUMP_TARGET, "\n");
-                fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, H[i][j][k]);
-            }
-        }
+        fprintf(POLYBENCH_DUMP_TARGET, "\n");
+        fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, H[i]);
     }
     POLYBENCH_DUMP_END("H");
     POLYBENCH_DUMP_BEGIN("I");
@@ -161,20 +132,12 @@ if (DUMP) {
     for (i = 0; i < xj; i++) {
         for (j = 0; j < yj; j++) {
             for (k = 0; k < zj; k++) {
-                for (l = 0; l < vj; l++) {
-                    fprintf(POLYBENCH_DUMP_TARGET, "\n");
-                    fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, J[i][j][k][l]);
-                }
+                fprintf(POLYBENCH_DUMP_TARGET, "\n");
+                fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, J[i][j][k]);
             }
         }
     }
     POLYBENCH_DUMP_END("J");
-    POLYBENCH_DUMP_BEGIN("K");
-    for (i = 0; i < xk; i++) {
-        fprintf(POLYBENCH_DUMP_TARGET, "\n");
-        fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, K[i]);
-    }
-    POLYBENCH_DUMP_END("K");
 }
 if (CHECKSUM) {
     POLYBENCH_DUMP_BEGIN("F");
@@ -185,30 +148,14 @@ if (CHECKSUM) {
     fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
     fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_F);
     POLYBENCH_DUMP_END("F");
-    POLYBENCH_DUMP_BEGIN("B");
-    DATA_TYPE sum_B = 0;
-    for (i = 0; i < xb; i++) {
-        for (j = 0; j < yb; j++) {
-            for (k = 0; k < zb; k++) {
-                sum_B += B[i][j][k];
-            }
-        }
+    POLYBENCH_DUMP_BEGIN("C");
+    DATA_TYPE sum_C = 0;
+    for (i = 0; i < xc; i++) {
+        sum_C += C[i];
     }
     fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
-    fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_B);
-    POLYBENCH_DUMP_END("B");
-    POLYBENCH_DUMP_BEGIN("E");
-    DATA_TYPE sum_E = 0;
-    for (i = 0; i < xe; i++) {
-        for (j = 0; j < ye; j++) {
-            for (k = 0; k < ze; k++) {
-                sum_E += E[i][j][k];
-            }
-        }
-    }
-    fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
-    fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_E);
-    POLYBENCH_DUMP_END("E");
+    fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_C);
+    POLYBENCH_DUMP_END("C");
     POLYBENCH_DUMP_BEGIN("D");
     DATA_TYPE sum_D = 0;
     for (i = 0; i < xd; i++) {
@@ -221,14 +168,22 @@ if (CHECKSUM) {
     fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
     fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_D);
     POLYBENCH_DUMP_END("D");
+    POLYBENCH_DUMP_BEGIN("E");
+    DATA_TYPE sum_E = 0;
+    for (i = 0; i < xe; i++) {
+        for (j = 0; j < ye; j++) {
+            for (k = 0; k < ze; k++) {
+                sum_E += E[i][j][k];
+            }
+        }
+    }
+    fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
+    fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_E);
+    POLYBENCH_DUMP_END("E");
     POLYBENCH_DUMP_BEGIN("G");
     DATA_TYPE sum_G = 0;
     for (i = 0; i < xg; i++) {
-        for (j = 0; j < yg; j++) {
-            for (k = 0; k < zg; k++) {
-                sum_G += G[i][j][k];
-            }
-        }
+        sum_G += G[i];
     }
     fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
     fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_G);
@@ -236,11 +191,7 @@ if (CHECKSUM) {
     POLYBENCH_DUMP_BEGIN("H");
     DATA_TYPE sum_H = 0;
     for (i = 0; i < xh; i++) {
-        for (j = 0; j < yh; j++) {
-            for (k = 0; k < zh; k++) {
-                sum_H += H[i][j][k];
-            }
-        }
+        sum_H += H[i];
     }
     fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
     fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_H);
@@ -262,52 +213,34 @@ if (CHECKSUM) {
     for (i = 0; i < xj; i++) {
         for (j = 0; j < yj; j++) {
             for (k = 0; k < zj; k++) {
-                for (l = 0; l < vj; l++) {
-                    sum_J += J[i][j][k][l];
-                }
+                sum_J += J[i][j][k];
             }
         }
     }
     fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
     fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_J);
     POLYBENCH_DUMP_END("J");
-    POLYBENCH_DUMP_BEGIN("K");
-    DATA_TYPE sum_K = 0;
-    for (i = 0; i < xk; i++) {
-        sum_K += K[i];
-    }
-    fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
-    fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_K);
-    POLYBENCH_DUMP_END("K");
 }
 POLYBENCH_DUMP_FINISH;
 }
-void kernel_36143112161_00(int xf,DATA_TYPE POLYBENCH_1D(F,xF,xf),int xb,int yb,int zb,DATA_TYPE POLYBENCH_3D(B,xB,yB,zB,xb,yb,zb),int xe,int ye,int ze,DATA_TYPE POLYBENCH_3D(E,xE,yE,zE,xe,ye,ze),int xd,int yd,int zd,DATA_TYPE POLYBENCH_3D(D,xD,yD,zD,xd,yd,zd),int xg,int yg,int zg,DATA_TYPE POLYBENCH_3D(G,xG,yG,zG,xg,yg,zg),int xh,int yh,int zh,DATA_TYPE POLYBENCH_3D(H,xH,yH,zH,xh,yh,zh),int xi,int yi,int zi,DATA_TYPE POLYBENCH_3D(I,xI,yI,zI,xi,yi,zi),int xj,int yj,int zj,int vj,DATA_TYPE POLYBENCH_4D(J,xJ,yJ,zJ,vJ,xj,yj,zj,vj),int xk,DATA_TYPE POLYBENCH_1D(K,xK,xk)){
+void kernel_36143112161_00(int xf,DATA_TYPE POLYBENCH_1D(F,xF,xf),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc),int xd,int yd,int zd,DATA_TYPE POLYBENCH_3D(D,xD,yD,zD,xd,yd,zd),int xe,int ye,int ze,DATA_TYPE POLYBENCH_3D(E,xE,yE,zE,xe,ye,ze),int xg,DATA_TYPE POLYBENCH_1D(G,xG,xg),int xh,DATA_TYPE POLYBENCH_1D(H,xH,xh),int xi,int yi,int zi,DATA_TYPE POLYBENCH_3D(I,xI,yI,zI,xi,yi,zi),int xj,int yj,int zj,DATA_TYPE POLYBENCH_3D(J,xJ,yJ,zJ,xj,yj,zj)){
 polybench_start_instruments;
 #pragma scop
-    for (int i = 1; i < PB_M-2; i++) {
-        F[i+1] = F[i-1] - F[i+1] - F[i+2] + F[i+1] + F[i] * F[i+1] + F[i] + 6;
-        for (int j = 0; j < i; j++) {
-            for (int k = 0; k < PB_N; k++) {
-                B[j+1][k][i] = E[k][j+2][i] * G[i+1][j+1][k+1] + 1;
-            }
+    for (int i = 1; i < PB_L; i++) {
+        for (int j = 1; j < PB_M+1; j++) {
+            F[j-1] = F[j-1] - 2;
         }
-        for (int l = 1; l < PB_M-1; l++) {
-            for (int m = 0; m < PB_Q; m++) {
-                E[i][l+1][m] = E[i][m][l] + H[1][l][m] * 3;
-            }
-            for (int n = 1; n < i; n++) {
-                D[i-1][l+1][n-1] = E[l-1][i+1][n] - I[n][i][i-1] + J[n][l-1][l-1][i] * 5;
+        C[i+1] = G[i] + 2;
+        C[i+1] = H[i-1] * 3;
+        for (int k = 0; k < min(i,PB_P-1); k++) {
+            for (int l = 1; l < PB_P-1; l++) {
+                D[i][k][l+1] = I[l][k][k] + 2;
+                E[i][k+1][i] = J[i+1][i][l-1] + 5;
             }
         }
     }
-    for (int o = 1; o < PB_M-1; o++) {
-        for (int p = 0; p < o; p++) {
-            for (int q = 1; q < PB_N-1; q++) {
-                E[o][p+1][q] = E[q+1][o+1][p+1] - D[q-1][p+1][o-1] + I[o+1][q][p] + 5;
-            }
-        }
-        F[o] = K[o] - 5;
+    for (int m = 1; m < PB_M+1; m++) {
+        F[m-1] = G[m-1] - 1;
     }
 #pragma endscop
 polybench_stop_instruments;
@@ -316,49 +249,39 @@ polybench_print_instruments;
 int main(int argc, char** argv)
 {
 int xf = xF;
-int xb = xB;
-int yb = yB;
-int zb = zB;
-int xe = xE;
-int ye = yE;
-int ze = zE;
+int xc = xC;
 int xd = xD;
 int yd = yD;
 int zd = zD;
+int xe = xE;
+int ye = yE;
+int ze = zE;
 int xg = xG;
-int yg = yG;
-int zg = zG;
 int xh = xH;
-int yh = yH;
-int zh = zH;
 int xi = xI;
 int yi = yI;
 int zi = zI;
 int xj = xJ;
 int yj = yJ;
 int zj = zJ;
-int vj = vJ;
-int xk = xK;
 POLYBENCH_1D_ARRAY_DECL(F, DATA_TYPE, xF,xf);
-POLYBENCH_3D_ARRAY_DECL(B, DATA_TYPE, xB,yB,zB,xb,yb,zb);
-POLYBENCH_3D_ARRAY_DECL(E, DATA_TYPE, xE,yE,zE,xe,ye,ze);
+POLYBENCH_1D_ARRAY_DECL(C, DATA_TYPE, xC,xc);
 POLYBENCH_3D_ARRAY_DECL(D, DATA_TYPE, xD,yD,zD,xd,yd,zd);
-POLYBENCH_3D_ARRAY_DECL(G, DATA_TYPE, xG,yG,zG,xg,yg,zg);
-POLYBENCH_3D_ARRAY_DECL(H, DATA_TYPE, xH,yH,zH,xh,yh,zh);
+POLYBENCH_3D_ARRAY_DECL(E, DATA_TYPE, xE,yE,zE,xe,ye,ze);
+POLYBENCH_1D_ARRAY_DECL(G, DATA_TYPE, xG,xg);
+POLYBENCH_1D_ARRAY_DECL(H, DATA_TYPE, xH,xh);
 POLYBENCH_3D_ARRAY_DECL(I, DATA_TYPE, xI,yI,zI,xi,yi,zi);
-POLYBENCH_4D_ARRAY_DECL(J, DATA_TYPE, xJ,yJ,zJ,vJ,xj,yj,zj,vj);
-POLYBENCH_1D_ARRAY_DECL(K, DATA_TYPE, xK,xk);
-init_array(xf,POLYBENCH_ARRAY(F), xb,yb,zb,POLYBENCH_ARRAY(B), xe,ye,ze,POLYBENCH_ARRAY(E), xd,yd,zd,POLYBENCH_ARRAY(D), xg,yg,zg,POLYBENCH_ARRAY(G), xh,yh,zh,POLYBENCH_ARRAY(H), xi,yi,zi,POLYBENCH_ARRAY(I), xj,yj,zj,vj,POLYBENCH_ARRAY(J), xk,POLYBENCH_ARRAY(K), INIT_SEED);
-kernel_36143112161_00(xf,POLYBENCH_ARRAY(F), xb,yb,zb,POLYBENCH_ARRAY(B), xe,ye,ze,POLYBENCH_ARRAY(E), xd,yd,zd,POLYBENCH_ARRAY(D), xg,yg,zg,POLYBENCH_ARRAY(G), xh,yh,zh,POLYBENCH_ARRAY(H), xi,yi,zi,POLYBENCH_ARRAY(I), xj,yj,zj,vj,POLYBENCH_ARRAY(J), xk,POLYBENCH_ARRAY(K));
-polybench_prevent_dce(print_array(xf,POLYBENCH_ARRAY(F), xb,yb,zb,POLYBENCH_ARRAY(B), xe,ye,ze,POLYBENCH_ARRAY(E), xd,yd,zd,POLYBENCH_ARRAY(D), xg,yg,zg,POLYBENCH_ARRAY(G), xh,yh,zh,POLYBENCH_ARRAY(H), xi,yi,zi,POLYBENCH_ARRAY(I), xj,yj,zj,vj,POLYBENCH_ARRAY(J), xk,POLYBENCH_ARRAY(K)));
+POLYBENCH_3D_ARRAY_DECL(J, DATA_TYPE, xJ,yJ,zJ,xj,yj,zj);
+init_array(xf,POLYBENCH_ARRAY(F), xc,POLYBENCH_ARRAY(C), xd,yd,zd,POLYBENCH_ARRAY(D), xe,ye,ze,POLYBENCH_ARRAY(E), xg,POLYBENCH_ARRAY(G), xh,POLYBENCH_ARRAY(H), xi,yi,zi,POLYBENCH_ARRAY(I), xj,yj,zj,POLYBENCH_ARRAY(J), INIT_SEED);
+kernel_36143112161_00(xf,POLYBENCH_ARRAY(F), xc,POLYBENCH_ARRAY(C), xd,yd,zd,POLYBENCH_ARRAY(D), xe,ye,ze,POLYBENCH_ARRAY(E), xg,POLYBENCH_ARRAY(G), xh,POLYBENCH_ARRAY(H), xi,yi,zi,POLYBENCH_ARRAY(I), xj,yj,zj,POLYBENCH_ARRAY(J));
+polybench_prevent_dce(print_array(xf,POLYBENCH_ARRAY(F), xc,POLYBENCH_ARRAY(C), xd,yd,zd,POLYBENCH_ARRAY(D), xe,ye,ze,POLYBENCH_ARRAY(E), xg,POLYBENCH_ARRAY(G), xh,POLYBENCH_ARRAY(H), xi,yi,zi,POLYBENCH_ARRAY(I), xj,yj,zj,POLYBENCH_ARRAY(J)));
 POLYBENCH_FREE_ARRAY(F);
-POLYBENCH_FREE_ARRAY(B);
-POLYBENCH_FREE_ARRAY(E);
+POLYBENCH_FREE_ARRAY(C);
 POLYBENCH_FREE_ARRAY(D);
+POLYBENCH_FREE_ARRAY(E);
 POLYBENCH_FREE_ARRAY(G);
 POLYBENCH_FREE_ARRAY(H);
 POLYBENCH_FREE_ARRAY(I);
 POLYBENCH_FREE_ARRAY(J);
-POLYBENCH_FREE_ARRAY(K);
 return 0;
 }

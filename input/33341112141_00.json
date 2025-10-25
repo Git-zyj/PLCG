@@ -1,9 +1,9 @@
 {
     "params": {
-        "PB_N": 50,
-        "PB_M": 40,
-        "PB_L": 40,
-        "PB_P": 30
+        "PB_M": 30,
+        "PB_L": 30,
+        "PB_P": 30,
+        "PB_Q": 30
     },
     "max_degree": 1,
     "loop_bounds": {
@@ -14,10 +14,9 @@
     },
     "arrays": [
         "A[PB_M]",
-        "B[PB_M,PB_P,PB_P]",
-        "C[PB_N,PB_M]",
+        "C[PB_L,PB_P,PB_Q]",
         "D[PB_M]",
-        "E[PB_M,PB_M]",
+        "E[PB_M,PB_L]",
         "F[PB_M,PB_L,PB_P]"
     ],
     "instructions": [
@@ -37,7 +36,7 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
-                            1,
+                            0,
                             1
                         ]
                     ]
@@ -51,7 +50,7 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            -1,
+                            0,
                             1
                         ]
                     ]
@@ -65,7 +64,7 @@
                     ],
                     "category": "read",
                     "distance": [
-                        -1
+                        1
                     ],
                     "write_stmt_id": 0
                 },
@@ -76,7 +75,7 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1
+                        -1
                     ],
                     "write_stmt_id": 0
                 }
@@ -88,39 +87,9 @@
                 "j",
                 0,
                 "k",
-                0,
-                "l",
                 0
             ],
             "additional_computation": [
-                {
-                    "array_id": [
-                        1,
-                        0
-                    ],
-                    "array_name": "B",
-                    "array_type": "write",
-                    "array_access_function": [
-                        [
-                            0,
-                            1,
-                            0,
-                            0
-                        ],
-                        [
-                            0,
-                            0,
-                            0,
-                            1
-                        ],
-                        [
-                            -1,
-                            0,
-                            0,
-                            1
-                        ]
-                    ]
-                },
                 {
                     "array_id": [
                         1,
@@ -130,14 +99,12 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            1,
                             0,
                             0,
                             1
                         ],
                         [
-                            0,
-                            0,
+                            1,
                             1,
                             0
                         ]
@@ -148,15 +115,24 @@
                 {
                     "array_id": [
                         1,
+                        0
+                    ],
+                    "category": "write",
+                    "distance": [
+                        0
+                    ],
+                    "write_stmt_id": 0
+                },
+                {
+                    "array_id": [
+                        1,
                         2
                     ],
                     "category": "read",
                     "distance": [
-                        1,
-                        0,
-                        -1
+                        0
                     ],
-                    "write_stmt_id": 1
+                    "write_stmt_id": 0
                 },
                 {
                     "array_id": [
@@ -165,11 +141,9 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1,
-                        0,
-                        0
+                        1
                     ],
-                    "write_stmt_id": 1
+                    "write_stmt_id": 0
                 },
                 {
                     "array_id": [
@@ -178,9 +152,7 @@
                     ],
                     "category": "read",
                     "distance": [
-                        0,
-                        0,
-                        1
+                        -1
                     ],
                     "write_stmt_id": 1
                 }
@@ -193,7 +165,7 @@
                 0,
                 "k",
                 1,
-                "m",
+                "l",
                 0
             ],
             "additional_computation": [
@@ -206,7 +178,13 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
+                            1,
                             0,
+                            0,
+                            1
+                        ],
+                        [
+                            1,
                             0,
                             1,
                             0
@@ -214,8 +192,8 @@
                         [
                             0,
                             0,
-                            0,
-                            1
+                            1,
+                            0
                         ]
                     ]
                 },
@@ -229,12 +207,6 @@
                     "array_access_function": [
                         [
                             0,
-                            0,
-                            0,
-                            1
-                        ],
-                        [
-                            0,
                             1,
                             0,
                             0
@@ -244,6 +216,12 @@
                             0,
                             1,
                             0
+                        ],
+                        [
+                            0,
+                            0,
+                            0,
+                            1
                         ]
                     ]
                 }
@@ -257,8 +235,8 @@
                     "category": "read",
                     "distance": [
                         0,
-                        1,
-                        -1
+                        0,
+                        1
                     ],
                     "write_stmt_id": 2
                 }

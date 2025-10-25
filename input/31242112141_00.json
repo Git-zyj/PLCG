@@ -1,14 +1,19 @@
 {
     "params": {
         "PB_M": 80,
-        "PB_L": 90,
-        "PB_P": 70
+        "PB_L": 60,
+        "PB_P": 80
     },
     "max_degree": 1,
-    "loop_bounds": {},
+    "loop_bounds": {
+        "j": [
+            0,
+            "i"
+        ]
+    },
     "arrays": [
-        "A[PB_M,PB_L,PB_P]",
-        "B[PB_M,PB_M]"
+        "A[PB_M,PB_L]",
+        "B[PB_L,PB_P]"
     ],
     "instructions": [
         {
@@ -29,19 +34,14 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
-                            1,
-                            1,
-                            0
-                        ],
-                        [
-                            1,
-                            1,
-                            0
-                        ],
-                        [
                             0,
                             0,
                             1
+                        ],
+                        [
+                            0,
+                            1,
+                            0
                         ]
                     ]
                 },
@@ -54,12 +54,12 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            0,
+                            -1,
                             0,
                             1
                         ],
                         [
-                            0,
+                            -1,
                             1,
                             0
                         ]
@@ -74,8 +74,8 @@
                     ],
                     "category": "read",
                     "distance": [
-                        0,
-                        -1
+                        1,
+                        0
                     ],
                     "write_stmt_id": 0
                 },
@@ -86,8 +86,8 @@
                     ],
                     "category": "read",
                     "distance": [
-                        -1,
-                        0
+                        0,
+                        -1
                     ],
                     "write_stmt_id": 0
                 }

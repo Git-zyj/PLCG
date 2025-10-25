@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple, Set, Any, Optional
 import logging
 import sys
 
-from settings import json_input_path, ArrayData, Arrays_total, depth_min, Schedule_tree, indexed_array_names, indexed_parameter_names, params_multiplier, params_range, prob_array_depth, prob_dep_region, enable_if_branch, max_degree, enable_multi_terms, max_terms_per_func
+from settings import json_input_path, ArrayData, depth_min, Schedule_tree, indexed_array_names, indexed_parameter_names, params_multiplier, params_range, prob_array_depth, prob_dep_region, enable_if_branch, max_degree, enable_multi_terms, max_terms_per_func
 import time
 
 from collections import defaultdict
@@ -48,7 +48,8 @@ class Json_generator:
     def _reset_data(self) -> None:
         """重置数据，但不影响logger"""
         self.filename = ""
-        self.arrays_total = Arrays_total()
+        self.arrays_write = defaultdict(ArrayData)
+        self.arrays_reads = defaultdict(lambda: defaultdict(ArrayData))
         self.schedules = []
         self.branchs = []
         self.params_info = {}
@@ -152,8 +153,6 @@ class Json_generator:
         
         
         
-        arrays_write = defaultdict(ArrayData)
-        
         for i in range(nstmts):
             depth_stmt = len(self.schedules[i]) // 2
             
@@ -173,11 +172,10 @@ class Json_generator:
                 array_name=indexed_array_names[i],  # 指定语句写数组名⑦(必定存在)
                 array_access_function=array_write_access_function
             )
-            arrays_write[i] = array_write # 先对每条语句的write_array都生成一个comp，作为后续依赖生成失败的回退
+            self.arrays_write[i] = array_write # 先对每条语句的write_array都生成一个comp，作为后续依赖生成失败的回退
         
         
         
-        arrays_read = defaultdict(list)
         arrays_name = defaultdict(str)
         array_name_id = nstmts  # 读数组命名从nstmts开始编号，即写数组之后
         
@@ -216,9 +214,7 @@ class Json_generator:
                     array_name=arrays_name[(depth_array_read, array_read_id)], 
                     array_access_function=array_read_access_function
                 )
-                arrays_read[i].append(array_read)
-
-        self.arrays_total = Arrays_total(arrays_write, arrays_read)
+                self.arrays_reads[i][j + 1] = array_read
 
     def generate_terms(self, num_variables: int, max_degree: int) -> List[Tuple]:
         """
@@ -407,7 +403,7 @@ class Json_generator:
             else:
                 prob_consts[i] = 1/3/(2 * arg_bounds_distance)  # prob for value in const coef in indexes
         
-        for i in range(nstmts):
+        for i, array_write in self.arrays_write.items():
             # 确认读、写依赖数量
             dep_write_exist = random.random() > arg_prob_dep_write_exist / 10 # 指定语句写依赖是否存在，影响依赖密度
                 
@@ -449,9 +445,26 @@ class Json_generator:
                     # self.logger.debug(f"candidates_write for stmt{i}: {candidates_var_write + candidates_dim_write}")
                     # self.logger.debug(f"prob_weights_write for stmt{i}: {prob_weights_write}")
                     
-                    dep_write_id = random.choices(range(nstmts), weights=prob_weights_write, k=1)[0]  # 指定写依赖的source语句⑿
+                    parent_array = array_write
                     
-                    self.arrays_total.arrays_write[i] = ArrayData(array_id=(i, 0), array_name=self.arrays_total.arrays_write[i].array_name, array_access_function=self.arrays_total.arrays_write[i].array_access_function, write_stmt_id=dep_write_id) # 保留先前生成的comp信息作为依赖生成失败的回退
+                    # self.logger.debug(f'parent_array: {parent_array}\narray_write: {array_write}')
+                    
+                    while parent_array.array_id == array_write.array_id: # 确保parent_array溯源到自身，即依赖不会成环
+                        
+                        if sum(prob_weights_write) == 0:
+                            self.logger.warning(f'To avoid dpendence cycle, stmt {i} can not have WAW dep.')
+                            dep_write_id = None
+                            break
+                        
+                        dep_write_id = random.choices(range(nstmts), weights=prob_weights_write, k=1)[0]  # 指定写依赖的source语句⑿
+                        
+                        prob_weights_write[dep_write_id] = 0  # 避免再次选择语句
+                        
+                        parent_array = self._get_parent_array_for_mapping(self.arrays_write[dep_write_id])
+                        
+                        # self.logger.debug(f'parent_array: {parent_array}\narray_write: {array_write}')
+                    
+                    self.arrays_write[i] = ArrayData(array_id=(i, 0), array_name=array_write.array_name, array_access_function=array_write.array_access_function, write_stmt_id=dep_write_id) # 保留先前生成的comp信息作为依赖生成失败的回退
             
             else:
                 # self.logger.debug(f'stmt {i} has no WAW dep due to arg_prob_dep_write_exist')
@@ -504,41 +517,36 @@ class Json_generator:
                 
                 # self.logger.debug(f'ndeps_read for stmt{i}: {ndeps_read[i]}')
                 
-                narrays_read_comp = len(self.arrays_total.arrays_read[i])
+                narrays_read_comp = len(self.arrays_reads[i])
                 
                 for j in range(ndeps_read[i]):
                     
                     dep_read_id = random.choices(range(nstmts), weights=prob_weights_read, k=1)[0]  # 指定读依赖的write语句⒂
                     
-                    self.arrays_total.arrays_read[i].append(ArrayData(array_id=(i, narrays_read_comp + j + 1), write_stmt_id=dep_read_id)) # 依赖读数组标识在computation读数组标识基础上继续编号
+                    self.arrays_reads[i][narrays_read_comp + j + 1] = ArrayData(array_id=(i, narrays_read_comp + j + 1), write_stmt_id=dep_read_id) # 依赖读数组标识在computation读数组标识基础上继续编号
             else:
                 self.logger.debug(f'stmt {i} has no RAW or WAR dep due to ndeps_read=0')
         
-        # self.logger.debug(f'arrays_write before validation: {self.arrays_total.arrays_write}')
-        # self.logger.debug(f'arrays_read before validation: {self.arrays_total.arrays_read}')
         
-        # 检查依赖合理性
-        self.arrays_total.validate_dependence(self.filename)
-        
-        # self.logger.debug(f'arrays after validation: {self.arrays_total}')
         
         # 处理依赖距离
         self._process_dependency_distances(prob_consts)
         
-        # self.logger.debug(f'arrays after distance assign: {self.arrays_total}')
+        # self.logger.debug(f'arrays_write: {self.arrays_write}')
+        # self.logger.debug(f'arrays_reads: {self.arrays_reads}')
 
     def _process_dependency_distances(self, prob_consts: Dict[int, float]) -> None:
         """处理依赖距离计算"""
         # 处理写依赖距离
         # 用于记录每个源数组已分配的依赖距离
         parent_array_distances = defaultdict(list)  # key: parent_array(source array for WAW, write array for WAR and RAW)标识, value: 已分配的distance列表
-        for i, array_write in list(self.arrays_total.arrays_write.items()):
+        for i, array_write in self.arrays_write.items():
             if array_write.write_stmt_id is not None:
                 parent_array = self._get_parent_array_for_mapping(array_write)
                 distance_dep_write = self._calculate_dependency_distance(
                     parent_array, array_write, parent_array_distances[parent_array.array_id], prob_consts
                 )
-                self.arrays_total.arrays_write[i] = ArrayData(
+                self.arrays_write[i] = ArrayData(
                     array_id=array_write.array_id, 
                     # array_name=parent_array.array_name, 
                     # array_access_function=parent_array.array_access_function, 
@@ -549,18 +557,18 @@ class Json_generator:
                 # 更新已分配距离记录，array_write的dep要完全避免重复
                 parent_array_distances[parent_array.array_id].append(tuple(distance_dep_write))
                 
-                # self.logger.debug(f"array_write in stmt {i} with dep distance: {self.arrays_total.arrays_write[i]}")
+                # self.logger.debug(f"array_write in stmt {i} with dep distance: {self.arrays_write[i]}")
         
         # 处理读依赖距离
         parent_array_distances = defaultdict(list)  # 重置，允许读依赖和写依赖距离相同，但同语句读依赖之间依然不能重复
-        for i, arrays_read in list(self.arrays_total.arrays_read.items()):
-            for j, array_read in enumerate(arrays_read):
+        for i, arrays_read in self.arrays_reads.items():
+            for j, array_read in arrays_read.items():
                 if array_read.write_stmt_id is not None:
                     parent_array = self._get_parent_array_for_mapping(array_read)
                     distance_dep_read = self._calculate_dependency_distance(
                         parent_array, array_read, parent_array_distances[(parent_array.array_id, i)], prob_consts
                     )
-                    self.arrays_total.arrays_read[i][j] = ArrayData(
+                    self.arrays_reads[i][j] = ArrayData(
                         array_id=array_read.array_id,
                         # array_name=parent_array.array_name, 
                         # array_access_function=parent_array.array_access_function, 
@@ -571,7 +579,7 @@ class Json_generator:
                     # 更新已分配距离记录
                     parent_array_distances[(parent_array.array_id, i)].append(tuple(distance_dep_read))
                     
-                    # self.logger.debug(f"The {j}th array_read in stmt {i} with dep distance: {self.arrays_total.arrays_read[i][j]}")
+                    # self.logger.debug(f"The {j}th array_read in stmt {i} with dep distance: {self.arrays_reads[i][j]}")
 
     def _calculate_dependency_distance(self, parent_array: ArrayData, child_array: ArrayData, used_distances: List[Tuple[int]], prob_consts: Dict[int, float]) -> List[int]:
         """计算依赖距离"""
@@ -675,14 +683,14 @@ class Json_generator:
         num_params = len(self.params_info)
          
         # 处理写数组
-        for array in self.arrays_total.arrays_write.values():
+        for array in self.arrays_write.values():
             parent_array = self._get_parent_array_for_mapping(array)
             if self.arrays_info[parent_array.array_name] == []:
                 params_unused = self._assign_array_dimensions(parent_array, num_params, params_unused)
         
         # 处理读数组
-        for arrays in self.arrays_total.arrays_read.values():
-            for array in arrays:
+        for arrays in self.arrays_reads.values():
+            for array in arrays.values():
                 parent_array = self._get_parent_array_for_mapping(array)
                 if self.arrays_info[parent_array.array_name] == []:
                     params_unused = self._assign_array_dimensions(parent_array, num_params, params_unused)
@@ -700,9 +708,9 @@ class Json_generator:
     def _get_parent_array_for_mapping(self, array: ArrayData) -> ArrayData:
         """获取用于维度映射的源数组"""
         if array.write_stmt_id is not None: # write_stmt_id优先
-            parent_array = self.arrays_total.arrays_write[array.write_stmt_id]
-            while parent_array.array_access_function is None:
-                parent_array = self.arrays_total.arrays_write[parent_array.write_stmt_id]
+            parent_array = self.arrays_write[array.write_stmt_id]
+            while parent_array.write_stmt_id is not None:
+                parent_array = self.arrays_write[parent_array.write_stmt_id]
             return parent_array
         elif array.array_access_function:
             return array
@@ -797,16 +805,8 @@ class Json_generator:
         dependencies = defaultdict(list)
         
         # 处理写数组
-        for i, array in self.arrays_total.arrays_write.items():
-            if array.array_access_function:
-                additional_computation = {
-                    'array_id': array.array_id, 
-                    'array_name': array.array_name,
-                    'array_type': 'write',
-                    'array_access_function': array.array_access_function
-                }
-                additional_computations[i].append(additional_computation)
-            else:
+        for i, array in self.arrays_write.items():
+            if array.write_stmt_id is not None: # write_stmt_id优先
                 dependency = {
                     'array_id': array.array_id, 
                     'category': 'write',
@@ -814,26 +814,34 @@ class Json_generator:
                     'write_stmt_id': array.write_stmt_id
                 }
                 dependencies[i].append(dependency)
+            else:
+                additional_computation = {
+                    'array_id': array.array_id, 
+                    'array_name': array.array_name,
+                    'array_type': 'write',
+                    'array_access_function': array.array_access_function
+                }
+                additional_computations[i].append(additional_computation)
                 
         # 处理读数组
-        for i, arrays in self.arrays_total.arrays_read.items():
-            for array in arrays:
-                if array.array_access_function:
-                    additional_computation = {
-                        'array_id': array.array_id, 
-                        'array_name': array.array_name,
-                        'array_type': 'read',
-                        'array_access_function': array.array_access_function
-                    }
-                    additional_computations[i].append(additional_computation)
-                else:
+        for i, arrays_read in self.arrays_reads.items():
+            for array_read in arrays_read.values():
+                if array_read.write_stmt_id is not None: # 同理
                     dependency = {
-                        'array_id': array.array_id, 
+                        'array_id': array_read.array_id, 
                         'category': 'read',
-                        'distance': array.distance,
-                        'write_stmt_id': array.write_stmt_id
+                        'distance': array_read.distance,
+                        'write_stmt_id': array_read.write_stmt_id
                     }
                     dependencies[i].append(dependency)
+                else:
+                    additional_computation = {
+                        'array_id': array_read.array_id, 
+                        'array_name': array_read.array_name,
+                        'array_type': 'read',
+                        'array_access_function': array_read.array_access_function
+                    }
+                    additional_computations[i].append(additional_computation)
         
         return additional_computations, dependencies
 
