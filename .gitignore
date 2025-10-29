@@ -165,3 +165,4 @@ yarn.lock
 *backup/
 *tmp_files/
 time*.txt
+*.zip

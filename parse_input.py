@@ -56,9 +56,10 @@ def read_file_data(filename):
     with open(filename, 'r') as file:
         try:
             data = json.load(file)
+            return data
         except:
-            print(f'[zyj-debug] There is something wrong with json file {filename}.\n')
-        return data
+            raise ValueError(f'[zyj-debug] There is something wrong with json file {filename}.\n')
+        
 
 def parse_data(filename):
     input_data = read_file_data(filename)

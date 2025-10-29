@@ -3,20 +3,17 @@
 /* params start */
 # define PB_M (long long)50
 # define PB_L (long long)50
-# define PB_P (long long)40
+# define PB_P (long long)30
 # define PB_Q (long long)30
 /* params end */
 # define xA PB_L
-# define yA PB_L
+# define yA PB_P
+# define zA PB_Q
+# define vA PB_Q
 # define xC PB_M
-# define yC PB_P
-# define zC PB_Q
 # define xE PB_M
 # define yE PB_L
 # define xF PB_M
-# define yF PB_L
-# define zF PB_P
-# define xG PB_M
 # if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
 #  define DATA_TYPE_IS_DOUBLE
 # endif

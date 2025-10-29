@@ -2,22 +2,23 @@
 #define _35242112161_00_H
 /* params start */
 # define PB_N (long long)30
-# define PB_M (long long)30
-# define PB_L (long long)30
+# define PB_M (long long)40
+# define PB_L (long long)50
 # define PB_P (long long)40
-# define PB_Q (long long)30
 /* params end */
-# define xA PB_L
-# define yA PB_Q
-# define xB PB_M
-# define yB PB_L
-# define zB PB_L
+# define xA PB_M
+# define yA PB_L
+# define xB PB_L
+# define xC PB_M
+# define yC PB_M
+# define zC PB_L
 # define xD PB_M
-# define xF PB_L
-# define yF PB_L
-# define xG PB_N
-# define yG PB_M
-# define zG PB_M
+# define yD PB_L
+# define zD PB_P
+# define xE PB_M
+# define xF PB_N
+# define yF PB_N
+# define xG PB_M
 # define xH PB_M
 # define yH PB_L
 # define zH PB_P

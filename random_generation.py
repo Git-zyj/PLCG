@@ -1,8 +1,5 @@
 import os
 import random
-from generate_json import Json_generator
-from code_generator import CodeGenerator
-from settings import DATASET_PATH, json_input_path, target_path
 import multiprocessing as mp
 import itertools as it
 import time
@@ -10,6 +7,10 @@ import subprocess as sp
 import datetime
 import logging
 import numpy as np
+
+from loop_properties_generator import Loop_Properties_Generator
+from c_code_generator import C_Code_Generator
+from path_settings import DATASET_PATH, json_input_path, target_path
 
 today = datetime.datetime.now().strftime('%m%d')
 
@@ -28,8 +29,8 @@ if not os.path.exists(target_path):
 os.system(f'rsync -r --delete {empty_path}/ {json_input_path}/')
 os.system(f'rsync -r --delete {empty_path}/ {target_path}/')
 
-random_json_generator = Json_generator(log_level=logging.DEBUG)
-c_code_generator = CodeGenerator(log_level=logging.DEBUG)
+loop_properties_generator = Loop_Properties_Generator(log_level=logging.DEBUG)
+c_code_generator = C_Code_Generator(log_level=logging.DEBUG)
 
 random.seed(0)
 np.random.seed(0)
@@ -43,7 +44,7 @@ def count_files(path):
     return file_count
 
 def generate_files(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_avg_narrays_read_per_stmt, arg_bounds_coef, arg_avg_ndeps_read_per_stmt, arg_bounds_distance, arg_prob_dep_write_exist, id):
-    file_path = random_json_generator.generate_json_file(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_avg_narrays_read_per_stmt, arg_bounds_coef, arg_avg_ndeps_read_per_stmt, arg_bounds_distance, arg_prob_dep_write_exist, id)
+    file_path = loop_properties_generator.generate_json_file(arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, arg_narrays_per_dim, arg_avg_narrays_read_per_stmt, arg_bounds_coef, arg_avg_ndeps_read_per_stmt, arg_bounds_distance, arg_prob_dep_write_exist, id)
     c_code_generator.generate_c_code(file_path)
 
 def main(option = 0):
@@ -51,14 +52,14 @@ def main(option = 0):
     time_start = time.time()
 
     if option == 0:
-        file_path = random_json_generator.generate_json_file()
+        file_path = loop_properties_generator.generate_json_file()
         c_code_generator.generate_c_code(file_path)
 
     elif option == 1:
         # 6
         for arg_depth in range(2, 4):
             for arg_nstmts in range(1, 4):
-                file_path = random_json_generator.generate_json_file(arg_depth=arg_depth, arg_nstmts=arg_nstmts)
+                file_path = loop_properties_generator.generate_json_file(arg_depth=arg_depth, arg_nstmts=arg_nstmts)
                 c_code_generator.generate_c_code(file_path)
                 
     elif option == 2:
@@ -69,7 +70,7 @@ def main(option = 0):
                     for arg_prob_dep_write_exist in range(2, 7, 2):
                         for arg_narrays_per_dim in range(1, 4):
                             # print(arg_depth, arg_nstmts, arg_bounds_index, arg_narrays_per_dim)
-                            file_path = random_json_generator.generate_json_file(arg_depth=arg_depth, arg_nstmts=arg_nstmts, arg_bounds_index=arg_bounds_index, arg_narrays_per_dim=arg_narrays_per_dim, arg_prob_dep_write_exist=arg_prob_dep_write_exist)
+                            file_path = loop_properties_generator.generate_json_file(arg_depth=arg_depth, arg_nstmts=arg_nstmts, arg_bounds_index=arg_bounds_index, arg_narrays_per_dim=arg_narrays_per_dim, arg_prob_dep_write_exist=arg_prob_dep_write_exist)
                             c_code_generator.generate_c_code(file_path)
 
     # (*)arg_depth暂定为2,表示循环维度范围为(1,2)

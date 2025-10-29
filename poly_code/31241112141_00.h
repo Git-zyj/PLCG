@@ -2,9 +2,8 @@
 #define _31241112141_00_H
 /* params start */
 # define PB_M (long long)4000
-# define PB_L (long long)8000
 /* params end */
-# define xA PB_L
+# define xA PB_M
 # define xB PB_M
 # if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
 #  define DATA_TYPE_IS_DOUBLE

@@ -1,19 +1,31 @@
 {
     "params": {
-        "PB_N": 8000,
-        "PB_L": 4000
+        "PB_N": 50,
+        "PB_M": 50,
+        "PB_L": 50,
+        "PB_P": 50,
+        "PB_Q": 40
     },
     "max_degree": 1,
-    "special_loop_bounds": {},
+    "special_loop_bounds": {
+        "k": [
+            0,
+            "j"
+        ]
+    },
     "arrays": [
-        "A[PB_N]",
-        "B[PB_L]"
+        "A[PB_L,PB_P,PB_Q,PB_Q]",
+        "B[PB_N,PB_M,PB_L]"
     ],
     "instructions": [
         {
             "schedule": [
                 0,
                 "i",
+                0,
+                "j",
+                0,
+                "k",
                 0
             ],
             "additional_computation": [
@@ -26,7 +38,27 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
+                            0,
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            -1,
                             1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            -1,
+                            0,
+                            0,
                             1
                         ]
                     ]
@@ -40,6 +72,20 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
+                            -1,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
                             0,
                             1
                         ]
@@ -54,9 +100,16 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1
+                        0,
+                        1,
+                        0
                     ],
-                    "passive_stmt_id": 0
+                    "mapping": {
+                        "0": 0,
+                        "1": 1,
+                        "2": 2
+                    },
+                    "parent_stmt_id": 0
                 },
                 {
                     "array_id": [
@@ -65,9 +118,16 @@
                     ],
                     "category": "read",
                     "distance": [
+                        -1,
+                        0,
                         -1
                     ],
-                    "passive_stmt_id": 0
+                    "mapping": {
+                        "0": 0,
+                        "1": 1,
+                        "2": 2
+                    },
+                    "parent_stmt_id": 0
                 }
             ]
         }

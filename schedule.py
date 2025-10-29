@@ -1,76 +1,9 @@
-import os
-from dataclasses import dataclass
-from typing import List, Dict, Tuple, Set, Union, Optional
-import math
 import random
-from collections import deque, defaultdict
-import numpy as np
-from enum import Enum
 
-PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
-# DATASET_PATH = "/home/zyj/Data0/Dataset_fuzzing" # PROJECT_PATH replace if needed
-DATASET_PATH = PROJECT_PATH
-json_input_path = os.path.join(DATASET_PATH, 'input')
-target_path = os.path.join(DATASET_PATH, 'poly_code')
-kernel_list = os.path.join(target_path, 'kernel_list')
+from typing import Union, Optional
+from collections import defaultdict
 
-indexed_array_names = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-indexed_letters_sequence = 'ijklmnopqrstuvwxyzabcdefgh'
-indexed_parameter_names = ['PB_N', 'PB_M', 'PB_L', 'PB_P', 'PB_Q']
-dimension_names = 'xyzvw'
-
-params_range = [range(4, 9), range(6, 11), [3, 4, 5], [8, 9, 10]]
-# params_multiplier = [1e7, 1e3, 1e2, 1e1]
-params_multiplier = [1e3, 10, 10, 1]
-# params_multiplier = [10, 1, 1]
-
-# 固定参数 （TODO 部分调整为可变参数）
-depth_min = 1 # 最小循环深度
-prob_array_depth = [1.5, 8, 0.5] # 维数为循环维度-1的数组生成概率:维数为循环维度的数组生成概率:循环维度+1的数组生成概率为1.5:8:0.5
-prob_dep_region = [4, 1] # 强相关（共享循环变量）依赖生成概率:全局依赖生成概率为4:1
-enable_if_branch = False # 是否启用if分支
-max_degree = 1 # 最高次数（1=线性，2=二次）
-enable_multi_terms = False # 是否允许多基项
-max_terms_per_func = 3 # 每个函数最多基项数（若启用多基项）
-enable_reverse_dim = False
-
-header_string = r'''# if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
-#  define DATA_TYPE_IS_DOUBLE
-# endif
-#ifdef DATA_TYPE_IS_FLOAT
-#  define DATA_TYPE float
-#  define DATA_PRINTF_MODIFIER "%f "
-#  define SCALAR_VAL(x) x##f
-#  define SQRT_FUN(x) sqrtf(x)
-#  define EXP_FUN(x) expf(x)
-#  define POW_FUN(x,y) powf(x,y)
-# endif
-#ifdef DATA_TYPE_IS_DOUBLE
-#  define DATA_TYPE double
-#  define DATA_PRINTF_MODIFIER "%lf "
-#  define SCALAR_VAL(x) x
-#  define SQRT_FUN(x) sqrt(x)
-#  define EXP_FUN(x) exp(x)
-#  define POW_FUN(x,y) pow(x,y)
-# endif
-# endif
-'''
-
-class DependenceCheckResult(Enum):
-    VALID = 0           # 找到有效依赖路径
-    INVALID_ENDPOINT = 1 # 终点无效（无依赖也无计算）
-    CIRCULAR_DEPENDENCY = 2 # 循环依赖
-    DEPENDENCE_CLEARED = 3 # 依赖被清除
-
-@dataclass(eq=True, frozen=True)
-class ArrayData:
-    array_id: Tuple[int, int] = None
-    array_name: Union[list, str] = None
-    array_access_function: np.ndarray = None
-    distance: np.ndarray = None
-    passive_stmt_id: int = None
-
-
+from params_settings import indexed_letters_sequence, params_multiplier, params_range
 
 class Schdule_node:
     def __init__(self, sequence: Optional[Union[int, str]] = None, content: Optional[Union[int, str]] = None, schedule_dim: Optional[int] = None, stmt_id: Optional[int] = None):
@@ -263,8 +196,8 @@ class Schedule_tree:
             elif flag == 'code':
                 prints.append(f'{prefix}{node.content}')
         
-        if flag == 'code' and node.children and not level == 0:
-            prints[-1] += ' {'
+        # if flag == 'code' and node.children and not level == 0:
+        #     prints[-1] += ' {'
             
         if node.cond and flag != 'init':
             prints.append(f'{prefix}    if')
@@ -296,8 +229,8 @@ class Schedule_tree:
                 prints.extend(self.extract_tree(flag, child, level + 1))
 
             
-        if flag == 'code' and node.children and not level == 0:
-            prints.append(f'{prefix}}}')
+        # if flag == 'code' and node.children and not level == 0:
+        #     prints.append(f'{prefix}}}')
             
         return prints
     

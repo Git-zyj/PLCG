@@ -1,7 +1,9 @@
-import random
 import os
-from settings import header_string, dimension_names, kernel_list
 import json
+
+from path_settings import kernel_list_path
+from header_settings import header_string
+from params_settings import dimension_names
 
 iterators = ['i', 'j', 'k', 'l']
 lines_per_indent = '    '
@@ -384,7 +386,7 @@ def get_array_information_from_json(file):
 
 def polybench_pipeline_single_file(filename, json_path, func_body, target_path):
     kernel_name = filename[filename.rfind('/') + 1:filename.rfind('.')].replace(".", "")
-    with open(kernel_list, 'a') as f:
+    with open(kernel_list_path, 'a') as f:
         f.write(f'{filename}\n')
     json_file = os.path.join(json_path, kernel_name + '.json')
     arrays, params = get_array_information_from_json(json_file)

@@ -1,19 +1,18 @@
 #ifndef _36341112141_00_H
 #define _36341112141_00_H
 /* params start */
-# define PB_M (long long)30
+# define PB_N (long long)50
+# define PB_M (long long)40
 # define PB_L (long long)40
+# define PB_P (long long)30
 /* params end */
-# define xC PB_M
-# define xB PB_M
-# define yB PB_M
-# define xD PB_M
-# define yD PB_M
+# define xA PB_M
+# define yA PB_L
+# define zA PB_L
 # define xF PB_M
-# define yF PB_L
-# define xG PB_M
-# define yG PB_M
-# define xH PB_M
+# define xG PB_L
+# define yG PB_P
+# define xH PB_N
 # define xI PB_M
 # define yI PB_M
 # define zI PB_L
