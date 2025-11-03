@@ -1,19 +1,22 @@
 {
     "params": {
-        "PB_M": 5000,
-        "PB_L": 5000
+        "PB_M": 70,
+        "PB_L": 100,
+        "PB_P": 70
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_M]",
-        "B[PB_L]"
+        "A[PB_M,PB_L]",
+        "B[PB_M,PB_P]"
     ],
     "instructions": [
         {
             "schedule": [
                 0,
                 "i",
+                0,
+                "j",
                 0
             ],
             "additional_computation": [
@@ -26,6 +29,12 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
+                            1,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
                             0,
                             1
                         ]
@@ -41,6 +50,12 @@
                     "array_access_function": [
                         [
                             0,
+                            0,
+                            1
+                        ],
+                        [
+                            -1,
+                            0,
                             1
                         ]
                     ]
@@ -54,10 +69,12 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1
+                        1,
+                        0
                     ],
                     "mapping": {
-                        "0": 0
+                        "0": 1,
+                        "1": 0
                     },
                     "parent_stmt_id": 0
                 },
@@ -68,10 +85,12 @@
                     ],
                     "category": "read",
                     "distance": [
+                        1,
                         -1
                     ],
                     "mapping": {
-                        "0": 0
+                        "0": 0,
+                        "1": 1
                     },
                     "parent_stmt_id": 0
                 }

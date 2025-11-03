@@ -13,7 +13,7 @@ from scipy import stats
 from itertools import combinations_with_replacement, product
 
 from path_settings import json_input_path
-from params_settings import depth_min, indexed_array_names, indexed_parameter_names, params_multiplier, params_range, prob_array_depth, prob_dep_region, enable_if_branch, max_degree, enable_multi_terms, max_terms_per_func
+from basic_params_settings import *
 from schedule import Schedule_tree
 from array_data import ArrayData
 
@@ -57,6 +57,7 @@ class Loop_Properties_Generator:
         self.params_info = {}
         self.special_loop_bounds = defaultdict(list)
         self.arrays_info = defaultdict(list)
+        self.deps_write_info = defaultdict(tuple) # 临时记录(stmt_id(即array_id[0]), array_access_function)
 
     def generate_schedule(self, arg_depth: int = 2, arg_nstmts: int = 3, arg_bounds_index: int = 3, arg_prob_bounds_exist: int = 4, arg_prob_branch: int = 1) -> None:
         '''
@@ -106,25 +107,25 @@ class Loop_Properties_Generator:
         for child in schedule_tree_init.root.children:  # loop_bounds固定
             self.generate_loop_bounds(arg_prob_bounds_exist, child)
             
-    def generate_loop_bounds(self, prob_bounds_exist: float, node: object, ancestors: List = []) -> None:
+    def generate_loop_bounds(self, prob_bounds_exist: float, node: object, nodes_ancestor: List = []) -> None:
         '''
         生成循环边界信息
         
         Args:
             prob_bounds_exist: 循环边界存在的概率
             node: 当前调度树节点
-            ancestors: 祖先节点列表，用于边界引用
+            nodes_ancestor: 祖先节点列表，用于边界引用
         '''
             
-        if node.children and (isinstance(ancestors, list) and len(ancestors) > 0):
+        if node.children and (isinstance(nodes_ancestor, list) and len(nodes_ancestor) > 0):
             bounds_exist = random.random()
             if bounds_exist < prob_bounds_exist / 10:
-                prob_bounds_exist *= 0.5  # 后续继续指定的几率*50%
-                tmp_bound = random.choice(ancestors)
-                self.special_loop_bounds[node.content] = [0, tmp_bound]  # TODO: 目前只有右下三角值域（有待扩充）
+                prob_bounds_exist *= bound_exist_decay_factor  # 后续继续指定的几率乘以1/2
+                spec_upp_bound = random.choice(nodes_ancestor)
+                self.special_loop_bounds[node.content] = [0, spec_upp_bound]  # TODO: 目前只有右下三角值域（有待扩充）
                 
         for child in node.children:
-            self.generate_loop_bounds(prob_bounds_exist, child, ancestors + [node.content])
+            self.generate_loop_bounds(prob_bounds_exist, child, nodes_ancestor + [node.content])
             
     def generate_additional_computation(self, arg_narrays_per_dim: int = 2, arg_avg_narrays_read_per_stmt: int = 1, arg_bounds_coef: int = 2) -> None:
         '''
@@ -171,7 +172,7 @@ class Loop_Properties_Generator:
             
             array_write = ArrayData(
                 array_id=(stmt_id, 0), # 0表示首个数组，即写数组
-                array_name=indexed_array_names[stmt_id],  # 指定语句写数组名⑦(必定存在)
+                array_name=array_names_sequence[stmt_id],  # 指定语句写数组名⑦(必定存在)
                 array_access_function=array_write_access_function
             )
             self.arrays_write[stmt_id] = array_write # 先对每条语句的write_array都生成一个comp，作为后续依赖生成失败的回退
@@ -192,8 +193,8 @@ class Loop_Properties_Generator:
             
             for comp_read_id in range(narrays_read[stmt_id]):
                 
-                if array_name_id >= len(indexed_array_names):
-                    raise IndexError(f'需要更多数组名称，当前有{len(indexed_array_names)}个，实际需要{array_name_id}个')
+                if array_name_id >= len(array_names_sequence):
+                    raise IndexError(f'需要更多数组名称，当前有{len(array_names_sequence)}个，实际需要{array_name_id}个')
                 
                 if depth_stmt > 1:
                     depth_array_read = random.choices([depth_stmt - 1, depth_stmt, depth_stmt + 1], prob_array_depth)[0] # 同上depth_array_write
@@ -204,7 +205,7 @@ class Loop_Properties_Generator:
                 
                 loc_array_name = (depth_array_read, array_read_id)
                 if loc_array_name not in arrays_name:  # 尚未分配
-                    arrays_name[loc_array_name] = indexed_array_names[array_name_id] # 指定语句读数组名⑩
+                    arrays_name[loc_array_name] = array_names_sequence[array_name_id] # 指定语句读数组名⑩
                     array_name_id += 1
                 
                 # self.logger.debug(f"Start array_access_function generation for the {comp_read_id}th array_read in stmt {stmt_id}")
@@ -219,6 +220,9 @@ class Loop_Properties_Generator:
                     array_access_function=array_read_access_function
                 )
                 self.arrays_reads[stmt_id][comp_read_id + 1] = array_read
+
+        # self.logger.debug(f'arrays_write for comp:\n{self.arrays_write}\n')
+        # self.logger.debug(f'arrays_reads for comp:\n{self.arrays_reads}\n')
 
     def generate_terms(self, num_iterators: int, max_degree: int) -> List[Tuple]:
         """
@@ -289,13 +293,13 @@ class Loop_Properties_Generator:
         array_access_function = []  # 指定语句数组访存
         
         prob_terms_adjusted = prob_terms.copy()
-        prob_terms_adjusted[()] *= 1/32 # TODO: 空选概率设置暂定为1/32
+        prob_terms_adjusted[()] *= no_iterator_factor # TODO: 空选概率设置暂定乘以1/128
         
         # TODO: 调整包含多余循环变量的基项权重(暂定从最外层开始，即previous_iterator_index之前的循环变量视作多余)
         previous_iterator_index = depth_stmt - depth_array
         for term in prob_terms_adjusted.keys():
             if any(iterator_idx < previous_iterator_index for iterator_idx in term):
-                prob_terms_adjusted[term] *= 1/4 # 检查是否包含多余循环变量：权重除以4
+                prob_terms_adjusted[term] *= redundant_iterator_factor # 检查是否包含多余循环变量：权重除以4
         
         prob_terms_adjusted_copy = prob_terms_adjusted.copy() # 备份
         
@@ -311,9 +315,13 @@ class Loop_Properties_Generator:
                 if corresponding_iterator_index in term:  # 检查当前基项是否包含对应循环变量
                     # 对于写数组，包含对应变量：权重乘以2；对于无依赖读数组，包含对应变量：权重乘以1/2
                     if array_id[1] == 0:
-                        prob_terms_adjusted[term] *= 2
+                        prob_terms_adjusted[term] *= corresponding_iterator_factor
                     else:
-                        prob_terms_adjusted[term] *= 1/2
+                        prob_terms_adjusted[term] *= 1/corresponding_iterator_factor
+            
+            # TODO: 最后一维提高空选概率，暂定乘以4
+            if array_dim_id == depth_array - 1:
+                prob_terms_adjusted[()] *= no_iterator_final_dim_factor
             
             # self.logger.debug(f"Adjusted prob_terms for dimension {array_dim_id}: {prob_terms_adjusted}")
             
@@ -348,7 +356,7 @@ class Loop_Properties_Generator:
                 prob_terms_adjusted_copy[selected_term] = prob_terms_adjusted[selected_term] = selected_prob
 
                 # 衰减继续概率：(2/3)^n
-                continue_prob *= 2/3
+                continue_prob *= more_terms_factor
                 
                 selection_turn += 1
 
@@ -369,20 +377,43 @@ class Loop_Properties_Generator:
         
         return array_access_function
 
-    def generate_dependency(self, arg_avg_ndeps_read_per_stmt: int = 2, arg_bounds_distance: int = 2, arg_prob_dep_write_exist: int = 4) -> None:
+    def generate_dependency(self, arg_avg_ndeps_read_per_stmt: int = 2, arg_bounds_distance: int = 2, arg_prob_dep_write_exist: int = 3) -> None:
         '''
         生成依赖关系信息
         
         Args:
             arg_avg_ndeps_read_per_stmt: 每条语句平均读依赖数量，暂定为2，表示指定生成的读依赖数量（validate之前）应当为2*arg_nstmts
             arg_bounds_distance: 依赖距离范围，暂定为2，表示范围为(-2,-1,0,1,2)
-            arg_prob_dep_write_exist: 每条语句写依赖存在概率，暂定为4，表示40%
+            arg_prob_dep_write_exist: 每条语句写依赖存在概率，暂定为3，表示30%(实际上为1-(1-30%)*(1-30%)=51%)
         '''
-        
         
         nstmts = len(self.schedules)
         
-        # 计算调度的循环变量维和其前缀
+        # 预计算所有语句的循环变量信息
+        iterators_stmts_prefix = self._precompute_iterator_prefixes()
+        
+        # self.logger.debug(f'schedules: {self.schedules}')
+        # self.logger.debug(f'iterators_stmts: {self.iterators_stmts}')
+        # self.logger.debug(f'iterators_stmts_prefix: {iterators_stmts_prefix}')
+
+        # 预计算依赖距离参数
+        prob_coef_const = self._precompute_coef_const(arg_bounds_distance)
+        
+        # 写依赖生成，child->parent
+        self._generate_deps_write(nstmts, iterators_stmts_prefix, arg_prob_dep_write_exist)
+        # self.logger.debug(f'deps_write_info:{self.deps_write_info}')
+        
+        # 读依赖生成，parent->child
+        self._generate_deps_read(nstmts, iterators_stmts_prefix, arg_avg_ndeps_read_per_stmt, arg_bounds_distance)
+        
+        # 处理依赖距离
+        self._process_dependency_distances(prob_coef_const)
+        
+        # self.logger.debug(f'arrays_write: {self.arrays_write}')
+        # self.logger.debug(f'arrays_reads: {self.arrays_reads}')
+
+    def _precompute_iterator_prefixes(self) -> List[List[str]]:
+        """预计算所有语句的循环变量前缀"""
         iterators_stmts_prefix = []
         for schedule in self.schedules:
             # 计算完整调度变量
@@ -393,221 +424,163 @@ class Loop_Properties_Generator:
                 iterators_stmts_prefix.append(iterators_stmt[:-1])
             else:
                 iterators_stmts_prefix.append([])
-
+                
         # self.logger.debug(f'schedules: {self.schedules}')
         # self.logger.debug(f'iterators_stmts: {iterators_stmts}')
         # self.logger.debug(f'iterators_stmts_prefix: {iterators_stmts_prefix}')
+                
+        return iterators_stmts_prefix
 
-        # 预计算依赖距离参数
+    def _precompute_coef_const(self, arg_bounds_distance: int) -> Dict[int, float]:
+        """计算依赖距离参数"""
         prob_coef_const = {}
         for i in range(-arg_bounds_distance, arg_bounds_distance + 1):
             if i == 0:
                 prob_coef_const[i] = 2/3  # 0 for 66.7%
             else:
                 prob_coef_const[i] = 1/3/(2 * arg_bounds_distance)  # prob for value in const coef in indexes
-        
-        
-        
-        # 从尾部开始生成写依赖，child->parent
-        visited, finished = set(), set()
+        return prob_coef_const
+
+    def _generate_deps_write(self, nstmts: int, iterators_stmts_prefix: List, arg_prob_dep_write_exist: float) -> None:
+        """从尾部开始生成写依赖关系"""
+        visited = set()
         for child_stmt_id in range(nstmts - 1, -1, -1):  # 从nstmts-1到0倒序
             array_write = self.arrays_write[child_stmt_id]
             # 递归获取parent_array并生成依赖链
-            _, visited, finished = self._generate_dep_write_recursively(
-                array_write, iterators_stmts_prefix, arg_prob_dep_write_exist, visited, finished
-            )   
-            
-        # 读依赖生成，parent->child
-        
-        # 初始化权重系统
-        global_weights = [1.0] * nstmts  # 全局权重，初始相等
-        current_weights = {}  # 每个语句的parent_array（即写数组）所有的权重
-        
-        # 为每个写数组（parent）初始化当前权重
-        for i in range(nstmts):
-            current_weights[i] = global_weights.copy()
-        
-        # 计算每个parent要分配的读依赖数量
-        
-        ndeps_read_by_parent = np.random.multinomial(nstmts * arg_avg_ndeps_read_per_stmt, [1/nstmts] * nstmts) # 指定读依赖数量⒁
-        
-        # 为每个parent依次分配读依赖
-        for parent_stmt_id in range(nstmts):
-            
-            parent_array = self.arrays_write[parent_stmt_id]
-            
-            ndeps_read = ndeps_read_by_parent[parent_stmt_id]
-            
-            if ndeps_read == 0:
-                self.logger.debug(f'Array {parent_array.array_id} has no RAW or WAR dep due to ndeps_read=0')
-                continue
-            
-            ancestor_array = self._get_ancestor_array_for_mapping(parent_array)
-            
-            # 获取当前parent的候选child语句，且后续无需判断是否为空列表，因为至少有语句自身
-            candidates_iterator_read = self._get_dep_stmt_candidates_iterators(parent_stmt_id, iterators_stmts_prefix, allow_same_stmt=True)
-            candidates_dim_read = self._get_dep_stmt_candidates_dims(parent_stmt_id, allow_same_stmt=True)
-                
-            # 构建当前parent的选择权重
-            prob_weights_read = [0.0] * nstmts
-            for stmt_id in range(nstmts):
-                if stmt_id in candidates_iterator_read:
-                    # 使用全局权重和当前parent权重的组合
-                    base_weight = prob_dep_region[0] / len(candidates_iterator_read) # 基于iterator属性的基础权重
-                    
-                    prob_weights_read[stmt_id] = base_weight * global_weights[stmt_id] * current_weights[parent_stmt_id][stmt_id]
-                elif stmt_id in candidates_dim_read: # 类似，但基于dim属性
-                    base_weight = prob_dep_region[1] / len(candidates_dim_read)
-                    
-                    prob_weights_read[stmt_id] = base_weight * global_weights[stmt_id] * current_weights[parent_stmt_id][stmt_id]
-            
-            # 为当前parent分配读依赖
-            for _ in range(ndeps_read):
-                # 根据权重选择child语句
-                prob_weights_read_copy = prob_weights_read.copy()
-                condition = True
-                while condition:
-                    if not sum(prob_weights_read) > 0:
-                        self.logger.warning(f'parent_array {parent_array.array_id} has no available child_array to construct WAR or RAW dep.')
-                        break
-                    
-                    dep_read_child_stmt_id = random.choices(range(nstmts), weights=prob_weights_read_copy, k=1)[0]
-                    
-                    prob_weights_read_copy[dep_read_child_stmt_id] = 0  # 避免再次选择语句
+            self._generate_dep_write_recursively(
+                array_write, iterators_stmts_prefix, arg_prob_dep_write_exist, visited
+            )
 
-                    condition = self._check_used_iterators(ancestor_array, candidates_iterator_read, candidates_dim_read, dep_read_child_stmt_id, dep_read_child_stmt_id, is_write=False)
-                    
-                if not condition:
-                    narrays_read_comp = len(self.arrays_reads[dep_read_child_stmt_id])
-                    
-                    self.arrays_reads[dep_read_child_stmt_id][narrays_read_comp + 1] = ArrayData(array_id=(dep_read_child_stmt_id, narrays_read_comp + 1), parent_stmt_id=parent_stmt_id)
-                
-                    # 更新权重系统
-                    # 全局权重下降：减少该child被其他parent选择的概率
-                    global_weights[dep_read_child_stmt_id] *= 1/2
-                    
-                    # 当前child权重上升：增加该child继续选择同一parent的概率
-                    current_weights[parent_stmt_id][dep_read_child_stmt_id] *= 4
-                    
-                    # 等价于直接×2
-                    prob_weights_read[dep_read_child_stmt_id] *= 2
-        
-        
-        
-        # 处理依赖距离
-        self._process_dependency_distances(prob_coef_const)
-        
-        # self.logger.debug(f'arrays_write: {self.arrays_write}')
-        # self.logger.debug(f'arrays_reads: {self.arrays_reads}')
-
-    def _generate_dep_write_recursively(self, child_array: ArrayData, iterators_stmts_prefix: List, arg_prob_dep_write_exist: float, visited: Set, finished: Set) -> Tuple[ArrayData, Set]:
+    def _generate_dep_write_recursively(self, child_array: ArrayData, iterators_stmts_prefix: List, arg_prob_dep_write_exist: float, visited: Set) -> Tuple[Tuple[Tuple[int, int], List[List[int]]], Set]:
         """
         递归获取parent_array并生成依赖链
         
         Args:
-            child_stmt_id: 当前子语句ID
             child_array: 当前子数组
             iterators_stmts_prefix: 所有语句的循环变量的列表前缀部分
             arg_prob_dep_write_exist: 写依赖存在概率
-            visited: 已访问的语句集合，用于检测是否正在生成写依赖
-            finished: 已完成生成的语句集合，用于检测是否生成过写依赖
+            visited: 已访问的语句集合，用于检测循环依赖
             
         Returns:
-            Tuple[ArrayData, Set]: (最终的parent_array, 已访问的语句集合)
+            (ancestor_array.array_id, ancestor_array使用循环变量数量)
         """
-        
-        # self.logger.debug(f'Start _generate_dep_write_recursively for child_array {child_array.array_id}:\nvisited: {visited}\nfinished: {finished}\n')
+        # self.logger.debug(f'Start _generate_dep_write_recursively for child_array {child_array.array_id}:\nvisited: {visited}\n')
         
         child_stmt_id = child_array.array_id[0]
         
-        # 检测循环是否生成过
-        if child_stmt_id in finished:
+        # 检查是否已生成过依赖信息
+        if existing_info := self.deps_write_info.get(child_stmt_id):
             # self.logger.debug(f'array {child_array.array_id} 已进行过依赖生成，跳过生成步骤')
-            
-            # 检查当前数组是否已有parent_stmt_id
-            if child_array.parent_stmt_id is not None:
-                # 如果已有parent，递归寻找和处理parent
-                
-                parent_array = self.arrays_write[child_array.parent_stmt_id]
-                
-                # self.logger.debug(f'已获取array {child_array.array_id}的parent_array {parent_array.array_id}，继续递归处理其parent')
-                
-                ancestor_array, visited, finished = self._generate_dep_write_recursively(parent_array, iterators_stmts_prefix, arg_prob_dep_write_exist, visited, finished
-                )
-                return ancestor_array, visited, finished
-            
-            # 没有ancestor，返回自身
-            return child_array, visited, finished
-        elif child_stmt_id in visited:
-            # self.logger.debug(f'array {child_array.array_id} 正在生成依赖，检测到循环，跳过生成步骤以避免环路')
-            return child_array, visited, finished
+            # self.logger.debug(f'已获取array {child_array.array_id}的dep_write所需信息: {self.deps_write_info[child_stmt_id]}')
+            return existing_info
         
-        else:
-            # self.logger.debug(f'array {child_array.array_id} 开始进行依赖生成')
-                     
-            if random.random() < arg_prob_dep_write_exist / 10: # 决定是否生成新的写依赖，影响依赖密度
-                finished.add(child_stmt_id)
-                self.logger.debug(f'stmt {child_stmt_id} has no WAW dep due to arg_prob_dep_write_exist')
-                return child_array, visited, finished
-            
-            # 决定要生成，寻找候选parent语句
-            candidates_iterator_write = self._get_dep_stmt_candidates_iterators(
-                child_stmt_id, iterators_stmts_prefix, allow_same_stmt=False
+        # self.logger.debug(f'array {child_array.array_id} 开始进行依赖生成')
+        
+        # 决定是否作为写依赖的target
+        if random.random() > arg_prob_dep_write_exist / 10:
+            return self._dep_write_create_child_info(child_array, child_stmt_id)
+        
+        # 寻找候选parent语句
+        candidates_iterator_write = self._get_dep_stmt_candidates_iterators(
+            child_stmt_id, iterators_stmts_prefix, allow_same_stmt=False
+        )
+        candidates_dim_write = self._get_dep_stmt_candidates_dims(
+            child_stmt_id, allow_same_stmt=False
+        )
+        
+        # self.logger.debug(f'candidates_iterator_write: {candidates_iterator_write}\ncandidates_dim_write: {candidates_dim_write}\n')
+        
+        available_candidates = (candidates_iterator_write.keys() | 
+                            candidates_dim_write.keys()) - visited
+        
+        if not available_candidates:
+            self.logger.warning(
+                f'No available stmts in candidates_write for array '
+                f'{child_array.array_id} to find its source and construct WAW dep'
             )
-            candidates_dim_write = self._get_dep_stmt_candidates_dims(
-                child_stmt_id, allow_same_stmt=False
+            return self._dep_write_create_child_info(child_array, child_stmt_id)
+        
+        nstmts = len(self.schedules)
+        prob_weights = [0.0] * nstmts
+        
+        num_iterator = len(candidates_iterator_write)
+        num_dim = len(candidates_dim_write)
+        
+        # 初始化权重
+        for stmt_id in range(nstmts):
+            if stmt_id in visited:
+                continue
+            elif stmt_id in candidates_iterator_write:
+                prob_weights[stmt_id] = prob_dep_region[0] / num_iterator
+            elif stmt_id in candidates_dim_write:
+                prob_weights[stmt_id] = prob_dep_region[1] / num_dim
+        
+        # 选择parent语句并递归处理
+        parent_stmt_id, ancestor_info = self._dep_write_find_valid_parent(
+            child_stmt_id, iterators_stmts_prefix, arg_prob_dep_write_exist, visited, candidates_iterator_write, candidates_dim_write, prob_weights
+        )
+        
+        if parent_stmt_id is None: # 未寻找到ancestor，返回自身信息
+            return self._dep_write_create_child_info(child_array, child_stmt_id)
+        
+        # TODO: 使用单一ancestor代替多parent，即不存在依赖链，相关依赖全部来源于同一数组
+        self.arrays_write[child_stmt_id] = ArrayData(
+            array_id=(child_stmt_id, 0), 
+            parent_stmt_id=ancestor_info[0]
+        )
+        self.deps_write_info[child_stmt_id] = ancestor_info
+        
+        return ancestor_info
+
+    def _dep_write_find_valid_parent(self, child_stmt_id: int, iterators_stmts_prefix: List, arg_prob_dep_write_exist: float, visited: Set, candidates_iterator_write: dict, candidates_dim_write: dict, prob_weights: List[float]) -> tuple:
+        """寻找dep_write中有效的parent语句"""
+        while True:
+            # 检查是否还有可选的候选
+            if not any(weight > 0 for weight in prob_weights):
+                self.logger.warning(f'To avoid dependence cycle, stmt {child_stmt_id} cannot have WAW dep.')
+                return None, None
+            
+            # 选择parent语句
+            # self.logger.debug(f'prob_weights: {prob_weights}')
+            parent_stmt_id = random.choices(range(len(prob_weights)), weights=prob_weights, k=1)[0]
+            
+            # 递归处理parent
+            # self.logger.debug(f"start check parent_array {(parent_stmt_id, 0)} for child_array {(child_stmt_id, 0)}")
+            ancestor_info = self._generate_dep_write_recursively(
+                self.arrays_write[parent_stmt_id], 
+                iterators_stmts_prefix, 
+                arg_prob_dep_write_exist, 
+                visited | {child_stmt_id}
             )
+            # self.logger.debug(f'Find ancestor_array {(ancestor_info[0], 0)} for child_array {(child_stmt_id, 0)}')
             
-            # self.logger.debug(f'candidates_iterator_write: {candidates_iterator_write}\ncandidates_dim_write: {candidates_dim_write}\nvisited: {visited}')
+            prob_weights[parent_stmt_id] = 0 # 避免再次选择语句
             
-            if not ((candidates_iterator_write.keys() | candidates_dim_write.keys()) - visited):
-                finished.add(child_stmt_id)
-                self.logger.warning(f'no available stmts in candidates_write for stmt {child_stmt_id} to construct WAW dep')
-                return child_array, visited, finished
+            # 验证迭代器使用情况（保持原来的条件判断逻辑）
+            iterator_condition = candidates_iterator_write.get(parent_stmt_id, -2) == 1
+            dim_condition = candidates_dim_write.get(parent_stmt_id, -2) == 1
             
-            nstmts = len(self.schedules)
-            prob_weights_write = [0] * nstmts  # 概率初始化
-            
-            num_iterator, num_dim = len(candidates_iterator_write), len(candidates_dim_write)
-            
-            # 权重分配
-            for stmt_id in range(nstmts):
-                if stmt_id in visited:
+            if iterator_condition or dim_condition: # 计算ancestor的access_functions使用的循环变量数量是否小于等于child的情况
+                if ancestor_info[1] > len(self.iterators_stmts[child_stmt_id]):
+                    # 迭代器使用过多，标记为无效并继续尝试其他候选
+                    # self.logger.debug(f'More iterators used in ancestor_array {(ancestor_info[0], 0)} than child_array {(child_stmt_id, 0)}')
                     continue
-                elif stmt_id in candidates_iterator_write:
-                    prob_weights_write[stmt_id] = prob_dep_region[0] / num_iterator
-                elif stmt_id in candidates_dim_write:
-                    prob_weights_write[stmt_id] = prob_dep_region[1] / num_dim
+                else:
+                    # self.logger.debug(f'No more iterators used in ancestor_array {(ancestor_info[0], 0)} than child_array {(child_stmt_id, 0)}')
+                    pass
             
-            
-            condition = True
-            while condition: # 确保parent_array不会溯源到自身，即依赖不会成环
-            
-                # self.logger.debug(f'prob_weights_write: {prob_weights_write}')
-                
-                if sum(prob_weights_write) == 0:
-                    self.logger.warning(f'To avoid dpendence cycle, stmt {child_stmt_id} can not have WAW dep.')
-                    dep_write_parent_stmt_id = None
-                    break
-                
-                dep_write_parent_stmt_id = random.choices(range(nstmts), weights=prob_weights_write, k=1)[0]  # 指定写依赖的source语句⑿
-                
-                # self.logger.debug(f"start check parent_array {(dep_write_parent_stmt_id, 0)} for child_array {child_array.array_id}")
-                
-                ancestor_array, visited, finished = self._generate_dep_write_recursively(self.arrays_write[dep_write_parent_stmt_id], iterators_stmts_prefix, arg_prob_dep_write_exist, visited | {child_stmt_id}, finished
-                )
-                
-                # self.logger.debug(f'ancestor_array: {ancestor_array}\nchild_array: {child_array}')
-                
-                prob_weights_write[dep_write_parent_stmt_id] = 0  # 避免再次选择语句
-                
-                condition = self._check_used_iterators(ancestor_array, candidates_iterator_write, candidates_dim_write, dep_write_parent_stmt_id, child_stmt_id, is_write=True)
+            # 找到有效的parent
+            return parent_stmt_id, ancestor_info
 
-            self.arrays_write[child_stmt_id] = ArrayData(array_id=(child_stmt_id, 0), array_name=child_array.array_name, array_access_function=child_array.array_access_function, parent_stmt_id=dep_write_parent_stmt_id) # 保留先前生成的comp信息作为依赖生成失败的回退
-
-            finished.add(child_stmt_id)
-
-            return ancestor_array, visited, finished
+    def _dep_write_create_child_info(self, child_array: ArrayData, child_stmt_id: int):
+        """创建子数组信息"""
+        terms = self.generate_terms(len(self.iterators_stmts[child_stmt_id]), max_degree)
+        used_iterators = self._get_used_iterators(child_array.array_access_function, terms)
+        
+        child_info = (child_stmt_id, len(used_iterators))
+        self.deps_write_info[child_stmt_id] = child_info
+        
+        return child_info
 
     def _get_dep_stmt_candidates_iterators(self, stmt_id: int, iterators_stmts_prefix: List, allow_same_stmt: bool = False) -> Dict[int, int]:
         """
@@ -670,24 +643,132 @@ class Loop_Properties_Generator:
         
         return candidates
 
-    def _check_used_iterators(self, ancestor_array: ArrayData, candidates_iterator: Dict[int, int], candidates_dim: Dict[int, int], select_stmt_id: int, child_stmt_id: int, is_write: bool) -> bool:
-        diff = 1 if is_write else -1
+    def _generate_deps_read(self, nstmts: int, iterators_stmts_prefix: List, 
+                                  arg_avg_ndeps_read_per_stmt: int, arg_bounds_distance: int) -> None:
+        """生成读依赖关系"""
+        # 初始化权重系统
+        weights_global = [1.0] * nstmts  # 全局权重，初始相等
+        weights_per_parent = {}  # 每个语句的parent_array（即写数组）所有的权重
         
-        if candidates_iterator.get(select_stmt_id, -2) == diff or candidates_dim.get(select_stmt_id, -2) == diff:
-            # 计算ancestor的access_functions使用的循环变量数量是否小于等于child的情况
+        parent_array_list = list({info[0] for info in self.deps_write_info.values()}) # 所有parent_array_id列表
+        nparent_arrays = len(parent_array_list)
+        
+        # 为每个写数组（parent）初始化当前权重
+        for parent_stmt_id in parent_array_list:
+            weights_per_parent[parent_stmt_id] = weights_global.copy()
+        
+        # 计算每个parent要分配的读依赖数量
+        ndeps_read_per_stmt_upper = [
+            (2 * arg_bounds_distance + 1) ** self.deps_write_info[parent_stmt_id][1] 
+            for parent_stmt_id in parent_array_list
+        ] # 各parent理论上单语句最大依赖数量（基于距离组合数）
+        
+        ndeps_read_by_parent = np.random.multinomial(
+            nparent_arrays * arg_avg_ndeps_read_per_stmt, 
+            [1/nparent_arrays] * nparent_arrays
+        ) # 指定读依赖数量
+        
+        # 为每个parent依次分配读依赖
+        for i, parent_stmt_id in enumerate(parent_array_list):
+            self._allocate_deps_read_for_parent(
+                parent_stmt_id, ndeps_read_by_parent[i], ndeps_read_per_stmt_upper[i],
+                nstmts, iterators_stmts_prefix, weights_global, weights_per_parent
+            )
+
+    def _allocate_deps_read_for_parent(self, parent_stmt_id: int, ndeps_read: int, ndeps_read_upper: int, nstmts: int, iterators_stmts_prefix: List, weights_global: List[float], weights_per_parent: Dict[int, List[float]]) -> None:
+        """为单个parent分配读依赖"""
+        if ndeps_read == 0:
+            self.logger.debug(f'Array {(parent_stmt_id, 0)} has no RAW or WAR dep due to ndeps_read=0')
+            return
+        
+        ancestor_info = self.deps_write_info[parent_stmt_id]
+        
+        # 获取当前parent的候选child语句
+        candidates_iterator_read = self._get_dep_stmt_candidates_iterators(
+            parent_stmt_id, iterators_stmts_prefix, allow_same_stmt=True
+        )
+        candidates_dim_read = self._get_dep_stmt_candidates_dims(
+            parent_stmt_id, allow_same_stmt=True
+        )
             
-            terms_ancestor = self.generate_terms(len(self.iterators_stmts[ancestor_array.array_id[0]]), max_degree)
+        # 构建当前parent的child_stmt选择权重
+        prob_weights_read = self._build_weights_dep_read(
+            nstmts, candidates_iterator_read, candidates_dim_read, 
+            weights_global, weights_per_parent[parent_stmt_id]
+        )
+        
+        # 为当前parent分配读依赖
+        for _ in range(ndeps_read):
+            child_stmt_id = self._dep_read_find_valid_child(
+                ancestor_info, candidates_iterator_read, 
+                candidates_dim_read, prob_weights_read
+            )
             
-            used_iterators = self._get_used_iterators(ancestor_array.array_access_function, terms_ancestor)
+            # 创建读依赖并更新权重
+            narrays_read_comp = len(self.arrays_reads[child_stmt_id])
             
-            if len(used_iterators) > len(self.iterators_stmts[child_stmt_id]):
-                # self.logger.debug(f'More iterators used in ancestor_array {ancestor_array.array_id} than child_array in{child_stmt_id}')
-                return True
-            else:
-                # self.logger.debug(f'No more iterators used in ancestor_array {ancestor_array.array_id} than child_array in{child_stmt_id}')
-                pass           
+            self.arrays_reads[child_stmt_id][narrays_read_comp + 1] = ArrayData(
+                array_id=(child_stmt_id, narrays_read_comp + 1), 
+                parent_stmt_id=parent_stmt_id
+            )
+        
+            # 更新权重系统
+            # 全局权重下降：减少该child被其他parent选择的概率
+            weights_global[child_stmt_id] *= 1/2
             
-        return False
+            # 当前child权重上升：增加该child继续被同一parent选择的概率
+            weights_per_parent[parent_stmt_id][child_stmt_id] *= 4.0
+            
+            # 等价于直接×2
+            prob_weights_read[child_stmt_id] *= 2.0
+            
+            # 处理超过上限的情况
+            if narrays_read_comp >= ndeps_read_upper:
+                penalty = (1/8) ** narrays_read_comp if narrays_read_comp == ndeps_read_upper else 1/4
+                weights_per_parent[parent_stmt_id][child_stmt_id] *= penalty
+                prob_weights_read[child_stmt_id] *= (1/4) ** narrays_read_comp if narrays_read_comp == ndeps_read_upper else 1/4
+
+    def _build_weights_dep_read(self, nstmts: int, candidates_iterator_read: Dict, candidates_dim_read: Dict, weights_global: List[float], weights_parent: List[float]) -> List[float]:
+        """构建读依赖语句选取权重"""
+        prob_weights_read = [0.0] * nstmts
+        for stmt_id in range(nstmts):
+            if stmt_id in candidates_iterator_read:
+                # 使用全局权重和当前parent权重的组合
+                base_weight = prob_dep_region[0] / len(candidates_iterator_read) # 基于iterator属性的基础权重
+                prob_weights_read[stmt_id] = base_weight * weights_global[stmt_id] * weights_parent[stmt_id]
+            elif stmt_id in candidates_dim_read: # 类似，但基于dim属性
+                base_weight = prob_dep_region[1] / len(candidates_dim_read)
+                prob_weights_read[stmt_id] = base_weight * weights_global[stmt_id] * weights_parent[stmt_id]
+        return prob_weights_read
+
+    def _dep_read_find_valid_child(self, ancestor_info: Tuple[int], candidates_iterator_read: Dict, candidates_dim_read: Dict, prob_weights_read: List[float]) -> tuple:
+        """寻找有效的child语句"""
+        # 根据权重选择child语句
+        prob_weights_read_copy = prob_weights_read.copy()
+        
+        # 寻找有效的child语句
+        while True:
+            # 根据权重选择候选（prob_weights_read的和一定大于0）
+            child_stmt_id = random.choices(range(len(prob_weights_read_copy)), weights=prob_weights_read_copy, k=1)[0]
+            
+            prob_weights_read_copy[child_stmt_id] = 0  # 避免再次选择该语句
+
+            # 检查迭代器使用条件
+            iterator_condition = candidates_iterator_read.get(child_stmt_id, -2) == -1
+            dim_condition = candidates_dim_read.get(child_stmt_id, -2) == -1
+            
+            if iterator_condition or dim_condition:
+                # 计算ancestor的access_functions使用的循环变量数量是否小于等于child的情况
+                if ancestor_info[1] > len(self.iterators_stmts[child_stmt_id]):
+                    # 迭代器使用过多，继续尝试其他候选
+                    # self.logger.debug(f'More iterators used in ancestor_array {ancestor_info[0]} than child_array in {child_stmt_id}')
+                    continue
+                else:
+                    # self.logger.debug(f'No more iterators used in ancestor_array {ancestor_info[0]} than child_array in {child_stmt_id}')
+                    pass
+                
+            # 找到有效的child语句
+            return child_stmt_id
 
     def _process_dependency_distances(self, prob_coef_const: Dict[int, float]) -> None:
         """处理依赖距离计算"""
@@ -708,7 +789,7 @@ class Loop_Properties_Generator:
                 
                 parent_array_distances[parent_array.array_id][tuple(sorted(mapping.items()))].append(distance_dep_write)
                 
-                # self.logger.debug(f"array_write in stmt {child_stmt_id} with dep distance: {self.arrays_write[child_stmt_id]}")
+                # self.logger.debug(f"array_write {array_write.array_id} with dep distance: {self.arrays_write[child_stmt_id]}")
         
         # 处理读依赖距离
         for child_stmt_id, arrays_read in self.arrays_reads.items():
@@ -790,7 +871,7 @@ class Loop_Properties_Generator:
         return dep_distance, mapping
 
     def _get_used_iterators(self, access_functions: List[List[int]], terms_parent: List[Tuple], depth_array: int = None) -> Tuple[List[int], List[List]]:
-        """确定需要随机化的变量维度位置"""
+        """获取在访存函数中被使用的循环变量"""
         
         num_columns = len(terms_parent)
         
@@ -798,7 +879,6 @@ class Loop_Properties_Generator:
             depth_array = len(access_functions)
         
         # 单次遍历找出所有需要的信息
-        non_zero_columns = []
         used_terms = set()
         
         for dim_id in range(1, num_columns):
@@ -809,7 +889,6 @@ class Loop_Properties_Generator:
                     break
             
             if has_non_zero:
-                non_zero_columns.append(dim_id)
                 used_terms.update(terms_parent[dim_id])
         
         used_iterators = sorted(used_terms)
@@ -933,22 +1012,22 @@ class Loop_Properties_Generator:
         生成数组信息和参数信息，包括数组维度映射和参数值设置
         '''
         # 初始化参数信息
-        for i, param in enumerate(indexed_parameter_names):
+        for i, param in enumerate(bound_params_list):
             self.params_info[param] = i
 
-        params_unused = set(indexed_parameter_names)
+        params_unused = set(bound_params_list)
         num_params = len(self.params_info)
          
         # 处理写数组
-        for array in self.arrays_write.values():
-            parent_array = self._get_ancestor_array_for_mapping(array)
+        for array_write in self.arrays_write.values():
+            parent_array = self._get_ancestor_array_for_mapping(array_write)
             if self.arrays_info[parent_array.array_name] == []:
                 params_unused = self._assign_array_dimensions(parent_array, num_params, params_unused)
         
         # 处理读数组
-        for arrays in self.arrays_reads.values():
-            for array in arrays.values():
-                parent_array = self._get_ancestor_array_for_mapping(array)
+        for arrays_read in self.arrays_reads.values():
+            for array_read in arrays_read.values():
+                parent_array = self._get_ancestor_array_for_mapping(array_read)
                 if self.arrays_info[parent_array.array_name] == []:
                     params_unused = self._assign_array_dimensions(parent_array, num_params, params_unused)
 
@@ -982,7 +1061,7 @@ class Loop_Properties_Generator:
                 tmp_weights = [stats.norm.cdf(i + 0.5, 1, 0.5) - stats.norm.cdf(i - 0.5, 1, 0.5) for i in range(num_params - id)]
                 tmp_weights /= sum(tmp_weights)
                 id += random.choices(range(num_params - id), weights=tmp_weights)[0]  # 采用泊松分布取数，确保数组size中前一维度小于等于后续维度，方便loop_bounds的指定
-            param_name = indexed_parameter_names[id]
+            param_name = bound_params_list[id]
             params_unused.discard(param_name)
             self.arrays_info[array.array_name].append(param_name)
         return params_unused
@@ -1102,7 +1181,7 @@ class Loop_Properties_Generator:
         
         return additional_computations, dependencies
 
-    def generate_json_file(self, arg_depth: int = 2, arg_nstmts: int = 3, arg_bounds_index: int = 2, arg_prob_bounds_exist: int = 4, arg_narrays_per_dim: int = 2, arg_avg_narrays_read_per_stmt: int = 1, arg_bounds_coef: int = 1, arg_avg_ndeps_read_per_stmt: int = 2, arg_bounds_distance: int = 1, arg_prob_dep_write_exist: int = 4, arg_prob_branch: int = 1, id: int = 0) -> str:
+    def generate_json_file(self, arg_depth: int = 2, arg_nstmts: int = 3, arg_bounds_index: int = 2, arg_prob_bounds_exist: int = 4, arg_narrays_per_dim: int = 2, arg_avg_narrays_read_per_stmt: int = 1, arg_bounds_coef: int = 1, arg_avg_ndeps_read_per_stmt: int = 2, arg_bounds_distance: int = 1, arg_prob_dep_write_exist: int = 3, arg_prob_branch: int = 1, id: int = 0) -> str:
         '''
         生成JSON文件并保存到磁盘
         
@@ -1116,7 +1195,7 @@ class Loop_Properties_Generator:
             arg_bounds_coef: 数组下标常量系数范围，暂定为1，表示范围为(-1,0,1)
             arg_avg_ndeps_read_per_stmt: 每条语句平均读依赖数量，暂定为2，表示指定生成的读依赖数量（validate之前）应当为2*arg_nstmts
             arg_bounds_distance: 依赖距离范围，暂定为1，表示范围为(-1,0,1)
-            arg_prob_dep_write_exist: 每条语句写依赖存在概率，暂定为4，表示40%
+            arg_prob_dep_write_exist: 每条语句写依赖存在概率，暂定为3，表示30%，表示30%(实际上为1-(1-30%)*(1-30%)=51%)
             arg_prob_branch: if分支出现的基础几率，暂定为1，表示10%
             id: 文件标识符，用于生成唯一文件名
             

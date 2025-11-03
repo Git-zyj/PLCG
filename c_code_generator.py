@@ -14,7 +14,7 @@ from itertools import product, combinations_with_replacement
 
 from parse_input import parse_data
 from path_settings import json_input_path, target_path
-from params_settings import enable_if_branch, enable_reverse_dim
+from basic_params_settings import enable_if_branch, enable_reverse_dim
 from polybench_files_generation import polybench_pipeline_single_file
 from schedule import Schedule_tree
 from array_data import ArrayData
@@ -107,15 +107,6 @@ class C_Code_Generator:
                 branchs.append(instruction['branch'])
             
             self.iterators_stmts.append([instruction['schedule'][j] for j in range(len(instruction['schedule'])) if j % 2 == 1])
-            
-            if 'dependency' in instruction:
-                dependency = instruction['dependency']
-                for dep in dependency:
-                    array = ArrayData(array_id=dep['array_id'], distance=np.array(dep['distance']), mapping=bidict({int(k): int(v) for k, v in dep['mapping'].items()}), parent_stmt_id=dep['parent_stmt_id']) # json会修改dict中元素类型，需要改回int
-                    if dep['category'] == "write": # get source array info when dep in WAW, or get write array info when dep is WAR or RAW
-                        self.arrays_write[stmt_id] = array
-                    else:
-                        self.arrays_reads[stmt_id][dep['array_id'][1]] = array
 
             if 'additional_computation' in instruction:
                 additional_computation = instruction['additional_computation']
@@ -125,6 +116,15 @@ class C_Code_Generator:
                         self.arrays_write[stmt_id] = array
                     else:
                         self.arrays_reads[stmt_id][comp['array_id'][1]] = array
+            
+            if 'dependency' in instruction:
+                dependency = instruction['dependency']
+                for dep in dependency:
+                    array = ArrayData(array_id=dep['array_id'], distance=np.array(dep['distance']), mapping=bidict({int(k): int(v) for k, v in dep['mapping'].items()}), parent_stmt_id=dep['parent_stmt_id']) # json会修改dict中元素类型，需要改回int
+                    if dep['category'] == "write": # get source array info when dep in WAW, or get write array info when dep is WAR or RAW
+                        self.arrays_write[stmt_id] = array
+                    else:
+                        self.arrays_reads[stmt_id][dep['array_id'][1]] = array
             
         self.schedule_tree.add_paths(schedules, branchs)
         self.schedule_tree.check_tree()
@@ -478,7 +478,7 @@ class C_Code_Generator:
         terms_child = self.generate_terms(depth_stmt_child, self._parsed_data.max_degree)
         terms_parent = self.generate_terms(len(index_letters_parent), self._parsed_data.max_degree)
         
-        # self.logger.debug(f'Applying distance to access functions:\nchild_array.array_id:{child_array.array_id}\naccess_functions:\n{parent_array.array_access_function}\nindex_letters_parent: {index_letters_parent}\nindex_letters_child: {index_letters_child}\ndistance: {child_array.distance}\nmapping: {child_array.mapping}\n')
+        # self.logger.debug(f'Applying distance to access functions:\nparent_array.array_id: {parent_array.array_id}\nchild_array.array_id: {child_array.array_id}\naccess_functions:\n{parent_array.array_access_function}\nindex_letters_parent: {index_letters_parent}\nindex_letters_child: {index_letters_child}\ndistance: {child_array.distance}\nmapping: {child_array.mapping}\n')
         
         # 输入验证 
         if len(child_array.distance) > depth_stmt_child:
@@ -690,6 +690,8 @@ class C_Code_Generator:
         """Add symbols randomly between elements to make them become a whole stmt"""
         
         # TODO: 目前只生成简单的赋值语句，后续可以考虑更复杂的表达式
+        
+        # self.logger.debug(f'arrays_in_stmts:\n{arrays_in_stmts}\n')
         
         for element in arrays_in_stmts:
             element.append(str(random.randint(1, 6)))  # add constant

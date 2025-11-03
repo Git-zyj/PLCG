@@ -84,7 +84,7 @@ polybench_start_instruments;
 #pragma scop
     for (int i = 1; i < PB_L+1; i++)
         for (int j = 2; j < PB_L; j++)
-            A[j-1] = A[j] * A[j-2] - B[j][i-1] * 4;
+            A[j-1] = B[j][i-1] * A[j] - A[j-2] * 4;
 #pragma endscop
 polybench_stop_instruments;
 polybench_print_instruments;

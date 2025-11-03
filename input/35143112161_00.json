@@ -1,28 +1,25 @@
 {
     "params": {
+        "PB_N": 30,
         "PB_M": 40,
         "PB_L": 30,
         "PB_P": 50
     },
     "max_degree": 1,
     "special_loop_bounds": {
-        "k": [
+        "j": [
             0,
             "i"
-        ],
-        "m": [
-            0,
-            "l"
         ]
     },
     "arrays": [
-        "A[PB_M,PB_L]",
+        "B[PB_N]",
         "D[PB_M,PB_M]",
-        "E[PB_M,PB_L,PB_P]",
-        "F[PB_L,PB_P]",
-        "G[PB_M,PB_L]",
-        "H[PB_L,PB_P]",
-        "I[PB_M,PB_L,PB_P]"
+        "E[PB_N,PB_M,PB_L]",
+        "F[PB_L]",
+        "G[PB_M,PB_L,PB_P]",
+        "H[PB_N,PB_M]",
+        "I[PB_M,PB_M]"
     ],
     "instructions": [
         {
@@ -37,36 +34,11 @@
                 {
                     "array_id": [
                         0,
-                        0
-                    ],
-                    "array_name": "A",
-                    "array_type": "write",
-                    "array_access_function": [
-                        [
-                            0,
-                            0,
-                            1
-                        ],
-                        [
-                            1,
-                            1,
-                            0
-                        ]
-                    ]
-                },
-                {
-                    "array_id": [
-                        0,
                         1
                     ],
                     "array_name": "F",
                     "array_type": "read",
                     "array_access_function": [
-                        [
-                            0,
-                            1,
-                            0
-                        ],
                         [
                             0,
                             0,
@@ -83,12 +55,17 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            -1,
+                            0,
                             0,
                             1
                         ],
                         [
-                            -1,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
                             1,
                             0
                         ]
@@ -99,34 +76,30 @@
                 {
                     "array_id": [
                         0,
-                        3
+                        0
                     ],
-                    "category": "read",
+                    "category": "write",
                     "distance": [
-                        1,
                         0
                     ],
                     "mapping": {
-                        "0": 0,
-                        "1": 1
+                        "0": 0
                     },
-                    "parent_stmt_id": 0
+                    "parent_stmt_id": 1
                 },
                 {
                     "array_id": [
                         0,
-                        4
+                        3
                     ],
                     "category": "read",
                     "distance": [
-                        0,
-                        -1
+                        1
                     ],
                     "mapping": {
-                        "0": 0,
-                        "1": 1
+                        "0": 0
                     },
-                    "parent_stmt_id": 0
+                    "parent_stmt_id": 1
                 }
             ]
         },
@@ -134,11 +107,23 @@
             "schedule": [
                 0,
                 "i",
-                1,
-                "k",
-                0
+                1
             ],
             "additional_computation": [
+                {
+                    "array_id": [
+                        1,
+                        0
+                    ],
+                    "array_name": "B",
+                    "array_type": "write",
+                    "array_access_function": [
+                        [
+                            0,
+                            1
+                        ]
+                    ]
+                },
                 {
                     "array_id": [
                         1,
@@ -148,14 +133,12 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            0,
-                            0,
+                            -1,
                             1
                         ],
                         [
-                            0,
                             1,
-                            0
+                            1
                         ]
                     ]
                 }
@@ -164,29 +147,27 @@
                 {
                     "array_id": [
                         1,
-                        0
+                        2
                     ],
-                    "category": "write",
+                    "category": "read",
                     "distance": [
-                        0,
-                        0
+                        1
                     ],
                     "mapping": {
-                        "0": 0,
-                        "1": 1
+                        "0": 0
                     },
-                    "parent_stmt_id": 0
+                    "parent_stmt_id": 1
                 }
             ]
         },
         {
             "schedule": [
-                1,
+                0,
+                "i",
+                2,
+                "k",
+                0,
                 "l",
-                0,
-                "m",
-                0,
-                "n",
                 0
             ],
             "additional_computation": [],
@@ -198,44 +179,12 @@
                     ],
                     "category": "write",
                     "distance": [
-                        -1,
-                        1
+                        0,
+                        0
                     ],
                     "mapping": {
                         "0": 2,
                         "1": 0
-                    },
-                    "parent_stmt_id": 1
-                },
-                {
-                    "array_id": [
-                        2,
-                        1
-                    ],
-                    "category": "read",
-                    "distance": [
-                        0,
-                        0
-                    ],
-                    "mapping": {
-                        "0": 1,
-                        "1": 0
-                    },
-                    "parent_stmt_id": 3
-                },
-                {
-                    "array_id": [
-                        2,
-                        2
-                    ],
-                    "category": "read",
-                    "distance": [
-                        0,
-                        0
-                    ],
-                    "mapping": {
-                        "0": 1,
-                        "1": 2
                     },
                     "parent_stmt_id": 3
                 }
@@ -244,10 +193,10 @@
         {
             "schedule": [
                 1,
-                "l",
-                0,
                 "m",
-                1
+                0,
+                "n",
+                0
             ],
             "additional_computation": [
                 {
@@ -260,79 +209,26 @@
                     "array_access_function": [
                         [
                             0,
+                            0,
+                            1
+                        ],
+                        [
                             1,
-                            0
-                        ],
-                        [
-                            0,
-                            0,
-                            1
-                        ]
-                    ]
-                },
-                {
-                    "array_id": [
-                        3,
-                        1
-                    ],
-                    "array_name": "H",
-                    "array_type": "read",
-                    "array_access_function": [
-                        [
-                            0,
-                            0,
-                            1
-                        ],
-                        [
-                            0,
                             1,
                             0
                         ]
                     ]
                 }
             ],
-            "dependency": [
-                {
-                    "array_id": [
-                        3,
-                        2
-                    ],
-                    "category": "read",
-                    "distance": [
-                        0,
-                        0
-                    ],
-                    "mapping": {
-                        "0": 0,
-                        "1": 1
-                    },
-                    "parent_stmt_id": 2
-                },
-                {
-                    "array_id": [
-                        3,
-                        3
-                    ],
-                    "category": "read",
-                    "distance": [
-                        -1,
-                        0
-                    ],
-                    "mapping": {
-                        "0": 1,
-                        "1": 0
-                    },
-                    "parent_stmt_id": 2
-                }
-            ]
+            "dependency": []
         },
         {
             "schedule": [
                 1,
-                "l",
-                0,
                 "m",
-                2,
+                0,
+                "n",
+                1,
                 "o",
                 0
             ],
@@ -346,6 +242,12 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
+                            -1,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
                             0,
                             0,
                             0,
@@ -353,12 +255,6 @@
                         ],
                         [
                             0,
-                            0,
-                            1,
-                            0
-                        ],
-                        [
-                            -1,
                             1,
                             0,
                             0
@@ -375,12 +271,28 @@
                     "array_access_function": [
                         [
                             0,
-                            1,
                             0,
-                            0
+                            0,
+                            1
                         ],
                         [
-                            -1,
+                            1,
+                            0,
+                            1,
+                            0
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        4,
+                        2
+                    ],
+                    "array_name": "H",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            1,
                             0,
                             0,
                             1
@@ -398,38 +310,18 @@
                 {
                     "array_id": [
                         4,
-                        2
-                    ],
-                    "category": "read",
-                    "distance": [
-                        0,
-                        -1,
-                        0
-                    ],
-                    "mapping": {
-                        "0": 0,
-                        "1": 1,
-                        "2": 2
-                    },
-                    "parent_stmt_id": 4
-                },
-                {
-                    "array_id": [
-                        4,
                         3
                     ],
                     "category": "read",
                     "distance": [
-                        0,
-                        -1,
-                        1
+                        1,
+                        0
                     ],
                     "mapping": {
-                        "0": 0,
-                        "1": 1,
-                        "2": 2
+                        "0": 2,
+                        "1": 1
                     },
-                    "parent_stmt_id": 4
+                    "parent_stmt_id": 3
                 },
                 {
                     "array_id": [
@@ -438,8 +330,8 @@
                     ],
                     "category": "read",
                     "distance": [
-                        -1,
                         0,
+                        1,
                         0
                     ],
                     "mapping": {
@@ -456,9 +348,27 @@
                     ],
                     "category": "read",
                     "distance": [
+                        1,
+                        -1,
+                        0
+                    ],
+                    "mapping": {
+                        "0": 0,
+                        "1": 1,
+                        "2": 2
+                    },
+                    "parent_stmt_id": 4
+                },
+                {
+                    "array_id": [
+                        4,
+                        6
+                    ],
+                    "category": "read",
+                    "distance": [
                         0,
                         0,
-                        1
+                        -1
                     ],
                     "mapping": {
                         "0": 0,

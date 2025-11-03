@@ -103,7 +103,7 @@ polybench_start_instruments;
     for (int i = 0; i < PB_M; i++)
         for (int j = 0; j < min(i,PB_Q-1); j++)
             for (int k = 2; k < PB_L-2; k++)
-                A[k+1][k-1][j+1] = A[k+2][k][j+1] * A[k][k-2][j] * B[i][k][j] + 5;
+                A[k+1][k-1][j+1] = B[i][k][j] * A[k+2][k][j+1] * A[k][k-2][j] + 5;
 #pragma endscop
 polybench_stop_instruments;
 polybench_print_instruments;

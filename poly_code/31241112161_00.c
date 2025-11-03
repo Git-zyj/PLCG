@@ -77,7 +77,7 @@ void kernel_31241112161_00(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xb,DATA_TY
 polybench_start_instruments;
 #pragma scop
     for (int i = 0; i < PB_M-2; i++)
-        A[i+1] = A[i+2] - A[i] * B[i] + 3;
+        A[i+1] = B[i] - A[i+2] * A[i] + 3;
 #pragma endscop
 polybench_stop_instruments;
 polybench_print_instruments;

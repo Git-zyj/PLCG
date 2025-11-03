@@ -1,7 +1,7 @@
 {
     "params": {
-        "PB_M": 80,
-        "PB_L": 70
+        "PB_M": 70,
+        "PB_L": 60
     },
     "max_degree": 1,
     "special_loop_bounds": {},
@@ -49,13 +49,13 @@
                     "array_access_function": [
                         [
                             0,
-                            0,
+                            1,
                             0
                         ],
                         [
                             0,
-                            1,
-                            0
+                            0,
+                            1
                         ]
                     ]
                 }
@@ -68,7 +68,7 @@
                     ],
                     "category": "read",
                     "distance": [
-                        -1,
+                        0,
                         -1
                     ],
                     "mapping": {
@@ -84,7 +84,7 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1,
+                        0,
                         1
                     ],
                     "mapping": {

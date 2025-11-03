@@ -90,7 +90,7 @@ polybench_start_instruments;
 #pragma scop
     for (int i = 1; i < PB_M-1; i++)
         for (int j = 0; j < PB_N; j++)
-            A[i][i] = A[i-1][i-1] + A[i+1][i+1] + B[j][i-1] + 6;
+            A[i][i] = B[j][i-1] + A[i-1][i-1] + A[i+1][i+1] + 6;
 #pragma endscop
 polybench_stop_instruments;
 polybench_print_instruments;

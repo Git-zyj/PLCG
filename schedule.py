@@ -3,7 +3,7 @@ import random
 from typing import Union, Optional
 from collections import defaultdict
 
-from params_settings import indexed_letters_sequence, params_multiplier, params_range
+from basic_params_settings import iterators_sequence, params_multiplier, params_range
 
 class Schdule_node:
     def __init__(self, sequence: Optional[Union[int, str]] = None, content: Optional[Union[int, str]] = None, schedule_dim: Optional[int] = None, stmt_id: Optional[int] = None):
@@ -270,7 +270,7 @@ class Schedule_tree:
         for i, child in enumerate(node.children):
             child.sequence = i
             if child.children:
-                child.content = indexed_letters_sequence[var_id] # 对变量重命名
+                child.content = iterators_sequence[var_id] # 对变量重命名
                 var_id = self.standardize_node(child, var_id + 1)
             
         return var_id

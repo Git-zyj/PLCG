@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Tuple, Union
 import numpy as np
 
-@dataclass(eq=True, frozen=True)
+@dataclass(frozen=True)
 class ArrayData:
     array_id: Tuple[int, int] = None
     array_name: Union[list, str] = None

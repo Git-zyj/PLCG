@@ -3,7 +3,7 @@ import json
 
 from path_settings import kernel_list_path
 from header_settings import header_string
-from params_settings import dimension_names 
+from basic_params_settings import array_index_dim_names_sequence 
 
 iterators = ['i', 'j', 'k', 'l']
 lines_per_indent = '    '
@@ -375,7 +375,7 @@ def get_array_information_from_json(file):
         dimensions = dim_string.replace(' ', '').split(',')
         dimension_dict = {}
         for idx, dim in enumerate(dimensions):
-            dimension_dict[dimension_names[idx] + name] = dim
+            dimension_dict[array_index_dim_names_sequence[idx] + name] = dim
         arrays.append((name, dimension_dict))
 
     return arrays, data['params']
