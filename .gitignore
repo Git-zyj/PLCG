@@ -166,3 +166,5 @@ yarn.lock
 *tmp_files/
 time*.txt
 *.zip
+*baselines/
+*Compilers/

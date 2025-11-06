@@ -193,11 +193,11 @@ class Schedule_tree:
             elif flag == 'branch':
                 cond_prob = f" (Prob: {node.cond_prob:.2f})" if hasattr(node, 'cond_prob') else ""
                 prints.append(f'{prefix}{node.content} {cond_prob}')
-            elif flag == 'code':
+            elif flag == 'code' or flag == 'schedule':
                 prints.append(f'{prefix}{node.content}')
         
-        # if flag == 'code' and node.children and not level == 0:
-        #     prints[-1] += ' {'
+        if flag == 'code' and node.children and not level == 0:
+            prints[-1] += ' {'
             
         if node.cond and flag != 'init':
             prints.append(f'{prefix}    if')
@@ -229,8 +229,8 @@ class Schedule_tree:
                 prints.extend(self.extract_tree(flag, child, level + 1))
 
             
-        # if flag == 'code' and node.children and not level == 0:
-        #     prints.append(f'{prefix}}}')
+        if flag == 'code' and node.children and not level == 0:
+            prints.append(f'{prefix}}}')
             
         return prints
     

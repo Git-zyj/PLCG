@@ -88,7 +88,7 @@ class Loop_Properties_Generator:
         schedule_tree_init.standardize_node()  # 并进行排序号重编（不影响顺序）
         schedule_tree_init.check_tree()
         
-        scop_init = '\n'.join(schedule_tree_init.extract_tree('code'))
+        scop_init = '\n'.join(schedule_tree_init.extract_tree('schedule'))
         self.logger.debug(f'\nInitial scop:\n{scop_init}\n')
         
         if not enable_if_branch:
@@ -1205,7 +1205,7 @@ class Loop_Properties_Generator:
         
         self._reset_data()
 
-        self.filename = f'{arg_depth}{arg_nstmts}{arg_bounds_index}{arg_prob_bounds_exist}{arg_narrays_per_dim}{arg_avg_narrays_read_per_stmt}{arg_bounds_coef}{arg_avg_ndeps_read_per_stmt}{arg_bounds_distance}{arg_prob_dep_write_exist}{arg_prob_branch}_{id:02d}.json'
+        self.filename = f'{arg_depth}{arg_nstmts}{arg_bounds_index}{arg_prob_bounds_exist}{arg_narrays_per_dim}{arg_avg_narrays_read_per_stmt}{arg_bounds_coef}{arg_avg_ndeps_read_per_stmt}{arg_bounds_distance}{arg_prob_dep_write_exist}_{id:02d}.json' # if branch{arg_prob_branch}修改尚不完善，先不加入了
         self.update_logging()
         # self.logger.debug("Start json generation for file {self.filename}\n")
 

@@ -17,7 +17,7 @@ old_library='libcandl.a'
 inherited_linker_flags=''
 
 # Libraries that this one depends upon.
-dependency_libs=' /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop/libosl.la /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/piplib/libpiplib64.la -lgmp'
+dependency_libs=' /home/zyj/Data0/loop_generator/Compilers/pluto_DA/openscop/libosl.la /home/zyj/Data0/loop_generator/Compilers/pluto_DA/piplib/libpiplib64.la -lgmp'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''
@@ -39,4 +39,4 @@ dlpreopen=''
 
 # Directory that this library needs to be installed in:
 libdir='/usr/local/lib'
-relink_command="(cd /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/candl; /bin/bash /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/candl/libtool  --silent --tag CC --mode=relink gcc -Wall -O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math -o libcandl.la -rpath /usr/local/lib libcandl_la-dependence.lo libcandl_la-ddv.lo libcandl_la-scop.lo libcandl_la-statement.lo libcandl_la-util.lo libcandl_la-isl-wrapper.lo libcandl_la-matrix.lo libcandl_la-options.lo libcandl_la-piplib-wrapper.lo libcandl_la-pruning.lo libcandl_la-violation.lo /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop/libosl.la /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/piplib/libpiplib64.la -lgmp -lgmp @inst_prefix_dir@)"
+relink_command="(cd /home/zyj/Data0/loop_generator/Compilers/pluto_DA/candl; /bin/bash /home/zyj/Data0/loop_generator/Compilers/pluto_DA/candl/libtool  --silent --tag CC --mode=relink gcc -Wall -O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math -o libcandl.la -rpath /usr/local/lib libcandl_la-dependence.lo libcandl_la-ddv.lo libcandl_la-scop.lo libcandl_la-statement.lo libcandl_la-util.lo libcandl_la-isl-wrapper.lo libcandl_la-matrix.lo libcandl_la-options.lo libcandl_la-piplib-wrapper.lo libcandl_la-pruning.lo libcandl_la-violation.lo /home/zyj/Data0/loop_generator/Compilers/pluto_DA/openscop/libosl.la /home/zyj/Data0/loop_generator/Compilers/pluto_DA/piplib/libpiplib64.la -lgmp -lgmp @inst_prefix_dir@)"

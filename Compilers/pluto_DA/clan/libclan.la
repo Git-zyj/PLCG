@@ -17,7 +17,7 @@ old_library='libclan.a'
 inherited_linker_flags=''
 
 # Libraries that this one depends upon.
-dependency_libs=' /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop/libosl.la -lgmp'
+dependency_libs=' /home/zyj/Data0/loop_generator/Compilers/pluto_DA/openscop/libosl.la -lgmp'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''
@@ -39,4 +39,4 @@ dlpreopen=''
 
 # Directory that this library needs to be installed in:
 libdir='/usr/local/lib'
-relink_command="(cd /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/clan; /bin/bash /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/clan/libtool  --silent --tag CC --mode=relink gcc -Wall -O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math -o libclan.la -rpath /usr/local/lib libclan_la-parser.lo libclan_la-scanner.lo libclan_la-options.lo libclan_la-symbol.lo libclan_la-scop.lo libclan_la-statement.lo libclan_la-relation.lo libclan_la-relation_list.lo libclan_la-vector.lo /home/zyj/Data0/loop_transformation/loop_generator/Compilers/pluto_DA/openscop/libosl.la @inst_prefix_dir@)"
+relink_command="(cd /home/zyj/Data0/loop_generator/Compilers/pluto_DA/clan; /bin/bash /home/zyj/Data0/loop_generator/Compilers/pluto_DA/clan/libtool  --silent --tag CC --mode=relink gcc -Wall -O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math -o libclan.la -rpath /usr/local/lib libclan_la-parser.lo libclan_la-scanner.lo libclan_la-options.lo libclan_la-symbol.lo libclan_la-scop.lo libclan_la-statement.lo libclan_la-relation.lo libclan_la-relation_list.lo libclan_la-vector.lo /home/zyj/Data0/loop_generator/Compilers/pluto_DA/openscop/libosl.la @inst_prefix_dir@)"

@@ -97,14 +97,14 @@ def main(option = 0):
             range(1, 3), \
             range(1, 4), \
             range(1, 3), \
-            range(2, 7, 2), \
+            range(1, 6, 2), \
             range(10)
             ), error_callback=pool_err_call_back)
         pool.close()
         pool.join()
         
     elif option == 4:
-        # 349920
+        # 129600
         pool = mp.Pool()
         pool.starmap_async(generate_files, it.product( \
             range(3, 6), \

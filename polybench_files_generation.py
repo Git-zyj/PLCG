@@ -105,6 +105,13 @@ def prevent_elimination(generated_code, arrays, code_vars):
 
     generated_code.append(f'polybench_prevent_dce(print_array({argument_string[:-2]}));')
 
+def add_comments(generated_code, kernel_name):
+    generated_code.append('/*')
+    
+    # 例如3634311214_00
+    
+    generated_code.append(f'arg_depth: {kernel_name[0]}\narg_nstmts: {kernel_name[1]}\narg_bounds_index: {kernel_name[2]}\narg_prob_bounds_exist: {kernel_name[3]}\narg_narrays_per_dim: {kernel_name[4]}\narg_avg_narrays_read_per_stmt: {kernel_name[5]}\narg_bounds_coef: {kernel_name[6]}\narg_avg_ndeps_read_per_stmt: {kernel_name[7]}\narg_bounds_distance: {kernel_name[8]}\narg_prob_dep_write_exist: {kernel_name[9]}\nid: {int(kernel_name[-2:])}')
+    generated_code.append('*/')
 
 def add_includes(generated_code, kernel_name):
     """
@@ -311,6 +318,7 @@ def generate_source_code(kernel_name, arrays, func_body):
     """
     generated_code = []
     tmp_main = []
+    add_comments(generated_code, kernel_name)
     add_includes(generated_code, kernel_name)
     init_arrays(generated_code, arrays)
     print_array(generated_code, arrays)
@@ -332,7 +340,7 @@ def generate_header(kernel_name, arrays, params):
     params_assignment = []
     params_assignment.append('/* params start */')
     for key, val in params.items():
-        params_assignment.append(f'# define {key} (long long){val}')
+        params_assignment.append(f'# define {key} {val}')
     params_assignment.append('/* params end */')
     header_code = [f'#ifndef _{kernel_name}_H', f'#define _{kernel_name}_H'] + params_assignment + vars_assignement + [header_string]
     return header_code
