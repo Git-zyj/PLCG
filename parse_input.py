@@ -61,7 +61,7 @@ def read_file_data(filename):
             raise ValueError(f'[zyj-debug] There is something wrong with json file {filename}.\n')
         
 
-def parse_data(filename):
+def parse_data(filename) -> DataClass:
     input_data = read_file_data(filename)
     data = DataClass.from_dict(input_data)
     return data

@@ -6,43 +6,62 @@ import numpy as np
 import logging
 import sys
 import os
+import re
 
 from bidict import bidict
 from collections import defaultdict, Counter
-from typing import Dict, List, Set, Tuple, Optional, Any
-from itertools import product, combinations_with_replacement
+from typing import *
+from itertools import product
 
-from parse_input import parse_data
+from parse_input import DataClass, parse_data
 from path_settings import json_input_path, target_path
 from basic_params_settings import enable_if_branch, enable_reverse_dim
-from polybench_files_generation import polybench_pipeline_single_file
+from polybench_style_file_generation import polybench_style_file_generation
 from schedule import Schedule_tree
 from array_data import ArrayData
+from tools import generate_terms
 
 class C_Code_Generator:
-    def __init__(self, log_level: int = logging.WARNING) -> None:
+    def __init__(self, log_level: int = logging.WARNING, log_path = None) -> None:
         """初始化代码生成器，设置默认数据结构"""
         self._reset_data()  # 初始化数据
-        self._setup_logging(log_level)  # 提取日志设置到独立方法
+        self._setup_logging(log_level, log_path)  # 提取日志设置到独立方法
     
-    def _setup_logging(self, log_level: int) -> None:
+    def _setup_logging(self, log_level: int, log_file: str) -> None:
         """独立的日志设置方法"""
-        self.logger = logging.getLogger("Code")
-        self.logger.setLevel(log_level)
+        # 清除已有的处理器，添加新的
+        logger = logging.getLogger("Properties")
+        logger.setLevel(logging.DEBUG)
         
-        # 确保有handler
-        if not self.logger.handlers:
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter(f'{os.path.basename(self.filename)} - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
+        # 移除所有现有处理器
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+        
+        formatter = logging.Formatter(f'%(asctime)s - {os.path.basename(self.filename)} - %(name)s - %(levelname)s - %(message)s')
+        
+        # 添加新的处理器
+        
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setLevel(log_level)
+        stream_handler.setFormatter(formatter)
+        
+        logger.addHandler(stream_handler)
+        
+        if log_file is not None:
+            file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
+            file_handler.setLevel(logging.WARNING) # 有需要再更改
+            file_handler.setFormatter(formatter)
+        
+            logger.addHandler(file_handler)
+        
+        self.logger = logger
     
     def update_logging(self) -> None:
         """更新文件名并立即更新logger格式"""
         
         # 如果logger已创建，更新其formatter
         if hasattr(self, 'logger') and self.logger.handlers:
-            new_format = f'{os.path.basename(self.filename)} - %(name)s - %(levelname)s - %(message)s'
+            new_format = f'%(asctime)s - {os.path.basename(self.filename)} - %(name)s - %(levelname)s - %(message)s'
             new_formatter = logging.Formatter(new_format)
             
             for handler in self.logger.handlers:
@@ -55,9 +74,11 @@ class C_Code_Generator:
         self.arrays_write = defaultdict(ArrayData)
         self.arrays_reads = defaultdict(lambda: defaultdict(ArrayData))
         self.bounds_data = {}
+        self.value_params_and_iterators = {'max':{}, 'min':{}}
         self.iterators_stmts = []
         self.schedule_tree = Schedule_tree()
         self.loop_structure = {}
+        self.loop_body = []
         self.SCoP = []
     
     def generate_c_code(self, filename: str) -> None:
@@ -83,7 +104,7 @@ class C_Code_Generator:
         # self.logger.debug(f'bounds_data after filled: {self.bounds_data}\n')
         
         self.convert_statements_to_expressions(arrays_in_stmts)
-        # self.logger.debug(f'loop_body: {self.SCoP}\n')
+        # self.logger.debug(f'loop_body: {self.loop_body}\n')
         
         self.translate_calculated_values_to_bounds()
         # self.logger.debug(f'loop_structure: {self.loop_structure}\n')
@@ -91,9 +112,9 @@ class C_Code_Generator:
         
         self.get_final_loop()
         scop = '\n'.join(self.SCoP)
-        self.logger.debug(f'\nSCoP: \n{scop}\n\n\n')
+        # self.logger.debug(f'\nSCoP: \n{scop}\n\n\n')
         
-        polybench_pipeline_single_file(self.filename, json_input_path, self.SCoP, target_path)
+        polybench_style_file_generation(self.filename, json_input_path, self.SCoP, target_path)
 
     def extract_instructions(self) -> None:
         """Extract 'dependency' and 'additional_computation' instructions from the DSL"""
@@ -137,13 +158,20 @@ class C_Code_Generator:
         # self.logger.debug(f'iterators_stmts: {self.iterators_stmts}\n')
         
     def create_bounds_data(self) -> None:
-        """Create a dict that will store loop bounds for each loop iterator."""
-        iterators = {iterator for iterators_stmt in self.iterators_stmts for iterator in iterators_stmt} # 去重
+        """Create a dict that will store loop bounds for each loop iterator and assign special loop bounds (iterator expressions). Store value for params in dict for calc_bound"""
+        iterators = sorted({iterator for iterators_stmt in self.iterators_stmts for iterator in iterators_stmt}) # 去重
+        
         for iterator in iterators:
             self.bounds_data[iterator] = {
-                'min': {'numerical': set(), 'string': set(), 'variable': defaultdict(set), 'bound_value': None},
-                'max': {'numerical': set(), 'string': set(), 'variable': defaultdict(set), 'bound_value': None}
+                'min': {'numerical': set(), 'string': set(), 'iterator': defaultdict(set), 'bound_value': None},
+                'max': {'numerical': set(), 'string': set(), 'iterator': defaultdict(set), 'bound_value': None}
             }
+        
+        for param, value in self._parsed_data.params.items():
+            self.value_params_and_iterators['max'][param] = value
+            self.value_params_and_iterators['min'][param] = value
+        
+        # self.logger.debug(f'initial value_params_and_iterators:\n{self.value_params_and_iterators}')
         
         # check assigned loop_bounds
         if self._parsed_data.special_loop_bounds and self._parsed_data.params:
@@ -151,19 +179,17 @@ class C_Code_Generator:
             for iterator, bound in self._parsed_data.special_loop_bounds.items():
                 # self.logger.debug(f'iterator: {iterator}, value: {value}\n')
                 min_value, max_value = bound
-                self._process_bound_value(iterator, 'min', min_value, iterators)
-                self._process_bound_value(iterator, 'max', max_value, iterators)
+                self._process_special_bound(iterator, 'min', min_value)
+                self._process_special_bound(iterator, 'max', max_value)
     
-    def _process_bound_value(self, iterator_key: str, bound_type: str, value: Any, iterators: Set[str]) -> None:
+    def _process_special_bound(self, iterator_key: str, bound_type: str, value: str) -> None:
         """处理边界值并将其分类到相应的集合中"""
-        if isinstance(value, str):
-            for iterator in iterators:
-                if iterator in value:
-                    self.bounds_data[iterator_key][bound_type]['variable'][iterator].add(value)
-                    return
-            self.bounds_data[iterator_key][bound_type]['string'].add(value)
-        else:
-            self.bounds_data[iterator_key][bound_type]['numerical'].add(value)
+        expression_type, expression, iterators_used = self.evaluate_expression(value)
+        
+        if iterators_used == (): # numerical or string
+            self.bounds_data[iterator_key][bound_type][expression_type].add(expression)
+        else: # iterator
+            self.bounds_data[iterator_key][bound_type][expression_type][iterators_used].add(expression)
     
     def parse_arrays(self) -> List[List[str]]:
         """Transfer access info to array index and update loop bounds"""
@@ -248,7 +274,7 @@ class C_Code_Generator:
             access_fun = [1, 1, 2, -1], index_letters = ['i','j','k']
             -> 'i+j+2*k-1'
         """
-        terms = self.generate_terms(len(index_letters), self._parsed_data.max_degree)
+        terms = generate_terms(len(index_letters), self._parsed_data.max_degree)
         
         # self.logger.debug(f'index_letters: {index_letters}')
         # self.logger.debug(f'terms: {terms}')
@@ -367,25 +393,6 @@ class C_Code_Generator:
         
         return child_array
 
-    def generate_terms(self, num_iterators: int, max_degree: int) -> List[Tuple]:
-        """
-        生成所有可能的项（常数项、线性项、二次项等）
-        
-        Args:
-            num_iterators: 循环变量数量
-            max_degree: 最大次数
-            
-        Returns:
-            所有可能的项列表，按次数排序
-        """
-        terms = [()]  # 常数项
-        
-        for degree in range(1, max_degree + 1):
-            # 生成所有可能的d次项（允许重复变量）
-            terms.extend(combinations_with_replacement(range(num_iterators), degree))
-        
-        return terms
-
     def apply_offsets_to_poly(self, term_dict: Dict[Tuple, float], offsets: Dict[int, int]) -> Dict[Tuple, float]:
         """
         将偏移量应用到多项式并展开
@@ -475,8 +482,8 @@ class C_Code_Generator:
             
         # 获取和access function对应变量维数的基项
         depth_stmt_child = len(index_letters_child)
-        terms_child = self.generate_terms(depth_stmt_child, self._parsed_data.max_degree)
-        terms_parent = self.generate_terms(len(index_letters_parent), self._parsed_data.max_degree)
+        terms_child = generate_terms(depth_stmt_child, self._parsed_data.max_degree)
+        terms_parent = generate_terms(len(index_letters_parent), self._parsed_data.max_degree)
         
         # self.logger.debug(f'Applying distance to access functions:\nparent_array.array_id: {parent_array.array_id}\nchild_array.array_id: {child_array.array_id}\naccess_functions:\n{parent_array.array_access_function}\nindex_letters_parent: {index_letters_parent}\nindex_letters_child: {index_letters_child}\ndistance: {child_array.distance}\nmapping: {child_array.mapping}\n')
         
@@ -532,21 +539,23 @@ class C_Code_Generator:
 
     def calculate_bounds(self, stmt_id: int, array_name: str, access_function: List[int], array_depth_id: int) -> None:
         """Based on rank of the array_access_function update the min and max bounds."""
-        rank_var = self.get_rank(access_function[1:]) # don't pass the numerical value
+        rank_iterator = self.get_rank(access_function[1:]) # don't pass the numerical value
 
-        if rank_var == -1:  # we don't want to have an expression like C[-1] when access fun is [0,0,0, -1]
+        if rank_iterator == -1:  # we don't want to have an expression like C[-1] when access fun is [0,0,0, -1]
             value = access_function[0]
             param = self._parsed_data.array_sizes[array_name][array_depth_id]
             max_array_size = self._parsed_data.params[param]
             if value not in range(0, max_array_size):
-                self.logger.debug(f'The constant in the {array_depth_id}th array access function {access_function} of {array_name} not within the array size bounds, reverse it for available generation\n')
+                
+                self.logger.debug(f'The constant in the {array_depth_id}th array access function {access_function} of {array_name} not within the array size bounds, reverse it for available generation')
+                
                 access_function[0] = -access_function[0]
                 self.calculate_bounds(stmt_id, array_name, access_function, array_depth_id)
         else:
             
-            access_function = access_function.copy() # 后续会修改access_function，避免污染！
+            access_function = access_function.copy() # 避免污染！
             
-            rank = rank_var + 1 # 常量维位置补回
+            rank = rank_iterator + 1 # 常量维位置补回
             
             value_at_rank = access_function[rank]
             
@@ -601,12 +610,12 @@ class C_Code_Generator:
         """Multiply each element in a sequence by -1 and return as a list."""
         return [-el for el in sequence]    
     
-    def build_simple_expression(self, var_name: Optional[str] = None, var_coeff: float = 0, constant: float = 0) -> str:
+    def build_simple_expression(self, iterator_name: Optional[str] = None, iterator_coeff: float = 0, constant: float = 0) -> str:
         """构建简单表达式
         
         Args:
-            var_name: 变量名，如果为None则不包含变量
-            var_coeff: 变量系数
+            iterator_name: 循环变量名，如果为None则不包含
+            iterator_coeff: 循环变量系数
             constant: 常数项
         
         Returns:
@@ -620,10 +629,10 @@ class C_Code_Generator:
         terms = []
         
         # 构建变量项
-        if var_name and var_coeff != 0:
-            var_expr = self._build_term_expression(var_coeff, [(var_name, 1)])
-            if var_expr:
-                terms.append(var_expr)
+        if iterator_name and iterator_coeff != 0:
+            iterator_expr = self._build_term_expression(iterator_coeff, [(iterator_name, 1)])
+            if iterator_expr:
+                terms.append(iterator_expr)
         
         # 构建常数项
         if constant != 0:
@@ -642,7 +651,7 @@ class C_Code_Generator:
         """Form a common fraction and return as a string."""
         return f'({numerator})/{abs(denominator)}'
     
-    def update_bounds(self, stmt_id: int, bounds: List[List[int]], rank: int, expr_min_max: str, value_at_rank: int, fun: Optional[callable] = None) -> None:
+    def update_bounds(self, stmt_id: int, bounds: List[List[int]], rank: int, bound_type: str, value_at_rank: int, fun: Optional[callable] = None) -> None:
         """Update bounds by evaluating access function."""
         # extract only the access function that will be an only element of the result array
         indexed_access = self.get_indexed_array_access(stmt_id, bounds)[0]
@@ -652,39 +661,82 @@ class C_Code_Generator:
         
         # self.logger.debug(f'indexed_access: {indexed_access}\n')
         
-        eval_output = self.evaluate_expression(indexed_access)
+        expression_type, expression, iterators_used = self.evaluate_expression(indexed_access)
         
-        if eval_output[-1]:
-            self.bounds_data[self.iterators_stmts[stmt_id][rank - 1]][expr_min_max][eval_output[0]][eval_output[-1]].add(eval_output[1])
+        if iterators_used == (): # numerical or string
+            self.bounds_data[self.iterators_stmts[stmt_id][rank - 1]][bound_type][expression_type].add(expression)
+        else: # iterator
+            self.bounds_data[self.iterators_stmts[stmt_id][rank - 1]][bound_type][expression_type][iterators_used].add(expression)
+
+    def evaluate_expression(self, expression: str) -> List[Union[str, int]]:
+        """Try to evaluate the expression (especially common fractions from calculating bounds)."""
+        expression = expression.strip()
+        if not expression:
+            return 'numerical', 0, ()
+        
+        # 检查特殊值
+        special_values = {
+            'inf': np.inf, '+inf': np.inf, 'infinity': np.inf, '+infinity': np.inf,
+            '-inf': -np.inf, '-infinity': -np.inf
+        }
+        
+        if expression.lower() in special_values:
+            return 'numerical', special_values[expression.lower()], ()
+        
+        # 尝试数学表达式求值
+        numeric_result = self._safe_eval_math_expression(expression)
+        if numeric_result is not None:
+            return 'numerical', numeric_result, ()
+        
+        # 检查是否包含已知迭代器
+        iterators = {iterator for iterators_stmt in self.iterators_stmts for iterator in iterators_stmt}
+        iterators_used = self.extract_signed_iterators(expression, iterators)
+        if iterators_used:
+            return 'iterator', expression, iterators_used
         else:
-            self.bounds_data[self.iterators_stmts[stmt_id][rank - 1]][expr_min_max][eval_output[0]].add(eval_output[1])
+            return 'string', expression, ()
 
-    def evaluate_expression(self, expression: str) -> List[Any]:
-        """Try to evaluate the expression (especially common fractions from calculating bounds).
-        If it is possible to evaluate then this value will be added to the numerical values of bounds,
-        otherwise it will be added unchanged.
-        Examples:
-            expression = '(12)/2' -> 'numerical', 6, ''
-            expression = '-i-j-8' -> 'variable', '-i-j-8', 'ij'
-            expression = 'N+1' -> 'string', 'N+1', ''
-        """
-        iterators_used = ''
+    def _safe_eval_math_expression(self, expression: str) -> Optional[Union[int, float]]:
+        """安全地评估数学表达式"""
         try:
-            if expression == '':
-                expression = '0'
+            # 只允许数学运算和函数
+            allowed_names = {
+                'sqrt': math.sqrt, 'pow': pow, 'abs': abs,
+                'sin': math.sin, 'cos': math.cos, 'tan': math.tan,
+                'pi': math.pi, 'e': math.e
+            }
+            
+            # 使用空的 builtins 来增强安全性
+            result = eval(expression, {"__builtins__": {}}, allowed_names)
+            
+            # 确保结果是数字
+            if isinstance(result, (int, float)) and not math.isnan(result):
+                return math.floor(result) if not math.isinf(result) else result
+            return None
+            
+        except (NameError, SyntaxError, TypeError, ZeroDivisionError, ValueError):
+            return None
 
-            expression = math.floor(eval(expression))
-            expression_type = 'numerical'
-        except NameError:
-            iterators = {iterator for iterators_stmt in self.iterators_stmts for iterator in iterators_stmt} # 去重
-            iterators_used = ''.join(c for c in expression if c in iterators)
-            expression_type = 'variable' if iterators_used else 'string'
-                
-        return [expression_type, expression, iterators_used]
-
-    def concatenate_with_square_brackets(self, indexes: List[str]) -> str:
-        """Separate each dimension access function by surrounding it with square brackets."""
-        return ''.join(f'[{i}]' for i in indexes)
+    def extract_signed_iterators(self, expr: str, iterators: List[str]) -> Tuple[str]:
+        """
+        解析并提取带符号的循环变量
+        """
+        # 创建变量名的正则模式
+        iterator_pattern = '|'.join(re.escape(it) for it in iterators)
+        
+        # 匹配：开头位置或运算符后的变量
+        pattern = rf'(?:(?<=^)|(?<=[+\-*/(,]))\s*([+-])?\s*\b({iterator_pattern})\b'
+        
+        matches = re.findall(pattern, expr)
+        result = []
+        
+        for sign, iterator in matches:
+            if sign == '-':
+                result.append(sign + iterator)
+            else:
+                result.append(iterator)
+        
+        return tuple(sorted(result))
 
     def convert_statements_to_expressions(self, arrays_in_stmts: List[List[str]]) -> None:
         """Add symbols randomly between elements to make them become a whole stmt"""
@@ -707,7 +759,7 @@ class C_Code_Generator:
                     statement += symbol
                 else:
                     statement += ' ' + symbol + ' '
-            self.SCoP.append(statement)
+            self.loop_body.append(statement)
 
     def get_statement_symbols(self, num_of_calculations: int) -> List[str]:
         """Return the list of symbols used in statement in the correct order."""
@@ -731,151 +783,161 @@ class C_Code_Generator:
             reverse_dim[random.sample(range(ndims), 1)[0]] = True
         
         for i, key in enumerate(sorted_keys_bounds):
-            self.calc_bound(key, 0) # lower
-            self.calc_bound(key, 1) # upper
+            self.calc_bound(key, 0)  # lower -> max
+            self.calc_bound(key, 1)  # upper -> min
+            
+            # Calculate min and max bounds using evaluated expressions
+            values_max = self.value_params_and_iterators['max'].copy()
+            values_min = self.value_params_and_iterators['min'].copy()
+            
+            self.value_params_and_iterators['max'][key] = max(
+                eval(self.bounds_data[key]['min']['bound_value'], values_max),
+                eval(self.bounds_data[key]['max']['bound_value'], values_max)
+            )
+            
+            self.value_params_and_iterators['min'][key] = min(
+                eval(self.bounds_data[key]['min']['bound_value'], values_min),
+                eval(self.bounds_data[key]['max']['bound_value'], values_min)
+            )
+            
             self.generate_for_loop_structure(key, reverse_dim[i])
 
     def calc_bound(self, key: str, id: int) -> None:
-        """Compare all bounds collected before. Types: Numericals, parameters and variables"""
+        """Compare all bounds collected before. Types: numericals, strings(global parameters) and iterators"""
         func = [min, max]
         bound = bound_val = [0, np.inf][id]
         
-        # self.logger.debug(f'bounds_data[{key}][{func[id].__name__}]: {self.bounds_data[key][func[id].__name__]}\n')
+        # self.logger.debug(f'bounds_data[{key}][{func[id].__name__}]:\n{self.bounds_data[key][func[id].__name__]}\n')
         
-        # for numericals
-        if self.bounds_data[key][func[id].__name__]['numerical']: # "func[id].__name__" refers to "min" or "max", according to id (cal lower bound: 0 -> min, and cal upper bound: 1 -> max)
+        # Process numerical bounds
+        if self.bounds_data[key][func[id].__name__]['numerical']:
             numericals = {bound: bound_val}
-            params_and_vars = self._parsed_data.params.copy()
             
             for num in self.bounds_data[key][func[id].__name__]['numerical']:
                 if isinstance(num, str):
-                    numericals[num] = eval(num, params_and_vars)
+                    numericals[num] = eval(num, self._parsed_data.params.copy())
                 else:  # int
                     numericals[num] = num
                     
-            bound = bound_val = func[-id-1](numericals) # "-id-1" means get func reversely(lower -> 0 -> max, upper -> 1 -> min)
+            bound = bound_val = func[-id-1](numericals.values())
             
             # self.logger.debug(f'bound till numericals: {bound}\n')
         
-        # for strings
+        # Process string bounds
         if self.bounds_data[key][func[id].__name__]['string']:
-            str_to_val = {bound: numericals[bound]} if self.bounds_data[key][func[id].__name__]['numerical'] else {}
-            params_and_vars = self._parsed_data.params.copy()
+            str_to_val = {bound: bound_val} if bound_val != [0, np.inf][id] else {}
             
             for bound_param in self.bounds_data[key][func[id].__name__]['string']:
-                str_to_val[bound_param] = eval(bound_param, params_and_vars)
+                str_to_val[bound_param] = eval(bound_param, self._parsed_data.params.copy())
             
             extreme_val = func[-id-1](str_to_val.values())
-            bound = sorted([k for k, v in str_to_val.items() if v == extreme_val])[0]
-            bound_val = str_to_val[bound]
+            bound_keys = [k for k, v in str_to_val.items() if v == extreme_val]
+            bound = sorted(bound_keys)[0] if bound_keys else bound
+            bound_val = str_to_val.get(bound, bound_val)
             
             # self.logger.debug(f'bound till string: {bound} <-> {bound_val}\n')
         
-        # for variables
-        if self.bounds_data[key][func[id].__name__]['variable']:
+        self.value_params_and_iterators[func[id].__name__][key] = bound_val
+        
+        # Process iterator bounds
+        if self.bounds_data[key][func[id].__name__]['iterator']:
             
-            # self.logger.debug(f"{func[-id-1].__name__} bound values for variables:\n{self.bounds_data[key][func[id].__name__]['variable']}\n")
+            # self.logger.debug(f"{func[-id-1].__name__} bound values for {key} in iterators:\n{self.bounds_data[key][func[id].__name__]['iterator']}\n")
             
-            bounds_var = []
+            # Pre-calculate iterator expressions
+            value_params = self._parsed_data.params.copy()
+            bounds_iterator = []
             
-            for vars, exprs in self.bounds_data[key][func[id].__name__]['variable'].items():
-                for var in vars:
-                    self._parsed_data.params[var] = 0  # TODO: regradless of var influence (not suitable, only for certain condition)
+            for iterators, exprs in self.bounds_data[key][func[id].__name__]['iterator'].items():
+                # Set iterators to 0 to evaluate expressions without iterator influence
+                for iterator in iterators:
+                    value_params[iterator] = 0
+                    
+                # self.logger.debug(f"value_params updated:\n{value_params}\n")
                 
-                tmp_bound_val_vars = {}
-                params_and_vars = self._parsed_data.params.copy()
+                # Evaluate all expressions for current iterator set
+                expr_values = {}
                 for expr in exprs:
-                    tmp_bound_val_vars[expr] = eval(expr, params_and_vars)
+                    expr_values[expr] = eval(expr, value_params.copy())
 
-                extreme_val = func[-id-1](tmp_bound_val_vars.values())
-                extreme_keys = sorted([k for k, v in tmp_bound_val_vars.items() if v == extreme_val])
-                bounds_var.append(extreme_keys[0])
+                extreme_val = func[-id-1](expr_values.values())
+                extreme_exprs = [k for k, v in expr_values.items() if v == extreme_val]
+                extreme_expr = sorted(extreme_exprs)[0] if extreme_exprs else next(iter(exprs))
+                bounds_iterator.append(extreme_expr)
                 
-            # self.logger.debug(f'bounds_var: {bounds_var}\n')
-            vals_var_0 = {}
-            vals_var_1 = {}
+            # self.logger.debug(f'bounds_iterator: {bounds_iterator}\n')
             
-            for bound_var in bounds_var:
-                keys_var = [x for x in self.bounds_data.keys() if x in bound_var]
-                
-                # self.logger.debug(f'keys_var: {keys_var}\n')
-                
-                for key_var in keys_var:
-                    
-                    # self.logger.debug(f"{func[-id-1].__name__} bound value for {key_var}: {self.bounds_data[key_var][func[-id-1].__name__]['bound_value']}\n")
-                    
-                    params_and_vars = self._parsed_data.params.copy()
-                    val_var_0 = eval(self.bounds_data[key_var][func[-id-1].__name__]['bound_value'], params_and_vars) # lower -> 0 -> upper bound of var, and upper -> 1 -> lower bound of var
-                    self._parsed_data.params[key_var] = val_var_0            
+            # Evaluate iterator bounds in different contexts
+            vals_iterator_0 = {bound: bound_val}
+            vals_iterator_1 = {bound: bound_val}
             
-                params_and_vars = self._parsed_data.params.copy()
-                vals_var_0[bound_var] = eval(bound_var, params_and_vars)
-                
-                for key_var in keys_var:
-                    
-                    # self.logger.debug(f"{func[id].__name__} bound value for {key_var}: {self.bounds_data[key_var][func[id].__name__]['bound_value']}\n")
-                    
-                    params_and_vars = self._parsed_data.params.copy()
-                    val_var_1 = eval(self.bounds_data[key_var][func[id].__name__]['bound_value'], params_and_vars) # lower -> 0 -> lower bound of var, and upper -> 1 -> upper bound of var
-                    self._parsed_data.params[key_var] = val_var_1
+            for bound_iterator in bounds_iterator:
+                vals_iterator_0[bound_iterator] = eval(bound_iterator, self.value_params_and_iterators[func[-id-1].__name__].copy())
+                vals_iterator_1[bound_iterator] = eval(bound_iterator, self.value_params_and_iterators[func[id].__name__].copy())
             
-                params_and_vars = self._parsed_data.params.copy()
-                vals_var_1[bound_var] = eval(bound_var, params_and_vars)
+            # self.logger.debug(f"{func[-id-1].__name__} bound value containing iterators: {vals_iterator_0}\n")
+            # self.logger.debug(f"{func[id].__name__} bound value containing iterators: {vals_iterator_1}\n")
             
-            # TODO: 下面这一块要修改以适应多个变量边界的大小比对
-            vals_var_0[bound] = bound_val
-            vals_var_1[bound] = bound_val
-            # self.logger.debug(f"{func[-id-1].__name__} bound value containing vairables: {vals_var_0}\n")
-            # self.logger.debug(f"{func[id].__name__} bound value containing vairables: {vals_var_1}\n")
-            
-            extreme_val = func[-id-1](vals_var_0.values())
-            tmp_extreme = sorted([k for k, v in vals_var_0.items() if v == extreme_val])[0]
+            # Determine the extreme value and corresponding expression
+            extreme_val = func[-id-1](vals_iterator_0.values())
+            extreme_exprs = [k for k, v in vals_iterator_0.items() if v == extreme_val]
+            extreme_expr = sorted(extreme_exprs, key=self.numeric_first_sort)[0] if extreme_exprs else bound
 
-            if vals_var_0[tmp_extreme] != vals_var_0[bound]:
-                bound_set = []
-                '''
-                lower -> 0 -> if not max(var_upper, ..., bound_val) == bound_val -> bound_val < var_upper_max,
-                upper -> 1 -> if not min(var_lower, ..., bound_val) == bound_val -> bound_val > var_lower_min
-                '''
-                # if func[-id-1](bound_val, vals_var_1[tmp]) == bound_val: # find corresponding lower/upper value for var_upper_max/var_lower_min
-                #     '''
-                #     lower -> 0 -> if max(bound_val, var_lower_correspond) == bound_val -> var_upper_max > bound_val >= var_lower_correspond -> lower_bound = max(val, var, ...),
-                #     upper -> 1 -> if min(bound_val, var_upper_correspond) == bound_val -> var_lower_min < val <= var_upper_correspond -> upper_bound = min(val, var, ...)
-                #     '''
-                #     bound_set.append(str(bound))
-                for bound_var, val in vals_var_0.items():
-                    if val != vals_var_1[tmp_extreme] and func[-id-1](val, vals_var_1[tmp_extreme]) == val:
-                        '''
-                        lower -> 0 -> if max(var_upper_i, var_lower_correspond) == var_upper_i -> var_upper_max > var_upper_i > var_lower_correspond -> lower_bound = max(var_i, var, ...),
-                        upper -> 1 -> if min(var_lower_i, var_upper_correspond) == var_lower_i -> var_lower_min < var_lower_i < var_upper_correspond -> upper_bound = min(var_i, var, ...)
-                        '''
-                        bound_set.append(str(bound_var))
+            # Check if iterator bounds affect the final result
+            if vals_iterator_0[extreme_expr] != vals_iterator_0[bound]:
+                # low_bound -> id=0 -> max(max(i), ..., bound_val) != bound_val -> bound_val < max(i)
+                # upp_bound -> id=1 -> min(min(i), ..., bound_val) != bound_val -> bound_val > min(i)
+                
+                bound_set = {extreme_expr}
+                
+                # Collect bounds that satisfy the condition
+                for bound_iterator, val in vals_iterator_0.items():
+                    if val != vals_iterator_1[extreme_expr] and func[-id-1](val, vals_iterator_1[extreme_expr]) == val:
+                        # low_bound -> id=0 -> max(N, min(i)) == N -> max(i) > N > min(i) -> low_bound = max(N, i)
+                        # upp_bound -> id=1 -> min(N, max(i)) == N -> min(i) < N < max(i) -> upp_bound = min(N, i)
+                        
+                        bound_set.add(bound_iterator)
 
                 # self.logger.debug(f'bound_set: {bound_set}\n')
 
-                if bound_set:
-                    if len(bound_set) > 1:
-                        bound = ''
-                        tail = ''
-                        for i in range(len(bound_set) - 1):
-                            bound += f'{func[-id-1].__name__}({bound_set[i]},'
-                            tail += ')'
-                        bound += bound_set[-1] + tail
-                    else:
-                        bound = bound_set[0]
+                # Construct the final bound expression
+                bound_set = list(bound_set)
+                if len(bound_set) > 1:
+                    # Create nested function calls for multiple bounds
+                    func_name = func[-id-1].__name__
+                    bound = bound_set[0]
+                    for i in range(1, len(bound_set)):
+                        bound = f'{func_name}({bound}, {bound_set[i]})'
                 else:
-                    bound = "inf"
+                    bound = bound_set[0]
 
-        # self.logger.debug(f'bound till variable: {bound}\n')
+                # self.logger.debug(f'bound till iterator: {bound}\n')
         
-        if str(bound) == 'inf':
-            bounds_from_rand = [x for x in self._parsed_data.params.keys() if x not in self.bounds_data.keys()]
+        if str(bound) == 'inf': # only when id=1, if no constraint for iterator, randomly select an upper_bound
+            bounds_from_rand = [param for param in self._parsed_data.params.copy()]
             
-            self.logger.warning(f'randomly select bound from list instead of "inf" for bound {key}: {bounds_from_rand}\n')
+            self.logger.warning(f'randomly select bound from list instead of "inf" for bound {key}: {bounds_from_rand}')
             
             bound = random.choice(bounds_from_rand) 
             
         self.bounds_data[key][func[id].__name__]['bound_value'] = str(bound)
+        
+        # self.logger.debug(f'{func[id].__name__} bounds_data updated for key {key}: {self.bounds_data[key][func[id].__name__]["bound_value"]}')
+
+    def numeric_first_sort(self, key):
+        # 先尝试类型判断
+        if isinstance(key, (int, float)):
+            return (0, float(key))  # 统一转为浮点数比较
+        
+        key_str = str(key)
+        # 再尝试内容判断
+        try:
+            # 尝试转换为数字（支持整数、浮点数、科学计数法等）
+            num_val = float(key_str)
+            return (0, num_val)
+        except ValueError:
+            # 无法转换为数字，按字符串处理
+            return (1, key_str)
 
     def generate_for_loop_structure(self, key: str, is_reverse: bool) -> None:
         """Return formatted for loop structure filled with bounds."""
@@ -892,6 +954,6 @@ class C_Code_Generator:
 
     def get_final_loop(self) -> str:
         """assemble all components in loops together"""
-        self.schedule_tree.update_tree(self.loop_structure, self.SCoP)
+        self.schedule_tree.update_tree(self.loop_structure, self.loop_body)
         self.SCoP = self.schedule_tree.extract_tree('code')
         return ''.join(self.SCoP)

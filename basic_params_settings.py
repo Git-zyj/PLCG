@@ -1,5 +1,5 @@
 array_names_sequence = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-iterators_sequence = 'ijklmnopqrstuabcdefgh'
+iterators_sequence = [f'{i}_{suffix}' for i in ['i', 'j', 'k'] for suffix in range(10)]
 bound_params_list = ['PB_N', 'PB_M', 'PB_L', 'PB_P', 'PB_Q']
 array_index_dim_names_sequence = 'xyzvw'
 

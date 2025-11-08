@@ -10,37 +10,55 @@ from bidict import bidict
 from typing import List, Dict, Tuple, Set, Any, Optional
 from collections import defaultdict
 from scipy import stats
-from itertools import combinations_with_replacement, product
+from itertools import product
 
 from path_settings import json_input_path
 from basic_params_settings import *
 from schedule import Schedule_tree
 from array_data import ArrayData
+from tools import generate_terms
 
 class Loop_Properties_Generator:
-    def __init__(self, log_level: int = logging.WARNING) -> None:
+    def __init__(self, log_level: int = logging.WARNING, log_path = None) -> None:
         """初始化JSON生成器，设置默认数据结构"""
         self._reset_data()
-        self._setup_logging(log_level)
+        self._setup_logging(log_level, log_path)
     
-    def _setup_logging(self, log_level: int) -> None:
+    def _setup_logging(self, log_level: int, log_file: str) -> None:
         """独立的日志设置方法"""
-        self.logger = logging.getLogger("Properties")
-        self.logger.setLevel(log_level)
+        # 清除已有的处理器，添加新的
+        logger = logging.getLogger("Properties")
+        logger.setLevel(logging.DEBUG)
         
-        # 确保有handler
-        if not self.logger.handlers:
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter(f'{self.filename} - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
+        # 移除所有现有处理器
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+        
+        formatter = logging.Formatter(f'%(asctime)s - {os.path.basename(self.filename)} - %(name)s - %(levelname)s - %(message)s')
+        
+        # 添加新的处理器
+        
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setLevel(log_level)
+        stream_handler.setFormatter(formatter)
+        
+        logger.addHandler(stream_handler)
+        
+        if log_file is not None:
+            file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
+            file_handler.setLevel(logging.WARNING) # 有需要再更改
+            file_handler.setFormatter(formatter)
+        
+            logger.addHandler(file_handler)
+        
+        self.logger = logger
     
     def update_logging(self) -> None:
         """更新文件名并立即更新logger格式"""
         
         # 如果logger已创建，更新其formatter
         if hasattr(self, 'logger') and self.logger.handlers:
-            new_format = f'{os.path.basename(self.filename)} - %(name)s - %(levelname)s - %(message)s'
+            new_format = f'%(asctime)s - {os.path.basename(self.filename)} - %(name)s - %(levelname)s - %(message)s'
             new_formatter = logging.Formatter(new_format)
             
             for handler in self.logger.handlers:
@@ -89,7 +107,7 @@ class Loop_Properties_Generator:
         schedule_tree_init.check_tree()
         
         scop_init = '\n'.join(schedule_tree_init.extract_tree('schedule'))
-        self.logger.debug(f'\nInitial scop:\n{scop_init}\n')
+        # self.logger.debug(f'\nInitial scop:\n{scop_init}\n')
         
         if not enable_if_branch:
             arg_prob_branch = 0
@@ -121,8 +139,15 @@ class Loop_Properties_Generator:
             bounds_exist = random.random()
             if bounds_exist < prob_bounds_exist / 10:
                 prob_bounds_exist *= bound_exist_decay_factor  # 后续继续指定的几率乘以1/2
-                spec_upp_bound = random.choice(nodes_ancestor)
-                self.special_loop_bounds[node.content] = [0, spec_upp_bound]  # TODO: 目前只有右下三角值域（有待扩充）
+                
+                # TODO: 目前只有单一边界采用单一循环变量，后续考虑上下界均可，仿射表达式，乃至多循环变量
+                
+                special_bound = random.choice(nodes_ancestor)
+                if random.random() > 1/2: # 50%几率选择指定上下界之一
+                    self.special_loop_bounds[node.content] = ["0", special_bound]
+                else:
+                    self.special_loop_bounds[node.content] = [special_bound, 'inf']
+                  
                 
         for child in node.children:
             self.generate_loop_bounds(prob_bounds_exist, child, nodes_ancestor + [node.content])
@@ -224,25 +249,6 @@ class Loop_Properties_Generator:
         # self.logger.debug(f'arrays_write for comp:\n{self.arrays_write}\n')
         # self.logger.debug(f'arrays_reads for comp:\n{self.arrays_reads}\n')
 
-    def generate_terms(self, num_iterators: int, max_degree: int) -> List[Tuple]:
-        """
-        生成所有可能的项（常数项、线性项、二次项等）
-        
-        Args:
-            num_iterators: 循环变量数量
-            max_degree: 最大次数
-            
-        Returns:
-            所有可能的项列表，按次数排序
-        """
-        terms = [()]  # 常数项
-        
-        for degree in range(1, max_degree + 1):
-            # 生成所有可能的d次项（允许重复变量）
-            terms.extend(combinations_with_replacement(range(num_iterators), degree))
-        
-        return terms
-
     def _prepare_base_terms(self, nstmts: int) -> List[Dict[Tuple[int], float]]:
         """预计算所有语句的基项和权重"""
         prob_terms_all = []
@@ -251,7 +257,7 @@ class Loop_Properties_Generator:
             depth_stmt = len(self.schedules[stmt_id]) // 2
             
             # 基项生成
-            terms = self.generate_terms(depth_stmt, max_degree)
+            terms = generate_terms(depth_stmt, max_degree)
                 
             # 创建项到权重的映射字典
             prob_terms = {}
@@ -574,7 +580,7 @@ class Loop_Properties_Generator:
 
     def _dep_write_create_child_info(self, child_array: ArrayData, child_stmt_id: int):
         """创建子数组信息"""
-        terms = self.generate_terms(len(self.iterators_stmts[child_stmt_id]), max_degree)
+        terms = generate_terms(len(self.iterators_stmts[child_stmt_id]), max_degree)
         used_iterators = self._get_used_iterators(child_array.array_access_function, terms)
         
         child_info = (child_stmt_id, len(used_iterators))
@@ -821,7 +827,7 @@ class Loop_Properties_Generator:
         
         depth_array_parent = len(parent_array.array_access_function)
         
-        terms_parent = self.generate_terms(depth_stmt_parent, max_degree)
+        terms_parent = generate_terms(depth_stmt_parent, max_degree)
         
         # self.logger.debug(f'Generate dep distance:\nparent_array.array_id:{parent_array.array_id}\nchild_array.array_id:{child_array.array_id}\naccess_functions:\n{parent_array.array_access_function}\nindex_letters_parent: {index_letters_parent}\nindex_letters_child: {index_letters_child}\nused_distances_all:\n{used_distances_all}\n')
         
