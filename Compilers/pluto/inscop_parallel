@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# arguments
+# inscop <original> <transformed_kernel> <output_file>
+# transformed_kernel and output_file can be the same
+#
+# This file is available under the MIT license. Please see LICENSE in the
+# top-level directory for details.
+#
+
+prefix=`basename $2 .c`
+
+body_file=$prefix.body.c
+
+CC=gcc
+
+MAXLINES=`wc -l $1 | awk '{print $1}'`
+
+# Get the FIRST scop and return all the lines above it
+# Because we are returning the text preceding the first scop, it's ok to ignore that pragma
+# which is what the grep -v call does
+head=`grep -B $MAXLINES -m 1 "#pragma[[:space:]]\+scop" $1 | grep -v "#pragma[[:space:]]\+scop"`
+# Get the FIRST endscop and return all the lines below it
+# We want to get all the text below the first endscop, but do not want that first endscop line to be returned
+# which is accomplished with the awk call at the end.
+tail=`sed -n '/\#pragma[[:space:]]endscop/,$p' $1 | awk '{if(NR>1)print}'`
+#grep -A $MAXLINES "#pragma[[:space:]]\+endscop" $1 | grep -v "#pragma[[:space:]]\+endscop" > .tail
+
+include=`echo "$head" | awk '/^#include/ { print }'`
+
+init=`echo "$head" | awk '!/^#include/ { print }'`
+
+# The gcc preprocessor inserts some comments like "# 1 "<built-in>"
+# The preprocessor doesn't like pragma's in #defines and so it was not put in
+# from pluto when '--bee' was used - instead we will add it here.
+
+# Put all the include statements in a  file
+include="${include}
+$(cat $2 | grep '^#include')"
+
+# check and remove if duplicate	
+include=$(echo "$include" | awk '!x[$0]++')
+
+# Put everything that isn't an include into another file
+cat $2 | grep -v "^#include" > $body_file
+
+# Check if we've already inserted the extra includes and defines
+# If we haven't, put them in the head
+if ! [[ ${include} =~ '#include <math.h>' ]]
+    then
+    include=$(echo "$include" | sed '$a #include <math.h>\n')
+fi
+
+if ! echo "$init" | grep -q "#define ceild(n,d)"
+	then
+	include=$(echo "$include" | sed '$a #define ceild(n,d)  ceil(((double)(n))/((double)(d)))\n#define floord(n,d) floor(((double)(n))/((double)(d)))\n')
+fi
+
+if ! echo "$init" | grep -q "#define max(x,y)"
+	then
+	include=$(echo "$include" | sed '$a #define max(x,y) ((x) > (y)? (x) : (y))\n#define min(x,y) ((x) < (y)? (x) : (y))\n')
+fi
+
+# Run the preprocessor
+body=`gcc -E -P -CC -nostdinc $body_file | grep -v "^# " | sed -e 's/__bee_schedule/#pragma schedule/' | sed -e 's/_NL_DELIMIT_/\n/'`
+
+# Checks to see if the OpenMP header has already been inserted into the file
+# If not, insert it.
+if ! [[ ${include} =~ '#include <omp.h>' ]]
+	then
+	include=$(echo "$include" | sed '$a #include <omp.h>\n')
+fi
+
+echo "$include" > $3
+echo "$init" >> $3
+echo "$body" >> $3
+echo "$tail" >> $3
+
+# clean tmp_file
+# rm -f $body_file

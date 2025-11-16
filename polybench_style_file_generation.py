@@ -15,7 +15,7 @@ def add_includes(generated_code: List[str], kernel_name):
     generated_code.append('#include <unistd.h>')
     generated_code.append('#include <string.h>')
     generated_code.append('#include <math.h>')
-    generated_code.append('#include <polybench.h>')
+    generated_code.append('#include "polybench.h"')
     generated_code.append('#include <time.h>')
     generated_code.append('#include <stdlib.h>')
     generated_code.append(f'#include "{kernel_name}.h"')
@@ -59,17 +59,17 @@ def generate_source_code_and_header(kernel_name, func_body, arrays, params, writ
     header_code = generate_header(kernel_name, arrays, params)
     generated_code_path = os.path.join(writing_path, kernel_name + '.c')
     generated_header_path = os.path.join(writing_path, kernel_name + '.h')
+    with open(kernel_list_path, 'a') as f:
+        f.write(f'{generated_code_path}\n')
     with open(generated_code_path, 'w') as f:
         for item in generated_code:
-            f.write("%s\n" % item)
+            f.write(f"{item}\n")
     with open(generated_header_path, 'w') as f:
         for item in header_code:
-            f.write("%s\n" % item)
+            f.write(f"{item}\n")
 
 def polybench_style_file_generation(filename: str, json_path: str, func_body: List[str], target_path: str):
     kernel_name = filename[filename.rfind('/') + 1:filename.rfind('.')].replace(".", "")
-    with open(kernel_list_path, 'a') as f:
-        f.write(f'{kernel_name}\n')
     json_file = os.path.join(json_path, kernel_name + '.json')
     arrays, params = get_array_information_from_json(json_file)
     generate_source_code_and_header(kernel_name, func_body, arrays, params, target_path)

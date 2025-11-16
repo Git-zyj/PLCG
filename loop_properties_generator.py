@@ -30,6 +30,8 @@ class Loop_Properties_Generator:
         logger = logging.getLogger("Properties")
         logger.setLevel(logging.DEBUG)
         
+        logger.propagate = False
+        
         # 移除所有现有处理器
         for handler in logger.handlers[:]:
             logger.removeHandler(handler)
@@ -45,7 +47,7 @@ class Loop_Properties_Generator:
         logger.addHandler(stream_handler)
         
         if log_file is not None:
-            file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
+            file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
             file_handler.setLevel(logging.WARNING) # 有需要再更改
             file_handler.setFormatter(formatter)
         
@@ -166,7 +168,7 @@ class Loop_Properties_Generator:
         
         # 预计算access_function各基项（包括循环变量维和常量维）系数取值和权重
         prob_coef_iterator = {}
-        for i in range(1, arg_bounds_coef + 1): # TODO: consider allow negative coefficients for iterator terms
+        for i in range(1, 2): # TODO: consider allow larger than 1 or negative coefficients for iterator terms
             prob_coef_iterator[i] = 1  # prob for value as coef for iterator terms in indexes.
         
         prob_coef_const = {}

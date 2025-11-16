@@ -87,7 +87,7 @@ void pluto_gen_cloog_file(FILE *fp, const PlutoProg *prog)
     PlutoConstraints *ctx = pluto_constraints_dup(prog->context);
     pluto_constraints_intersect_isl(ctx, prog->codegen_context);
     
-    // zyj-debug
+    // zyj-debug, for custom context
     int nrows_eq = ctx->nrows;
     for (int i = 0; i < nrows_eq; i++) {
         ctx->is_eq[i] = 0;

@@ -30,8 +30,10 @@ class C_Code_Generator:
     def _setup_logging(self, log_level: int, log_file: str) -> None:
         """独立的日志设置方法"""
         # 清除已有的处理器，添加新的
-        logger = logging.getLogger("Properties")
+        logger = logging.getLogger("Code")
         logger.setLevel(logging.DEBUG)
+        
+        logger.propagate = False
         
         # 移除所有现有处理器
         for handler in logger.handlers[:]:
@@ -48,7 +50,7 @@ class C_Code_Generator:
         logger.addHandler(stream_handler)
         
         if log_file is not None:
-            file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
+            file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
             file_handler.setLevel(logging.WARNING) # 有需要再更改
             file_handler.setFormatter(formatter)
         
@@ -547,7 +549,7 @@ class C_Code_Generator:
             max_array_size = self._parsed_data.params[param]
             if value not in range(0, max_array_size):
                 
-                self.logger.debug(f'The constant in the {array_depth_id}th array access function {access_function} of {array_name} not within the array size bounds, reverse it for available generation')
+                # self.logger.debug(f'The constant in the {array_depth_id}th array access function {access_function} of {array_name} not within the array size bounds, reverse it for available generation')
                 
                 access_function[0] = -access_function[0]
                 self.calculate_bounds(stmt_id, array_name, access_function, array_depth_id)

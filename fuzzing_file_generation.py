@@ -33,14 +33,14 @@ def generate_source_code_and_write(kernel_name, func_body, arrays, writing_path)
     generated_code += generate_source_code(kernel_name, arrays, func_body)
     
     generated_code_path = os.path.join(writing_path, kernel_name + '.c')
+    with open(kernel_list_path, 'a') as f:
+        f.write(f'{generated_code_path}\n')
     with open(generated_code_path, 'w') as f:
         for item in generated_code:
-            f.write("%s\n" % item)
+            f.write(f"{item}\n")
 
 def fuzzing_file_generation(filename: str, json_path: str, func_body: List[str], target_path: str):
     kernel_name = filename[filename.rfind('/') + 1:filename.rfind('.')].replace(".", "")
-    with open(kernel_list_path, 'a') as f:
-        f.write(f'{kernel_name}\n')
     json_file = os.path.join(json_path, kernel_name + '.json')
     arrays, params = get_array_information_from_json(json_file)
     generate_source_code_and_write(kernel_name, func_body, arrays, target_path)

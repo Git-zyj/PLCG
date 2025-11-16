@@ -2654,7 +2654,7 @@ PlutoOptions *pluto_options_alloc()
 
     options->customSchedule = 0; // used for custom scheduling
 
-    options->customcontext = 0; // used for getting params info 
+    options->customcontext = 0; // used for getting params info [zyj-debug] 
 
     return options;
 }
