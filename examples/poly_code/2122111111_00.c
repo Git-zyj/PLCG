@@ -91,8 +91,8 @@ void kernel_2122111111_00(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),in
 polybench_start_instruments;
 #pragma scop
     for (int i_0 = 1; i_0 < PB_L; i_0++) {
-        for (int i_1 = 1; i_1 < i_0; i_1++) {
-            A[i_1][i_0] = B[i_0][i_1-1] * A[i_1][i_0-1] * 1;
+        for (int i_1 = 1; i_1 < PB_L; i_1++) {
+            A[i_0][i_1-1] = B[i_0][0] * A[i_1+1][i_0-1] - 5;
         }
     }
 #pragma endscop

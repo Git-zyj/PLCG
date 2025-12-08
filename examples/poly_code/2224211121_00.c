@@ -124,12 +124,12 @@ POLYBENCH_DUMP_FINISH;
 void kernel_2224211121_00(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xb,int yb,DATA_TYPE POLYBENCH_2D(B,xB,yB,xb,yb),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc),int xd,int yd,DATA_TYPE POLYBENCH_2D(D,xD,yD,xd,yd)){
 polybench_start_instruments;
 #pragma scop
-    for (int i_0 = 1; i_0 < PB_N; i_0++) {
-        A[i_0-1] = C[i_0] - 3;
+    for (int i_0 = 1; i_0 < PB_M+1; i_0++) {
+        A[i_0-1] = C[i_0] - 4;
     }
-    for (int i_1 = 1; i_1 < PB_L; i_1++) {
-        for (int i_2 = 3; i_2 < PB_M-2; i_2++) {
-            B[i_2][i_1-1] = D[i_2][i_1] - A[i_2-3] * B[i_2+2][i_1-1] - 2;
+    for (int i_1 = 0; i_1 < PB_M; i_1++) {
+        for (int i_2 = 1; i_2 < PB_P; i_2++) {
+            B[i_1][i_2+1] = D[i_1][i_2] * B[i_1][i_2+2] - B[i_1][i_2-1] + 1;
         }
     }
 #pragma endscop

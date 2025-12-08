@@ -1,15 +1,15 @@
 {
     "params": {
+        "PB_N": 30,
         "PB_M": 40,
         "PB_L": 40,
-        "PB_P": 50,
-        "PB_Q": 30
+        "PB_P": 30
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_M,PB_L]",
-        "B[PB_L,PB_P,PB_Q]"
+        "A[PB_M,PB_L,PB_P]",
+        "B[PB_N,PB_M,PB_L]"
     ],
     "instructions": [
         {
@@ -38,6 +38,12 @@
                             0
                         ],
                         [
+                            1,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
                             0,
                             0,
                             0,
@@ -54,20 +60,20 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            0,
+                            1,
                             0,
                             0,
                             1
                         ],
                         [
                             0,
-                            0,
                             1,
+                            0,
                             0
                         ],
                         [
                             -1,
-                            1,
+                            0,
                             0,
                             0
                         ]
@@ -82,11 +88,11 @@
                     ],
                     "category": "read",
                     "distance": [
-                        0,
-                        1
+                        1,
+                        -1
                     ],
                     "mapping": {
-                        "0": 1,
+                        "0": 0,
                         "2": 2
                     },
                     "parent_stmt_id": 0
@@ -98,11 +104,11 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1,
-                        1
+                        -1,
+                        0
                     ],
                     "mapping": {
-                        "0": 1,
+                        "0": 0,
                         "2": 2
                     },
                     "parent_stmt_id": 0

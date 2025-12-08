@@ -101,11 +101,13 @@ polybench_start_instruments;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_N >= 4) {
-  for (t1=2;t1<=PB_N-2;t1++) {
-    A[t1-1] = C[t1] - C[t1] * A[t1-2] - 2;;
-    B[t1-1] = C[t1] * C[t1] - C[t1+1] - C[t1-1] * B[t1] - 4;;
+if (PB_M >= 2) {
+  A[0] = C[0] - C[0] * C[0] + C[0 +1] - A[0 +1] * 3;;
+  for (t1=1;t1<=PB_M-2;t1++) {
+    A[t1] = C[t1] - C[t1] * C[t1] + C[t1+1] - A[t1+1] * 3;;
+    B[t1] = C[t1] - C[t1-1] * B[t1-1] * 1;;
   }
+  B[(PB_M-1)] = C[(PB_M-1)] - C[(PB_M-1)-1] * B[(PB_M-1)-1] * 1;;
 }
 /* End of CLooG code */
 polybench_stop_instruments;

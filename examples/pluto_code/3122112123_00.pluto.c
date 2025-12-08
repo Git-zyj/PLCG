@@ -92,25 +92,14 @@ POLYBENCH_DUMP_FINISH;
 }
 void kernel_3122112123_00(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xb,int yb,DATA_TYPE POLYBENCH_2D(B,xB,yB,xb,yb)){
 polybench_start_instruments;
-  int t1, t2, t3, t4;
+  int t1, t2;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if ((PB_L >= 1) && (PB_M >= 3)) {
-  lbp=0;
-  ubp=min(floord(PB_L-1,32),floord(PB_M-3,32));
-#pragma omp parallel for private(lbv,ubv,t2,t3,t4)
-  for (t1=lbp;t1<=ubp;t1++) {
-    for (t2=t1;t2<=floord(PB_M-2,32);t2++) {
-      for (t3=max(32*t2,32*t1+1);t3<=min(PB_M-2,32*t2+31);t3++) {
-        lbv=32*t1;
-        ubv=min(min(PB_L-1,32*t1+31),t3-1);
-#pragma ivdep
-#pragma vector always
-        for (t4=lbv;t4<=ubv;t4++) {
-          A[t3-1][t4] = B[t3][0] + A[t3+1][t4] * 2;;
-        }
-      }
+if (PB_M >= 3) {
+  for (t1=0;t1<=PB_M-2;t1++) {
+    for (t2=0;t2<=PB_M-3;t2++) {
+      A[t1][t1] = B[t2+2][t1] - A[t1+1][t1+1] * 4;;
     }
   }
 }

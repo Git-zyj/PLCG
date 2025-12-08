@@ -1,3 +1,4 @@
+from h11 import Data
 import pandas as pd
 import os
 import json
@@ -13,6 +14,7 @@ from pathlib import Path
 from collections import defaultdict, Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+from path_settings import DATASET_PATH
 from extraction_tools import extraction_tools
 
 today = datetime.datetime.now().strftime('%Y%m%d')
@@ -52,8 +54,8 @@ def parse_arguments():
     
     parser = ap.ArgumentParser(description=parser_description)
     parser.add_argument("-i", "--input-path", dest="dataset_path", 
-                       help="path of the folder of dataset containing poly_code", 
-                       type=str, default="examples")
+                       help="path of the folder of dataset containing code files", 
+                       type=str, default=DATASET_PATH)
     parser.add_argument("-o", "--output-path", dest="output_path", 
                        help="path of the folder of output of codes selected", 
                        type=str, default=None)
@@ -62,19 +64,19 @@ def parse_arguments():
                        type=str, default='classification_output.csv')
     parser.add_argument("-d", "--dataset", dest="dataset", 
                        help="name of generator", 
-                       choices=["plcg-v1", "plcg-v2", "colagen", "yarpgen"], 
-                       default="plcg-v2")
+                       choices=["looprag", "plcg", "colagen", "yarpgen"], 
+                       default="plcg")
+    parser.add_argument("--threshold", dest="threshold", 
+                       help="threshold of diversity selection for dataset PLCG and LOOPRAG", 
+                       type=int, default=3)
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
                        type=int, default=min(mp.cpu_count(), 16))
     parser.add_argument("--batch-size", dest="batch_size", 
                        help="batch size to reduce memory usage", 
-                       type=int, default=1000)
+                       type=int, default=5000)
     
     args = parser.parse_args()
-    
-    if args.output_path is None:
-        args.output_path = args.dataset_path
         
     return args
 
@@ -89,14 +91,22 @@ def for_loop_post_process(code):
 
 class RAG_Preprocessor:
     def __init__(self, args):
-        self.args = args
         self.dataset_path = Path(args.dataset_path).resolve()
-        self.output_path = Path(args.output_path).resolve()
+        
+        # 基础参数
+        self.num_processes = args.num_processes
+        self.batch_size = args.batch_size
+        self.dataset = args.dataset
+        self.threshold = args.threshold
         
         # 设置路径
+        if args.output_path is None:
+            self.output_path = self.dataset_path
+        else:
+            self.output_path = Path(args.output_path).resolve()
+        
         self.pluto_path = self.dataset_path / 'pluto_code'
         self.stdout_path = self.dataset_path / 'stdout'
-        self.poly_path = self.dataset_path / 'poly_code'
         self.classification_file = self.dataset_path / args.classification_file
         
         self.logger = setup_logging(self.output_path)
@@ -110,7 +120,7 @@ class RAG_Preprocessor:
     
     def _validate_paths(self):
         """验证所有必要的路径是否存在"""
-        required_paths = [self.pluto_path, self.stdout_path, self.poly_path]
+        required_paths = [self.pluto_path, self.stdout_path]
         for path in required_paths:
             if not path.exists():
                 raise FileNotFoundError(f"Required path does not exist: {path}")
@@ -123,20 +133,45 @@ class RAG_Preprocessor:
         self.logger.info("Loading classification data...")
         classification = pd.read_csv(self.classification_file)
         
+        source_files = []
+        dataset_list = self.dataset_path / 'kernel_list'
+        try:
+            with open(dataset_list, 'r', encoding='utf-8') as f:
+                for line in f:
+                    path = line.strip()
+                    # 跳过空行和注释行（以#开头的行）
+                    if path and not path.startswith('#'):
+                        source_files.append(path)
+        except FileNotFoundError:
+            raise ValueError(f"错误：文件 {dataset_list} 不存在")
+        except Exception as e:
+            raise Exception(f"读取文件时出错：{e}")
+        
+        df_file_path = pd.DataFrame({'file_path': source_files})
+        df_file_path['file_name'] = df_file_path['file_path'].apply(lambda x: Path(x).name.removesuffix('.c'))
+        
+        # 将classification中的file_name转换为字符串
+        classification['file_name'] = classification['file_name'].astype(str)
+        
+        classification = classification.merge(df_file_path, on='file_name', how='inner')
+        
         # 根据数据集类型进行筛选
-        if "plcg" in self.args.dataset:
-            classification['orig_file'] = classification['file_name'].apply(lambda x: x[:-2])
-            classification['idx'] = classification['file_name'].apply(lambda x: x[-1])
+        if "plcg" in self.dataset or "looprag" in self.dataset:
+            classification[['orig_file', 'idx']] = classification['file_name'].str.split('_', expand=True)
             
             # 筛选应用了有价值变换的文件
             transformation_cols = ['loop interchange', 'loop skewing', 'loop fusion', 'loop distribution', 'loop shifting']
             valuable = classification[classification[transformation_cols].sum(axis=1) > 0]
             self.logger.info(f"Found {len(valuable)} valuable files with transformations")
         else:
-            valuable = classification
-            self.logger.info(f"Using all {len(valuable)} files for non-plcg dataset")
+            # valuable = classification
+            # self.logger.info(f"Using all {len(valuable)} files for non-plcg dataset")
+            
+            # 筛选应用了有价值变换的文件
+            transformation_cols = ['loop interchange', 'loop skewing', 'loop fusion', 'loop distribution', 'loop shifting']
+            valuable = classification[classification[transformation_cols].sum(axis=1) > 0]
+            self.logger.info(f"Found {len(valuable)} valuable files with transformations")
         
-        valuable.loc[:, 'file_name'] = valuable['file_name'].astype('str')
         return valuable
     
     def get_available_files(self, valuable_files):
@@ -155,15 +190,16 @@ class RAG_Preprocessor:
         
         return available_files
     
-    def process_single_file(self, filename):
+    def process_single_file(self, file_path):
         """处理单个文件的信息提取"""
         tool = extraction_tools()
         content = defaultdict(list)
+        filename = str(Path(file_path).name.removesuffix('.c'))
         content['filename'] = filename
         
         # 提取原始代码
         try:
-            original_code = tool.extract_codelet_from_file(str(self.poly_path / f'{filename}.c'), 0)
+            original_code = tool.extract_codelet_from_file(str(file_path), 0)
             if not original_code:
                 return False, "original code extract failed", filename
             content['code'] = original_code
@@ -207,16 +243,16 @@ class RAG_Preprocessor:
         
         self.logger.info(f"Processing batch with {len(batch_files)} files...")
         
-        with ProcessPoolExecutor(max_workers=self.args.num_processes) as executor:
+        with ProcessPoolExecutor(max_workers=self.num_processes) as executor:
             # 提交所有任务
             future_to_file = {
-                executor.submit(self.process_single_file, filename): filename 
-                for filename in batch_files
+                executor.submit(self.process_single_file, file_path): file_path
+                for file_path in batch_files
             }
             
             # 处理完成的任务
             for i, future in enumerate(as_completed(future_to_file), 1):
-                filename = future_to_file[future]
+                file_path = future_to_file[future]
                 
                 try:
                     success, result, file = future.result()
@@ -230,42 +266,37 @@ class RAG_Preprocessor:
                         self.logger.error(f"✗ {file}: {result}")
                     
                     # 进度报告
-                    if i % 50 == 0:
+                    length_report_section = len(batch_files) // 4
+                    if i % length_report_section == 0:
                         progress = i / len(batch_files) * 100
                         self.logger.info(f"Batch progress: {i}/{len(batch_files)} ({progress:.1f}%)")
                         
                 except Exception as e:
                     batch_fail += 1
                     error_msg = f"future exception: {str(e)}"
-                    batch_errors.append((filename, error_msg))
-                    self.logger.error(f"✗ {filename}: {error_msg}")
+                    batch_errors.append((file_path, error_msg))
+                    self.logger.error(f"✗ {file_path}: {error_msg}")
         
         return batch_contents, batch_errors, batch_success, batch_fail
     
-    def select_plcg_files(self, valuable_df, all_contents):
-        """为PLCG数据集选择生成代码（每个使用相同参数的生成代码最多选择4个变体，即id），349920->~100000"""
-        self.logger.info("Selecting PLCG files with diversity...")
-        
+    def select_plcg_files(self, valuable_df, all_contents, threshold=3):
+        """为PLCG，LOOPRAG数据集选择生成代码（每个使用相同参数的生成代码选择3个变体，即id），34992*3->~100000"""
         valuable_with_content = valuable_df[valuable_df['file_name'].isin(all_contents.keys())]
-        selected_files = []
         
-        # 分层选择：每个相同参数的生成代码最多选择4个不同的变体
-        for i in range(4):
-            # 选择当前层中不重复的生成代码
-            unique_files = valuable_with_content.drop_duplicates(subset='orig_file')
-            selected_files.extend(unique_files['file_name'].tolist())
-            
-            # 移除已选择的生成代码，继续处理剩余生成代码
-            valuable_with_content = valuable_with_content[
-                valuable_with_content.duplicated(subset='orig_file', keep=False)
-            ]
-            
-            self.logger.info(f"Selection round: {len(unique_files)} files selected, "
-                           f"{len(valuable_with_content)} files remaining")
-            
-            if len(valuable_with_content) == 0:
-                self.logger.info(f"Selection finished after the {i+1}th filter.")
-                break
+        self.logger.info(f"Selecting PLCG files with diversity from {len(valuable_with_content)} available valuable files")
+        
+        # 分层选择：每个相同参数的生成代码选择3个不同的变体
+        # 为每个文件在其分组内添加轮次编号
+        valuable_with_content['round_num'] = valuable_with_content.groupby('orig_file').cumcount()
+
+        # 选择前3轮的文件
+        selected_files_df = valuable_with_content[valuable_with_content['round_num'] < threshold]
+        selected_files = selected_files_df['file_name'].tolist()
+
+        # 统计每轮选择的文件数量
+        round_counts = selected_files_df['round_num'].value_counts().sort_index()
+        for round_num, count in round_counts.items():
+            self.logger.info(f"Selection round {round_num+1}: {count} files selected")
         
         self.logger.info(f"Total selected files for PLCG: {len(selected_files)}")
         return {key: all_contents[key] for key in selected_files}
@@ -273,7 +304,7 @@ class RAG_Preprocessor:
     def run_preprocess(self):
         """运行数据集选择流程"""
         self.logger.info("=" * 60)
-        self.logger.info(f"Starting RAG preprocess for {self.args.dataset}")
+        self.logger.info(f"Starting RAG preprocess for {self.dataset}")
         self.logger.info("=" * 60)
         
         # 加载分类数据
@@ -289,9 +320,12 @@ class RAG_Preprocessor:
         all_errors = []
         
         # 分批处理
+        file_mapping = dict(zip(valuable_df['file_name'], valuable_df['file_path']))
+
         batches = []
-        for i in range(0, len(available_files), self.args.batch_size):
-            batch = available_files[i:i + self.args.batch_size]
+        for i in range(0, len(available_files), self.batch_size):
+            batch_names = available_files[i:i + self.batch_size]
+            batch = [file_mapping[file_name] for file_name in batch_names if file_name in file_mapping]
             batches.append(batch)
         
         for i, batch in enumerate(batches, 1):
@@ -316,8 +350,8 @@ class RAG_Preprocessor:
             gc.collect()
         
         # 根据数据集类型选择最终文件
-        if "plcg" in self.args.dataset:
-            final_contents = self.select_plcg_files(valuable_df, all_contents)
+        if "plcg" in self.dataset or "looprag" in self.dataset:
+            final_contents = self.select_plcg_files(valuable_df, all_contents, threshold=self.threshold)      
         else:
             final_contents = all_contents
         
@@ -329,14 +363,14 @@ class RAG_Preprocessor:
     def save_results(self, contents, total_time, total_files):
         """保存结果并生成报告"""
         # 保存JSON文件
-        json_filename = f'{self.args.dataset}_{len(contents)}_{today}.json'
+        json_filename = f'{self.dataset}_{len(contents)}_{today}.json'
         json_path = self.output_path / json_filename
         
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(list(contents.values()), f)
         
         # 生成报告
-        report = self._generate_summary_report(total_time, total_files, len(contents), )
+        report = self._generate_summary_report(total_time, total_files, len(contents), json_path)
         self.logger.info("\n" + report)
         
         # # 保存错误日志
@@ -348,24 +382,42 @@ class RAG_Preprocessor:
         #             f.write(f"{file}\t{error}\n")
         #     self.logger.info(f"Error log saved to: {error_log_path}")
     
-    def _generate_summary_report(self, total_time, total_files, final_files):
+    def _generate_summary_report(self, total_time, total_files, final_files, json_path):
         """生成总结报告"""
-        report = [
-            "=" * 60,
-            "RAG PREPROCESS SUMMARY REPORT",
-            "=" * 60,
-            f"Command: {'python ' + ' '.join(sys.argv)}", 
-            f"Dataset: {self.args.dataset}",
-            f"Processing time: {total_time:.2f} seconds",
-            f"Total files processed: {total_files}",
-            f"Successfully extracted: {self.success_count} ({self.success_count/total_files*100:.1f}%)",
-            f"Failed: {self.fail_count} ({self.fail_count/total_files*100:.1f}%)",
-            f"Final selected files: {final_files}",
-            f"Output JSON: {self.args.dataset}_{final_files}_{today}.json",
-            f"Dataset path: {self.dataset_path}",
-            f"Output path: {self.output_path}",
-            "=" * 60
-        ]
+        if "plcg" in self.dataset or "looprag" in self.dataset:       
+            report = [
+                "=" * 60,
+                "RAG PREPROCESS SUMMARY REPORT",
+                "=" * 60,
+                f"Command: {'python ' + ' '.join(sys.argv)}", 
+                f"Dataset: {self.dataset}",
+                f"Processing time: {total_time:.2f} seconds",
+                f"Total files processed: {total_files}",
+                f"Successfully extracted: {self.success_count} ({self.success_count/total_files*100:.1f}%)",
+                f"Failed: {self.fail_count} ({self.fail_count/total_files*100:.1f}%)",
+                f"Threshold for diversity selection: {self.threshold}",
+                f"Final selected files: {final_files}",
+                f"Output JSON: {json_path}",
+                f"Dataset path: {self.dataset_path}",
+                f"Output path: {self.output_path}",
+                "=" * 60
+            ]
+        else:
+            report = [
+                "=" * 60,
+                "RAG PREPROCESS SUMMARY REPORT",
+                "=" * 60,
+                f"Command: {'python ' + ' '.join(sys.argv)}", 
+                f"Dataset: {self.dataset}",
+                f"Processing time: {total_time:.2f} seconds",
+                f"Total files processed: {total_files}",
+                f"Successfully extracted: {self.success_count} ({self.success_count/total_files*100:.1f}%)",
+                f"Failed: {self.fail_count} ({self.fail_count/total_files*100:.1f}%)",
+                f"Output JSON: {json_path}",
+                f"Dataset path: {self.dataset_path}",
+                f"Output path: {self.output_path}",
+                "=" * 60
+            ]
         
         return "\n".join(report)
 

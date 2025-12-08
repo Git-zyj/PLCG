@@ -96,19 +96,19 @@ polybench_start_instruments;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 3) {
-  for (t1=max(-1,ceild(-PB_M-28,32));t1<=floord(PB_M-3,16);t1++) {
-    lbp=max(0,t1);
-    ubp=min(floord(3*PB_M-9,32),floord(32*t1+PB_M+28,32));
+if (PB_M >= 6) {
+  for (t1=-1;t1<=floord(PB_M-19,16);t1++) {
+    lbp=t1+1;
+    ubp=min(floord(16*t1+PB_M+13,32),floord(32*t1+PB_M+27,32));
 #pragma omp parallel for private(lbv,ubv,t3,t4)
     for (t2=lbp;t2<=ubp;t2++) {
-      for (t3=max(max(0,ceild(32*t2-PB_M+3,2)),16*t1);t3<=min(min(PB_M-3,16*t1+31),16*t2+15);t3++) {
-        lbv=max(max(32*t2,2*t3),-32*t1+32*t2+2*t3-31);
-        ubv=min(min(32*t2+31,-32*t1+32*t2+2*t3),2*t3+PB_M-3);
+      for (t3=max(max(2,16*t1),32*t2-PB_M+2);t3<=min(min(min(PB_M-4,16*t1+31),16*t2+14),32*t1-32*t2+PB_M+29);t3++) {
+        lbv=max(max(32*t2,2*t3+2),-32*t1+32*t2+2*t3-31);
+        ubv=min(min(32*t2+31,-32*t1+32*t2+2*t3),t3+PB_M-2);
 #pragma ivdep
 #pragma vector always
         for (t4=lbv;t4<=ubv;t4++) {
-          A[t3+2][(-2*t3+t4)] = B[(-2*t3+t4)+2][t3+1] * A[t3+1][(-2*t3+t4)+2] - A[t3][(-2*t3+t4)+1] * 4;;
+          A[t3+(-2*t3+t4)][t3] = B[t3][(-2*t3+t4)-1] - A[t3+(-2*t3+t4)-2][t3-2] + A[t3+(-2*t3+t4)+1][t3-1] + 2;;
         }
       }
     }

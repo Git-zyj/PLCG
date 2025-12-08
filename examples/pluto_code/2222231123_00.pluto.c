@@ -102,13 +102,9 @@ polybench_start_instruments;
  register int lbv, ubv;
 /* Start of CLooG code */
 if (PB_M >= 1) {
-  A[2 -2] = C[2 +1] + D[2 -1] + D[2] + 3;;
-  for (t1=3;t1<=PB_M-1;t1++) {
-    A[(t1-2)] = C[(t1-2)] + D[(t1-2)-1] + C[(t1-2)] + A[(t1-2)+2] * 3;;
-    A[t1-2] = C[t1+1] + D[t1-1] + D[t1] + 3;;
-  }
-  for (t1=max(3,PB_M);t1<=PB_M+1;t1++) {
-    A[t1-2] = C[t1+1] + D[t1-1] + D[t1] + 3;;
+  for (t1=0;t1<=PB_M-1;t1++) {
+    A[t1] = C[t1] + C[t1+1] * D[t1] * A[t1+2] - 6;;
+    A[t1] = D[0] - D[t1] + D[t1] - 4;;
   }
 }
 /* End of CLooG code */

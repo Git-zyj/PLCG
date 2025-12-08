@@ -126,33 +126,77 @@ POLYBENCH_DUMP_FINISH;
 }
 void kernel_2214131223_00(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xb,DATA_TYPE POLYBENCH_1D(B,xB,xb),int xc,int yc,DATA_TYPE POLYBENCH_2D(C,xC,yC,xc,yc),int xd,DATA_TYPE POLYBENCH_1D(D,xD,xd)){
 polybench_start_instruments;
-  int t1, t2, t3, t4;
+  int t1, t2, t3, t4, t5;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 2) {
-  if (PB_N >= max(0,ceild(-2*PB_M+10,3))) {
-    for (t1=0;t1<=floord(PB_N+PB_M-3,32);t1++) {
-      if ((PB_M >= 5) && (t1 <= floord(PB_M-3,32))) {
-        for (t4=max(2,32*t1);t4<=min(PB_M-3,32*t1+31);t4++) {
-          B[t4] = D[t4] + D[t4+1] - B[t4-2] + B[t4+2] + B[t4-1] - 3;;
-        }
-      }
-      if ((PB_N >= 2) && (t1 <= floord(PB_N-1,32))) {
-        for (t2=0;t2<=floord(PB_M-1,32);t2++) {
-          for (t3=max(1,32*t2);t3<=min(PB_M-1,32*t2+31);t3++) {
-            for (t4=max(1,32*t1);t4<=min(PB_N-1,32*t1+31);t4++) {
-              A[t4][t3] = C[t3][t4-1] - D[t4] - D[t3] * C[t3][t4-1] - A[t4][t3-1] + 2;;
+if (PB_L >= 2) {
+  if ((PB_L >= -PB_M+4) && (PB_M >= 0)) {
+    for (t1=0;t1<=min(floord(4*PB_L+PB_M-4,32),floord(5*PB_L+PB_M-8,32));t1++) {
+      lbp=max(ceild(2*t1,3),ceild(32*t1-PB_L+1,32));
+      ubp=min(min(min(floord(3*t1+2,3),floord(3*PB_L+PB_M-3,32)),floord(4*PB_L+PB_M-7,32)),floord(96*t1+PB_M+64,128));
+#pragma omp parallel for private(lbv,ubv,t3,t4,t5)
+      for (t2=lbp;t2<=ubp;t2++) {
+        if ((PB_M >= 2) && (t1 == t2)) {
+          for (t3=max(1,ceild(32*t1-PB_M+1,2));t3<=min(2,PB_L-1);t3++) {
+            for (t4=max(32*t1,2*t3+1);t4<=min(32*t1+31,2*t3+PB_M-1);t4++) {
+              A[t3][(-2*t3+t4)-1] = C[(-2*t3+t4)][t3-1] + C[(-2*t3+t4)][t3-1] + B[(-2*t3+t4)] - B[(-2*t3+t4)-1] - 1;;
             }
           }
+        }
+        for (t3=max(max(3,ceild(32*t2-PB_M+1,2)),32*t1-32*t2);t3<=min(min(floord(32*t2-1,3),PB_L-1),32*t1-32*t2+31);t3++) {
+          for (t4=32*t2;t4<=min(32*t2+31,2*t3+PB_M-1);t4++) {
+            A[t3][(-2*t3+t4)-1] = C[(-2*t3+t4)][t3-1] + C[(-2*t3+t4)][t3-1] + B[(-2*t3+t4)] - B[(-2*t3+t4)-1] - 1;;
+          }
+        }
+        if (PB_M <= 1) {
+          for (t3=max(max(3,ceild(32*t2,3)),32*t1-32*t2);t3<=min(min(PB_L-1,16*t2+14),32*t1-32*t2+31);t3++) {
+            for (t4=max(32*t2,2*t3+3);t4<=min(3*t3,32*t2+31);t4++) {
+              B[(-2*t3+t4-1)] = C[t3+1][(-2*t3+t4-1)] - C[(-2*t3+t4-1)+1][t3] + D[t3+1] - D[t3] - B[(-2*t3+t4-1)-1] * B[(-2*t3+t4-1)-2] + 1;;
+            }
+          }
+        }
+        if (PB_M >= 2) {
+          for (t3=max(ceild(32*t2,3),32*t1-32*t2);t3<=min(min(floord(32*t2-PB_M,2),PB_L-1),32*t1-32*t2+31);t3++) {
+            for (t4=max(32*t2,2*t3+3);t4<=min(3*t3,32*t2+31);t4++) {
+              B[(-2*t3+t4-1)] = C[t3+1][(-2*t3+t4-1)] - C[(-2*t3+t4-1)+1][t3] + D[t3+1] - D[t3] - B[(-2*t3+t4-1)-1] * B[(-2*t3+t4-1)-2] + 1;;
+            }
+          }
+        }
+        if (PB_M >= 2) {
+          for (t3=max(max(max(3,ceild(32*t2-PB_M+1,2)),ceild(32*t2,3)),32*t1-32*t2);t3<=min(min(PB_L-1,16*t2+14),32*t1-32*t2+31);t3++) {
+            for (t4=max(32*t2,2*t3+1);t4<=min(2*t3+2,2*t3+PB_M-1);t4++) {
+              A[t3][(-2*t3+t4)-1] = C[(-2*t3+t4)][t3-1] + C[(-2*t3+t4)][t3-1] + B[(-2*t3+t4)] - B[(-2*t3+t4)-1] - 1;;
+            }
+            for (t4=max(32*t2,2*t3+3);t4<=min(min(3*t3,32*t2+31),2*t3+PB_M-1);t4++) {
+              A[t3][(-2*t3+t4)-1] = C[(-2*t3+t4)][t3-1] + C[(-2*t3+t4)][t3-1] + B[(-2*t3+t4)] - B[(-2*t3+t4)-1] - 1;;
+              B[(-2*t3+t4-1)] = C[t3+1][(-2*t3+t4-1)] - C[(-2*t3+t4-1)+1][t3] + D[t3+1] - D[t3] - B[(-2*t3+t4-1)-1] * B[(-2*t3+t4-1)-2] + 1;;
+            }
+            for (t4=3*t3+1;t4<=min(32*t2+31,2*t3+PB_M-1);t4++) {
+              A[t3][(-2*t3+t4)-1] = C[(-2*t3+t4)][t3-1] + C[(-2*t3+t4)][t3-1] + B[(-2*t3+t4)] - B[(-2*t3+t4)-1] - 1;;
+            }
+            for (t4=max(2*t3+3,2*t3+PB_M);t4<=min(3*t3,32*t2+31);t4++) {
+              B[(-2*t3+t4-1)] = C[t3+1][(-2*t3+t4-1)] - C[(-2*t3+t4-1)+1][t3] + D[t3+1] - D[t3] - B[(-2*t3+t4-1)-1] * B[(-2*t3+t4-1)-2] + 1;;
+            }
+          }
+        }
+        if ((PB_M >= 2) && (t1 >= ceild(3*t2-1,2)) && (t2 <= floord(PB_L-16,16))) {
+          A[(16*t2+15)][1 -1] = C[1][(16*t2+15)-1] + C[1][(16*t2+15)-1] + B[1] - B[1 -1] - 1;;
         }
       }
     }
   }
-  if ((PB_M >= 5) && (PB_N <= -1)) {
-    for (t1=0;t1<=floord(PB_M-3,32);t1++) {
-      for (t4=max(2,32*t1);t4<=min(PB_M-3,32*t1+31);t4++) {
-        B[t4] = D[t4] + D[t4+1] - B[t4-2] + B[t4+2] + B[t4-1] - 3;;
+  if ((PB_L >= 4) && (PB_M <= -1)) {
+    for (t1=0;t1<=floord(PB_L-1,8);t1++) {
+      lbp=max(ceild(2*t1,3),ceild(32*t1-PB_L+1,32));
+      ubp=min(floord(3*t1+2,4),floord(3*PB_L-3,32));
+#pragma omp parallel for private(lbv,ubv,t3,t4,t5)
+      for (t2=lbp;t2<=ubp;t2++) {
+        for (t3=max(max(3,ceild(32*t2,3)),32*t1-32*t2);t3<=min(min(PB_L-1,16*t2+14),32*t1-32*t2+31);t3++) {
+          for (t4=max(32*t2,2*t3+3);t4<=min(3*t3,32*t2+31);t4++) {
+            B[(-2*t3+t4-1)] = C[t3+1][(-2*t3+t4-1)] - C[(-2*t3+t4-1)+1][t3] + D[t3+1] - D[t3] - B[(-2*t3+t4-1)-1] * B[(-2*t3+t4-1)-2] + 1;;
+          }
+        }
       }
     }
   }

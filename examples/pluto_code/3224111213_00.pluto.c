@@ -138,41 +138,97 @@ POLYBENCH_DUMP_FINISH;
 }
 void kernel_3224111213_00(int xa,int ya,int za,DATA_TYPE POLYBENCH_3D(A,xA,yA,zA,xa,ya,za),int xb,DATA_TYPE POLYBENCH_1D(B,xB,xb),int xc,int yc,int zc,DATA_TYPE POLYBENCH_3D(C,xC,yC,zC,xc,yc,zc),int xd,DATA_TYPE POLYBENCH_1D(D,xD,xd)){
 polybench_start_instruments;
-  int t1, t2, t3;
+  int t1, t2, t3, t4, t5, t6;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 2) {
-  if (PB_L <= 2) {
-    for (t1=0;t1<=PB_M-3;t1++) {
-      B[t1+1] = D[1] + B[t1+2] + 1;;
-    }
-  }
-  if ((PB_L >= 3) && (PB_M >= 3)) {
-    B[0 +1] = D[1] + B[0 +2] + 1;;
-  }
-  if (PB_L >= 3) {
-    for (t1=1;t1<=min(PB_M-3,PB_Q-2);t1++) {
-      B[t1+1] = D[1] + B[t1+2] + 1;;
-      for (t2=0;t2<=PB_M-2;t2++) {
-        for (t3=1;t3<=PB_L-2;t3++) {
-          A[t2+1][t2][t3] = C[t1][t3+1][t2] * A[t3+1][t3][t1+1] - A[t2+1][t2][t3+1] - A[t3][t3-1][t1-1] - 6;;
+if (PB_M >= 1) {
+  if (PB_N >= max(0,ceild(-3*PB_M+9,2))) {
+    for (t1=0;t1<=min(floord(PB_N+PB_M-2,32),floord(2*PB_N+3*PB_M-7,64));t1++) {
+      if ((PB_M >= 3) && (PB_Q <= -1) && (t1 <= floord(PB_M-2,32))) {
+        for (t4=max(1,32*t1);t4<=min(PB_M-2,32*t1+31);t4++) {
+          B[t4] = D[t4+1] * B[t4-1] + B[t4+1] * 4;;
+        }
+      }
+      for (t2=0;t2<=min(floord(PB_Q,32),floord(PB_Q+PB_M-3,32));t2++) {
+        for (t3=max(max(max(max(0,ceild(32*t1-PB_M+1,32)),ceild(64*t1-PB_N-2*PB_M+4,32)),ceild(64*t1+32*t2-PB_Q-2*PB_M+4,64)),ceild(96*t1-PB_N-3*PB_M+6,96));t3<=min(min(min(floord(PB_N+PB_M-3,32),floord(32*t1+PB_M+30,32)),floord(-32*t1+2*PB_N+PB_M-2,32)),floord(64*t1-1056*t2+33*PB_Q+2*PB_M-6,64));t3++) {
+          if ((PB_Q >= 2) && (t1 == 0) && (t2 == 0) && (t3 == 0)) {
+            for (t4=1;t4<=min(min(31,PB_M-2),PB_N-2);t4++) {
+              B[t4] = D[t4+1] * B[t4-1] + B[t4+1] * 4;;
+              for (t5=0;t5<=min(31,PB_Q-2);t5++) {
+                lbv=t4;
+                ubv=min(31,t4+PB_M-1);
+#pragma ivdep
+#pragma vector always
+                for (t6=lbv;t6<=ubv;t6++) {
+                  A[t4][t5][(-t4+t6)] = C[(-t4+t6)][t4][t5+1] - A[t4+1][t5][(-t4+t6)] + A[t4-1][t5][(-t4+t6)+1] * 6;;
+                }
+              }
+            }
+          }
+          if ((t2 <= floord(PB_Q-2,32)) && (t3 >= 1)) {
+            for (t4=max(max(1,32*t1),32*t3-PB_M+1);t4<=min(min(PB_N-2,32*t1+31),32*t3+31);t4++) {
+              for (t5=32*t2;t5<=min(PB_Q-2,32*t2+31);t5++) {
+                lbv=max(32*t3,t4);
+                ubv=min(32*t3+31,t4+PB_M-1);
+#pragma ivdep
+#pragma vector always
+                for (t6=lbv;t6<=ubv;t6++) {
+                  A[t4][t5][(-t4+t6)] = C[(-t4+t6)][t4][t5+1] - A[t4+1][t5][(-t4+t6)] + A[t4-1][t5][(-t4+t6)+1] * 6;;
+                }
+              }
+            }
+          }
+          if ((t1 == 0) && (t2 >= 1) && (t2 <= floord(PB_Q-2,32)) && (t3 == 0)) {
+            for (t4=1;t4<=min(31,PB_N-2);t4++) {
+              for (t5=32*t2;t5<=min(PB_Q-2,32*t2+31);t5++) {
+                lbv=t4;
+                ubv=min(31,t4+PB_M-1);
+#pragma ivdep
+#pragma vector always
+                for (t6=lbv;t6<=ubv;t6++) {
+                  A[t4][t5][(-t4+t6)] = C[(-t4+t6)][t4][t5+1] - A[t4+1][t5][(-t4+t6)] + A[t4-1][t5][(-t4+t6)+1] * 6;;
+                }
+              }
+            }
+          }
+          if ((PB_Q >= 2) && (t1 == 0) && (t2 == 0) && (t3 == 0)) {
+            for (t4=max(1,PB_M-1);t4<=min(31,PB_N-2);t4++) {
+              for (t5=0;t5<=min(31,PB_Q-2);t5++) {
+                lbv=t4;
+                ubv=min(31,t4+PB_M-1);
+#pragma ivdep
+#pragma vector always
+                for (t6=lbv;t6<=ubv;t6++) {
+                  A[t4][t5][(-t4+t6)] = C[(-t4+t6)][t4][t5+1] - A[t4+1][t5][(-t4+t6)] + A[t4-1][t5][(-t4+t6)+1] * 6;;
+                }
+              }
+            }
+          }
+          if ((PB_Q <= 1) && (t2 == 0) && (t3 == 0)) {
+            for (t4=max(1,32*t1);t4<=min(PB_M-2,32*t1+31);t4++) {
+              B[t4] = D[t4+1] * B[t4-1] + B[t4+1] * 4;;
+            }
+          }
+          if ((PB_Q >= 2) && (t2 == 0) && (t3 == 0)) {
+            for (t4=max(32,32*t1);t4<=min(PB_M-2,32*t1+31);t4++) {
+              B[t4] = D[t4+1] * B[t4-1] + B[t4+1] * 4;;
+            }
+          }
+          if ((PB_Q >= 2) && (t1 == 0) && (t2 == 0) && (t3 == 0)) {
+            for (t4=max(1,PB_N-1);t4<=min(31,PB_M-2);t4++) {
+              B[t4] = D[t4+1] * B[t4-1] + B[t4+1] * 4;;
+            }
+          }
         }
       }
     }
   }
-  if (PB_L >= 3) {
-    for (t1=max(1,PB_M-2);t1<=PB_Q-2;t1++) {
-      for (t2=0;t2<=PB_M-2;t2++) {
-        for (t3=1;t3<=PB_L-2;t3++) {
-          A[t2+1][t2][t3] = C[t1][t3+1][t2] * A[t3+1][t3][t1+1] - A[t2+1][t2][t3+1] - A[t3][t3-1][t1-1] - 6;;
-        }
+  if ((PB_M >= 3) && (PB_N <= -1)) {
+    for (t1=0;t1<=floord(PB_M-2,32);t1++) {
+      for (t4=max(1,32*t1);t4<=min(PB_M-2,32*t1+31);t4++) {
+        B[t4] = D[t4+1] * B[t4-1] + B[t4+1] * 4;;
       }
-    }
-  }
-  if (PB_L >= 3) {
-    for (t1=max(1,PB_Q-1);t1<=PB_M-3;t1++) {
-      B[t1+1] = D[1] + B[t1+2] + 1;;
     }
   }
 }

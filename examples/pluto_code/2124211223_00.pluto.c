@@ -84,9 +84,9 @@ polybench_start_instruments;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 5) {
-  for (t1=1;t1<=PB_M-4;t1++) {
-    A[t1+1] = B[t1] * A[t1-1] - A[t1+3] * 6;;
+if (PB_L >= 2) {
+  for (t1=1;t1<=PB_L-1;t1++) {
+    A[t1] = B[t1] - A[t1+1] + A[t1-1] * 1;;
   }
 }
 /* End of CLooG code */

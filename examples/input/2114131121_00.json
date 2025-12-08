@@ -1,14 +1,13 @@
 {
     "params": {
-        "PB_N": 7000,
-        "PB_M": 4000
+        "PB_N": 5000,
+        "PB_L": 7000
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_M]",
-        "B[PB_N,PB_M]",
-        "C[PB_M]"
+        "A[PB_N]",
+        "B[PB_L]"
     ],
     "instructions": [
         {
@@ -28,7 +27,7 @@
                     "array_access_function": [
                         [
                             0,
-                            1
+                            0
                         ]
                     ]
                 },
@@ -41,12 +40,8 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            1,
-                            1
-                        ],
-                        [
                             0,
-                            0
+                            1
                         ]
                     ]
                 },
@@ -55,12 +50,12 @@
                         0,
                         2
                     ],
-                    "array_name": "C",
+                    "array_name": "B",
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            0,
-                            1
+                            1,
+                            0
                         ]
                     ]
                 },
@@ -69,7 +64,7 @@
                         0,
                         3
                     ],
-                    "array_name": "C",
+                    "array_name": "B",
                     "array_type": "read",
                     "array_access_function": [
                         [
@@ -87,7 +82,7 @@
                     ],
                     "category": "read",
                     "distance": [
-                        -2
+                        0
                     ],
                     "mapping": {
                         "0": 0

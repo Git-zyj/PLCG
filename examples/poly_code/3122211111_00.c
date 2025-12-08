@@ -90,9 +90,9 @@ POLYBENCH_DUMP_FINISH;
 void kernel_3122211111_00(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xb,int yb,DATA_TYPE POLYBENCH_2D(B,xB,yB,xb,yb)){
 polybench_start_instruments;
 #pragma scop
-    for (int i_0 = 1; i_0 < PB_M; i_0++) {
-        for (int i_1 = 1; i_1 < PB_M; i_1++) {
-            A[i_0][i_1] = B[i_1-1][i_0] - A[i_0-1][i_1] + 5;
+    for (int i_0 = PB_N - 1; i_0 >= 0; i_0--) {
+        for (int i_1 = 2; i_1 < PB_N-1; i_1++) {
+            A[i_0][i_1-1] = B[i_0][i_1+1] * A[i_0][i_1-2] - 5;
         }
     }
 #pragma endscop

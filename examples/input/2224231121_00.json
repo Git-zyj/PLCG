@@ -1,15 +1,17 @@
 {
     "params": {
-        "PB_M": 70,
-        "PB_L": 70
+        "PB_N": 60,
+        "PB_M": 90,
+        "PB_L": 100,
+        "PB_P": 60
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_M]",
+        "A[PB_M,PB_L]",
         "B[PB_M]",
-        "C[PB_M,PB_L]",
-        "D[PB_M,PB_L]",
+        "C[PB_N]",
+        "D[PB_M,PB_P]",
         "E[PB_M]"
     ],
     "instructions": [
@@ -32,6 +34,11 @@
                     "array_access_function": [
                         [
                             0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
                             0,
                             1
                         ]
@@ -47,11 +54,6 @@
                     "array_access_function": [
                         [
                             0,
-                            0,
-                            1
-                        ],
-                        [
-                            1,
                             1,
                             0
                         ]
@@ -66,28 +68,8 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            1,
-                            0,
-                            1
-                        ],
-                        [
                             0,
                             1,
-                            0
-                        ]
-                    ]
-                },
-                {
-                    "array_id": [
-                        0,
-                        3
-                    ],
-                    "array_name": "D",
-                    "array_type": "read",
-                    "array_access_function": [
-                        [
-                            0,
-                            0,
                             1
                         ],
                         [
@@ -102,13 +84,15 @@
                 {
                     "array_id": [
                         0,
-                        4
+                        3
                     ],
                     "category": "read",
                     "distance": [
+                        0,
                         -1
                     ],
                     "mapping": {
+                        "0": 0,
                         "1": 1
                     },
                     "parent_stmt_id": 0
@@ -116,24 +100,24 @@
                 {
                     "array_id": [
                         0,
-                        5
+                        4
                     ],
                     "category": "read",
                     "distance": [
-                        2
+                        0
                     ],
                     "mapping": {
-                        "1": 1
+                        "0": 1
                     },
-                    "parent_stmt_id": 0
+                    "parent_stmt_id": 1
                 }
             ]
         },
         {
             "schedule": [
-                1,
-                "i_2",
-                0
+                0,
+                "i_0",
+                1
             ],
             "additional_computation": [
                 {
@@ -155,7 +139,7 @@
                         1,
                         1
                     ],
-                    "array_name": "E",
+                    "array_name": "C",
                     "array_type": "read",
                     "array_access_function": [
                         [
@@ -174,7 +158,7 @@
                     "array_access_function": [
                         [
                             0,
-                            1
+                            0
                         ]
                     ]
                 },
@@ -187,7 +171,7 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            -1,
+                            0,
                             1
                         ]
                     ]

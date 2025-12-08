@@ -1,17 +1,22 @@
 {
     "params": {
         "PB_N": 30,
-        "PB_M": 40,
-        "PB_L": 30,
+        "PB_M": 50,
+        "PB_L": 50,
         "PB_P": 40,
-        "PB_Q": 30
+        "PB_Q": 40
     },
     "max_degree": 1,
-    "special_loop_bounds": {},
+    "special_loop_bounds": {
+        "i_2": [
+            "i_0",
+            "inf"
+        ]
+    },
     "arrays": [
-        "A[PB_M,PB_P,PB_Q]",
-        "B[PB_M,PB_L,PB_Q]",
-        "C[PB_N,PB_M]"
+        "A[PB_M,PB_L,PB_P]",
+        "B[PB_N,PB_L,PB_P]",
+        "C[PB_M,PB_L,PB_P,PB_Q]"
     ],
     "instructions": [
         {
@@ -35,21 +40,21 @@
                     "array_access_function": [
                         [
                             0,
-                            1,
-                            0,
-                            0
-                        ],
-                        [
-                            0,
-                            0,
-                            1,
-                            0
-                        ],
-                        [
-                            0,
                             0,
                             0,
                             1
+                        ],
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            1,
+                            1,
+                            0,
+                            0
                         ]
                     ]
                 },
@@ -62,21 +67,21 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            -1,
+                            0,
                             0,
                             0,
                             1
                         ],
                         [
-                            1,
+                            -1,
                             1,
                             0,
                             0
                         ],
                         [
+                            1,
                             0,
-                            0,
-                            0,
+                            1,
                             0
                         ]
                     ]
@@ -86,7 +91,7 @@
                         0,
                         2
                     ],
-                    "array_name": "B",
+                    "array_name": "C",
                     "array_type": "read",
                     "array_access_function": [
                         [
@@ -96,9 +101,15 @@
                             1
                         ],
                         [
-                            0,
+                            1,
                             1,
                             0,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            1,
                             0
                         ],
                         [
@@ -114,7 +125,7 @@
                         0,
                         3
                     ],
-                    "array_name": "C",
+                    "array_name": "B",
                     "array_type": "read",
                     "array_access_function": [
                         [
@@ -125,9 +136,15 @@
                         ],
                         [
                             0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
                             0,
                             0,
-                            1
+                            1,
+                            0
                         ]
                     ]
                 }
@@ -142,7 +159,7 @@
                     "distance": [
                         0,
                         0,
-                        -1
+                        1
                     ],
                     "mapping": {
                         "0": 2,

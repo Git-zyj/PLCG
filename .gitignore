@@ -166,6 +166,9 @@ yarn.lock
 *tmp_files/
 time*.txt
 *.zip
-*baselines/
+*baselines/anghabench
+*baselines/yarpgen
 *Compilers/pluto_DA
 *loop_transformation_classifier/
+*.ipynb
+ISPASS_results/

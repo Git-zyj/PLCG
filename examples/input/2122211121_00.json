@@ -1,13 +1,13 @@
 {
     "params": {
-        "PB_N": 4000,
-        "PB_L": 8000
+        "PB_N": 8000,
+        "PB_L": 4000
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_L]",
-        "B[PB_N]"
+        "A[PB_N]",
+        "B[PB_L]"
     ],
     "instructions": [
         {
@@ -40,7 +40,7 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            1,
+                            0,
                             1
                         ]
                     ]
@@ -54,7 +54,7 @@
                     ],
                     "category": "read",
                     "distance": [
-                        2
+                        -2
                     ],
                     "mapping": {
                         "0": 0

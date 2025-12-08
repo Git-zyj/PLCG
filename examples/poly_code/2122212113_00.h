@@ -1,15 +1,11 @@
 #ifndef _2122212113_00_H
 #define _2122212113_00_H
 /* params start */
-# define PB_N 80
-# define PB_M 100
-# define PB_L 90
+# define PB_N 7000
+# define PB_M 7000
 /* params end */
 # define xA PB_N
-# define yA PB_L
-# define zA PB_L
-# define xB PB_N
-# define yB PB_M
+# define xB PB_M
 # if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
 #  define DATA_TYPE_IS_DOUBLE
 # endif

@@ -1,19 +1,18 @@
 {
     "params": {
-        "PB_M": 100,
-        "PB_L": 80,
-        "PB_P": 70
+        "PB_M": 80,
+        "PB_L": 90
     },
     "max_degree": 1,
     "special_loop_bounds": {
         "i_1": [
-            "0",
-            "i_0"
+            "i_0",
+            "inf"
         ]
     },
     "arrays": [
-        "A[PB_M,PB_P]",
-        "B[PB_L,PB_P]",
+        "A[PB_M,PB_M]",
+        "B[PB_M,PB_L]",
         "C[PB_M]"
     ],
     "instructions": [
@@ -55,14 +54,14 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
+                            2,
                             0,
-                            1,
-                            0
+                            1
                         ],
                         [
                             0,
-                            0,
-                            1
+                            1,
+                            0
                         ]
                     ]
                 },
@@ -75,13 +74,13 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            0,
-                            0,
+                            -1,
+                            1,
                             1
                         ],
                         [
                             0,
-                            1,
+                            0,
                             0
                         ]
                     ]
@@ -114,8 +113,8 @@
                         -1
                     ],
                     "mapping": {
-                        "0": 1,
-                        "1": 0
+                        "0": 0,
+                        "1": 1
                     },
                     "parent_stmt_id": 0
                 }

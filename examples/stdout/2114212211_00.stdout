@@ -1,7 +1,7 @@
 [plcg-info] Before affine transformations
 nvar = 1, npar = 1
 Parameters: PB_M 
-S1 "A[i_0] = B[i_0-2] - A[i_0+1] * A[i_0-1] * 6;"
+S1 "A[i_0] = B[i_0-2] + A[i_0-1] * A[i_0+1] - 6;"
 ndims: 1; orig_depth: 1
 iterators: i_0
 Index set
@@ -14,8 +14,8 @@ loop types (loop, loop, loop)
 
 Read accesses
 B[i_0-2]
-A[i_0+1]
 A[i_0-1]
+A[i_0+1]
 Write accesses
 A[i_0]
 Original loop: 0 -> yes

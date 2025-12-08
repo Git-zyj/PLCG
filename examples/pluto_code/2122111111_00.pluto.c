@@ -96,15 +96,15 @@ polybench_start_instruments;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_L >= 3) {
-  lbp=0;
-  ubp=floord(PB_L-2,32);
-#pragma omp parallel for private(lbv,ubv,t2,t3,t4)
-  for (t1=lbp;t1<=ubp;t1++) {
-    for (t2=t1;t2<=floord(PB_L-1,32);t2++) {
-      for (t3=max(1,32*t1);t3<=min(min(PB_L-2,32*t1+31),32*t2+30);t3++) {
-        for (t4=max(32*t2,t3+1);t4<=min(PB_L-1,32*t2+31);t4++) {
-          A[t3][t4] = B[t4][t3-1] * A[t3][t4-1] * 1;;
+if (PB_L >= 2) {
+  for (t1=0;t1<=floord(PB_L-1,8);t1++) {
+    lbp=max(ceild(2*t1,3),ceild(32*t1-PB_L+1,32));
+    ubp=min(min(floord(3*PB_L-3,32),floord(64*t1+PB_L+61,96)),t1);
+#pragma omp parallel for private(lbv,ubv,t3,t4)
+    for (t2=lbp;t2<=ubp;t2++) {
+      for (t3=max(max(1,ceild(32*t2-PB_L+1,2)),32*t1-32*t2);t3<=min(min(PB_L-1,16*t2+15),32*t1-32*t2+31);t3++) {
+        for (t4=max(32*t2,2*t3+1);t4<=min(32*t2+31,2*t3+PB_L-1);t4++) {
+          A[t3][(-2*t3+t4)-1] = B[t3][0] * A[(-2*t3+t4)+1][t3-1] - 5;;
         }
       }
     }

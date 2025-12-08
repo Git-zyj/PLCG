@@ -126,31 +126,21 @@ POLYBENCH_DUMP_FINISH;
 }
 void kernel_2214212111_00(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xb,int yb,DATA_TYPE POLYBENCH_2D(B,xB,yB,xb,yb),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc),int xd,int yd,DATA_TYPE POLYBENCH_2D(D,xD,yD,xd,yd)){
 polybench_start_instruments;
-  int t1, t2, t3, t4, t5;
+  int t1, t2, t3, t4;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
 if (PB_M >= 2) {
-  lbp=0;
-  ubp=floord(PB_M-1,32);
-#pragma omp parallel for private(lbv,ubv,t3,t4,t5)
-  for (t2=lbp;t2<=ubp;t2++) {
-    lbv=max(1,32*t2);
-    ubv=min(PB_M-1,32*t2+31);
-#pragma ivdep
-#pragma vector always
-    for (t3=lbv;t3<=ubv;t3++) {
-      A[t3-1] = C[t3-1] * B[t3][t3+2] - 3;;
+  for (t1=0;t1<=floord(PB_M-1,32);t1++) {
+    for (t4=max(1,32*t1);t4<=min(PB_M-1,32*t1+31);t4++) {
+      A[t4] = C[t4] * A[t4-1] + 1;;
     }
-  }
-  lbp=0;
-  ubp=floord(PB_M-1,32);
-#pragma omp parallel for private(lbv,ubv,t3,t4,t5)
-  for (t2=lbp;t2<=ubp;t2++) {
-    for (t3=0;t3<=min(floord(PB_M-2,32),t2);t3++) {
-      for (t4=max(32*t2,32*t3+1);t4<=min(PB_M-1,32*t2+31);t4++) {
-        for (t5=32*t3;t5<=min(32*t3+31,t4-1);t5++) {
-          B[t4][t4+2] = D[t4][t5] + A[t4-1] * 1;;
+    if (t1 <= floord(PB_P-1,32)) {
+      for (t2=t1;t2<=floord(PB_M-1,32);t2++) {
+        for (t3=max(1,32*t2);t3<=min(PB_M-1,32*t2+31);t3++) {
+          for (t4=32*t1;t4<=min(min(t3,PB_P-1),32*t1+31);t4++) {
+            B[t4][t3] = D[t3][t4] + B[t3-1][t4] + 6;;
+          }
         }
       }
     }

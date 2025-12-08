@@ -210,7 +210,7 @@ class extraction_tools:
         nlines = len(lines)
         i = 0
         while i < nlines:
-            if lines[i][:3] == 'T(S' or lines[i][:11] == '[plcg-info]' or lines[i][:10] == 'loop types':
+            if lines[i][:3] == 'T(S' or lines[i][:11] == '[plcg-info]' or lines[i][:11] == '[zyj-debug]' or lines[i][:10] == 'loop types':
                 text_schedules += lines[i] + '\n'
             elif re.match(r'S\d+ \".*\"\n', lines[i]):
                 text_stmts.append(lines[i].replace(' ', ''))
@@ -235,8 +235,8 @@ class extraction_tools:
         iterators = iterators_set
 
         scops = []
-        info_before = re.findall(r'\[plcg-info\] Before affine transformations\n(.*?)(?=\[plcg-info\] After affine transformations\n)', text_schedules, re.DOTALL)
-        info_after = re.findall(r'\[plcg-info\] After affine transformations\n(.*)', text_schedules, re.DOTALL)
+        info_before = re.findall(r'\[(?:plcg-info|zyj-debug)\] Before affine transformations\n(.*?)(?=\[(?:plcg-info|zyj-debug)\] After affine transformations\n)', text_schedules, re.DOTALL)
+        info_after = re.findall(r'\[(?:plcg-info|zyj-debug)\] After affine transformations\n(.*)', text_schedules, re.DOTALL)
         if info_before and info_after:
             scops.append(info_before[0])
             scops.append(info_after[0])
@@ -270,7 +270,7 @@ class extraction_tools:
         i = 0
         while i < nlines:
             # print(lines[i])
-            if lines[i][:3] == 'T(S' or lines[i][:11] == '[plcg-info]' or lines[i][:10] == 'loop types':
+            if lines[i][:3] == 'T(S' or lines[i][:11] == '[plcg-info]' or lines[i][:11] == '[zyj-debug]' or lines[i][:10] == 'loop types':
                 text_schedules += lines[i]
             elif re.match(r'S\d+ \".*\"\n', lines[i]):
                 text_stmts.append(lines[i].replace(' ', ''))
@@ -304,8 +304,8 @@ class extraction_tools:
         # print(text_schedules)
         
         scops = []
-        info_before = re.findall(r'\[plcg-info\] Before affine transformations\n(.*)(?=\[plcg-info\] After affine transformations\n)', text_schedules, re.DOTALL)
-        info_after = re.findall(r'\[plcg-info\] After affine transformations\n(.*)', text_schedules, re.DOTALL)
+        info_before = re.findall(r'\[(?:plcg-info|zyj-debug)\] Before affine transformations\n(.*)(?=\[(?:plcg-info|zyj-debug)\] After affine transformations\n)', text_schedules, re.DOTALL)
+        info_after = re.findall(r'\[(?:plcg-info|zyj-debug)\] After affine transformations\n(.*)', text_schedules, re.DOTALL)
         if info_before and info_after:
             scops.append(info_before)
             scops.append(info_after)

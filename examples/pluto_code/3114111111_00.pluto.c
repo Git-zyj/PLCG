@@ -108,39 +108,21 @@ polybench_start_instruments;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if ((PB_L >= 3) && (PB_N >= 1)) {
+if ((PB_L >= 1) && (PB_Q >= 2)) {
   lbp=0;
-  ubp=floord(PB_N,32);
+  ubp=floord(PB_L-1,32);
 #pragma omp parallel for private(lbv,ubv,t2,t3,t4,t5,t6)
   for (t1=lbp;t1<=ubp;t1++) {
-    for (t2=0;t2<=floord(PB_L-1,32);t2++) {
-      for (t3=0;t3<=floord(PB_L-1,32);t3++) {
-        for (t4=max(1,32*t1);t4<=(min(PB_N,32*t1+31))-7;t4+=8) {
-          for (t5=max(2,32*t3);t5<=min(PB_L-1,32*t3+31);t5++) {
-            lbv=32*t2;
-            ubv=min(PB_L-1,32*t2+31);
+    for (t2=0;t2<=floord(PB_L,32);t2++) {
+      for (t3=0;t3<=floord(PB_Q-1,32);t3++) {
+        for (t4=32*t1;t4<=min(PB_L-1,32*t1+31);t4++) {
+          for (t5=max(1,32*t2);t5<=min(PB_L,32*t2+31);t5++) {
+            lbv=max(1,32*t3);
+            ubv=min(PB_Q-1,32*t3+31);
 #pragma ivdep
 #pragma vector always
             for (t6=lbv;t6<=ubv;t6++) {
-              A[t4-1][t5-1][t6] = B[t6][t5][t6] + A[t4-1][t5-2][t6] * 5;;
-              A[(t4+1)-1][t5-1][t6] = B[t6][t5][t6] + A[(t4+1)-1][t5-2][t6] * 5;;
-              A[(t4+2)-1][t5-1][t6] = B[t6][t5][t6] + A[(t4+2)-1][t5-2][t6] * 5;;
-              A[(t4+3)-1][t5-1][t6] = B[t6][t5][t6] + A[(t4+3)-1][t5-2][t6] * 5;;
-              A[(t4+4)-1][t5-1][t6] = B[t6][t5][t6] + A[(t4+4)-1][t5-2][t6] * 5;;
-              A[(t4+5)-1][t5-1][t6] = B[t6][t5][t6] + A[(t4+5)-1][t5-2][t6] * 5;;
-              A[(t4+6)-1][t5-1][t6] = B[t6][t5][t6] + A[(t4+6)-1][t5-2][t6] * 5;;
-              A[(t4+7)-1][t5-1][t6] = B[t6][t5][t6] + A[(t4+7)-1][t5-2][t6] * 5;;
-            }
-          }
-        }
-        for (;t4<=min(PB_N,32*t1+31);t4++) {
-          for (t5=max(2,32*t3);t5<=min(PB_L-1,32*t3+31);t5++) {
-            lbv=32*t2;
-            ubv=min(PB_L-1,32*t2+31);
-#pragma ivdep
-#pragma vector always
-            for (t6=lbv;t6<=ubv;t6++) {
-              A[t4-1][t5-1][t6] = B[t6][t5][t6] + A[t4-1][t5-2][t6] * 5;;
+              A[t4][t5][t6] = B[t6][t4][t5-1] + A[t4][t5-1][t6-1] - 2;;
             }
           }
         }

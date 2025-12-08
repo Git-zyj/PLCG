@@ -108,17 +108,21 @@ polybench_start_instruments;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if ((PB_L >= 1) && (PB_P >= 3)) {
-  for (t1=0;t1<=min(floord(3*PB_L-2,32),floord(2*PB_L+PB_P-2,32));t1++) {
-    lbp=max(ceild(t1,2),ceild(32*t1-PB_L,32));
-    ubp=min(min(min(floord(2*t1+1,3),floord(PB_L-1,16)),floord(PB_L+PB_P-2,32)),floord(32*t1+PB_P+29,64));
+if ((PB_L >= 3) && (PB_M >= 2) && (PB_N >= 3)) {
+  for (t1=0;t1<=min(min(floord(PB_M-1,16),floord(PB_L-1,32)),floord(PB_N+2*PB_M-3,64));t1++) {
+    lbp=max(max(max(0,ceild(32*t1-PB_L+2,32)),ceild(32*t1-PB_M+1,32)),ceild(64*t1-PB_N+1,64));
+    ubp=min(min(floord(PB_L-2,32),floord(PB_M-1,32)),t1);
 #pragma omp parallel for private(lbv,ubv,t3,t4,t5,t6)
     for (t2=lbp;t2<=ubp;t2++) {
-      for (t3=t1-t2;t3<=min(floord(PB_L+PB_P-3,32),floord(32*t1-32*t2+PB_P+28,32));t3++) {
-        for (t4=max(max(max(32*t1-32*t2,16*t2+1),32*t2-PB_P+2),32*t3-PB_P+3);t4<=min(PB_L,32*t1-32*t2+31);t4++) {
-          for (t5=max(32*t2,t4);t5<=min(min(32*t2+31,2*t4-1),t4+PB_P-2);t5++) {
-            for (t6=max(32*t3,t4);t6<=min(32*t3+31,t4+PB_P-3);t6++) {
-              A[(-t4+t5)][(-t4+t6)+2][(-t4+t5)] = B[(-t4+t5)+2][t4-1][(-t4+t6)+2] + A[(-t4+t5)][(-t4+t6)+1][(-t4+t5)] * A[(-t4+t5)+1][(-t4+t6)+2][(-t4+t5)+1] + 5;;
+      for (t3=t1-t2;t3<=min(min(min(min(floord(PB_L-2,32),floord(PB_M-1,32)),floord(PB_N-2,32)),floord(-32*t2+PB_L-1,32)),floord(-32*t1+32*t2+PB_N-1,32));t3++) {
+        for (t4=max(1,32*t1-32*t2);t4<=min(min(min(min(min(floord(PB_N-1,2),PB_L-2),PB_M-1),32*t1-32*t2+31),-32*t2+PB_L-1),-32*t3+PB_N-1);t4++) {
+          for (t5=max(32*t3,t4);t5<=min(min(min(min(PB_L-2,PB_M-1),32*t3+31),-32*t2+PB_L-1),-t4+PB_N-1);t5++) {
+            lbv=max(1,32*t2);
+            ubv=min(min(PB_M-1,32*t2+31),-t5+PB_L-1);
+#pragma ivdep
+#pragma vector always
+            for (t6=lbv;t6<=ubv;t6++) {
+              A[t5+t4][t6][t5+t6] = B[t4][t5+2][t5] * A[t5+t4-1][t6][t5+t6-1] * A[t5+t4-1][t6-1][t5+t6-1] * 2;;
             }
           }
         }

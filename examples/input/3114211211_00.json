@@ -1,12 +1,11 @@
 {
     "params": {
-        "PB_N": 4000,
-        "PB_M": 7000
+        "PB_M": 5000
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_N]",
+        "A[PB_M]",
         "B[PB_M]"
     ],
     "instructions": [

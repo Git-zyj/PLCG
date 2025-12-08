@@ -6,10 +6,12 @@ import logging
 import datetime
 import argparse as ap
 import gc
-import shutil
 import sys
+import signal
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
+
+from path_settings import PROJECT_PATH, DATASET_PATH
 
 def setup_logging(log_dir):
     """配置日志系统"""
@@ -46,29 +48,26 @@ def parse_arguments():
         epilog='Example: python optimization_and_analysis.py -d ./poly_code -p ./pluto'
     )
     parser.add_argument("-i", "--input-path", dest="dataset_path", 
-                       help="path of the folder containing potential source .c files", 
-                       type=str, default="examples/poly_code")
-    parser.add_argument("-l", "--dataset-list", dest="dataset_list", 
-                       help="file containing absolute path of all source .c files", 
-                       type=str, default=None)
+                       help="path of the folder containing kernel_list file", 
+                       type=str, default=DATASET_PATH)
     parser.add_argument("-o", "--output-path", dest="output_path", 
                        help="path for output files", 
                        type=str, default=None)
     parser.add_argument("-p", "--pluto-path", dest="pluto_path", 
                        help="path to pluto binaries", 
-                       type=str, default="Compilers/pluto")
+                       type=str, default=os.path.join(PROJECT_PATH, "Compilers/pluto"))
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
                        type=int, default=min(mp.cpu_count(), 16))
     parser.add_argument("-t", "--timeout", dest="timeout", 
                        help="timeout duration in seconds per file", 
-                       type=int, default=300)
+                       type=int, default=120)
     parser.add_argument("-c", "--command-options", dest="command_options",
                         help="options for pluto in command",
                         type=str, default='-q --parallel --tile --nocloogbacktrack --plcg-info')
     parser.add_argument("--batch-size", dest="batch_size", 
                        help="batch size to reduce memory usage", 
-                       type=int, default=1000)
+                       type=int, default=500)
     parser.add_argument("--no-clean", action="store_true",
                        help="do not clean output directories before processing")
     
@@ -98,12 +97,9 @@ class PlutoBatchOptimizer:
         
     def setup_paths(self):
         """设置所有路径"""
-        self.base_dir = os.path.dirname(os.path.abspath(self.args.dataset_path))
+        self.base_dir = os.path.abspath(self.args.dataset_path)
         
-        if self.args.dataset_list is None:
-            self.dataset_list = os.path.join(self.base_dir, 'kernel_list')
-        else:
-            self.dataset_list = self.args.dataset_list
+        self.dataset_list = os.path.join(self.base_dir, 'kernel_list')
         
         if self.args.output_path is None:
             self.output_path = self.base_dir
@@ -130,7 +126,7 @@ class PlutoBatchOptimizer:
         self.logger.info("Cleaning output directories...")
         for path in [self.pluto_code_path, self.stdout_path, self.tmp_path]:
             if os.path.exists(path):
-                shutil.rmtree(path)
+                sp.run(['rm', '-rf', str(path)])
             os.makedirs(path, exist_ok=True)
     
     def get_source_files(self):
@@ -166,12 +162,11 @@ class PlutoBatchOptimizer:
         return name_without_ext
     
     def pluto_transformation_single(self, source_file):
-        """处理单个文件的Pluto转换"""
+        """处理单个文件的Pluto转换（带完整进程清理）"""
         source_name = self.get_filename_without_extension(source_file)
         target_file = os.path.join(self.pluto_code_path, f'{source_name}.pluto.c')
         stdout_file = os.path.join(self.stdout_path, f'{source_name}.stdout')
         
-        # 解析命令选项
         if self.args.command_options:
             command_options = self.args.command_options.split()
         else:
@@ -180,26 +175,43 @@ class PlutoBatchOptimizer:
         command = ['polycc_parallel', source_file] + command_options + ['-o', target_file]
         
         try:
-            # 使用subprocess运行命令
             with open(stdout_file, 'w') as f:
-                result = sp.run(command, stdout=f, stderr=sp.PIPE, 
-                              timeout=self.args.timeout)
+                process = sp.Popen(
+                    command, 
+                    stdout=f, 
+                    stderr=sp.PIPE,
+                    text=True, 
+                    preexec_fn=os.setsid
+                )
                 
-            if result.returncode == 0:
-                # 检查是否真的生成了目标文件
-                if os.path.exists(target_file) and os.path.getsize(target_file) > 0:
-                    return source_name, 'success', "optimization successful"
-                else:
-                    return source_name, 'fail', "output file not generated or empty"
-            else:
-                error_msg = result.stderr.decode().strip()
-                if "timeout" in error_msg.lower():
-                    return source_name, 'timeout', f"timeout after {self.args.timeout}s"
-                else:
-                    return source_name, 'fail', f"pluto failed: {error_msg}"
+                try:
+                    _, stderr = process.communicate(timeout=self.args.timeout)
                     
-        except sp.TimeoutExpired:
-            return source_name, 'timeout', f"timeout after {self.args.timeout}s"
+                    if process.returncode == 0:
+                        if os.path.exists(target_file) and os.path.getsize(target_file) > 0:
+                            return source_name, 'success', "optimization successful"
+                        else:
+                            return source_name, 'fail', "output file not generated or empty"
+                    else:
+                        error_msg = stderr.strip() if stderr else "unknown error"
+                        return source_name, 'fail', f"pluto failed (returncode={process.returncode}): {error_msg}"
+                            
+                except sp.TimeoutExpired:
+                    self.logger.debug(f"Timeout detected for {source_name}, killing process group...")
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    except Exception as kill_error:
+                        self.logger.warning(f"Error killing process group for {source_name}: {kill_error}")
+                    
+                    try:
+                        process.wait(timeout=5)
+                    except sp.TimeoutExpired:
+                        self.logger.warning(f"Process group for {source_name} unresponsive after SIGKILL (D-state?)")
+                    
+                    return source_name, 'timeout', f"timeout after {self.args.timeout}s"
+                    
         except Exception as e:
             return source_name, 'fail', f"unexpected error: {str(e)}"
     
@@ -244,7 +256,8 @@ class PlutoBatchOptimizer:
                             self.logger.error(f"— {file_name}: unexpected condition: {message}")
                         
                         # 进度报告
-                        if i % 100 == 0:
+                        length_report_section = len(batch_files) // 4
+                        if i % length_report_section == 0:
                             progress = i / len(batch_files) * 100
                             self.logger.info(f"Batch progress: {i}/{len(batch_files)} ({progress:.1f}%)")
                             

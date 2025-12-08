@@ -1,19 +1,17 @@
 #ifndef _3222232211_00_H
 #define _3222232211_00_H
 /* params start */
-# define PB_M 40
-# define PB_L 30
-# define PB_P 50
-# define PB_Q 50
+# define PB_N 90
+# define PB_M 60
+# define PB_L 60
+# define PB_P 80
 /* params end */
-# define xA PB_L
-# define xB PB_M
-# define yB PB_Q
-# define zB PB_Q
+# define xA PB_M
+# define xB PB_L
+# define yB PB_P
 # define xC PB_L
-# define xD PB_M
+# define xD PB_N
 # define yD PB_M
-# define zD PB_L
 # define xE PB_M
 # define yE PB_L
 # define zE PB_P

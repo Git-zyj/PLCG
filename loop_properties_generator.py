@@ -159,7 +159,7 @@ class Loop_Properties_Generator:
         生成额外的计算信息，包括数组读写访问函数
         
         Args:
-            arg_narrays_per_dim: 每种数组维度下待选数组数量，暂定为2
+            arg_narrays_per_dim: 每种数组维度下待选comp读数组名数量（因为comp写数组不能重复，应当为nstmts个，之后根据依赖再实际调整），暂定为2 TODO: 实际应该叫arg_narrays_read_comp_per_dim？有待调整
             arg_avg_narrays_read_per_stmt: 每条语句平均读数组数量，暂定为1，表示指定生成的读数组数量（additional_computation类的）应当为1*arg_nstmts
             arg_bounds_coef: 数组下标常量系数范围，暂定为2，表示范围为(-2,-1,0,1,2)
         '''
@@ -210,7 +210,8 @@ class Loop_Properties_Generator:
         array_name_id = nstmts  # 读数组命名从nstmts开始编号，即写数组之后
         
         # TODO: 是直接指定读数组数量还是限制范围？
-        narrays_read = np.random.multinomial(nstmts * arg_avg_narrays_read_per_stmt, [1/nstmts] * nstmts) # 指定语句读数组个数⑨
+        narrays_read = random.randint(nstmts * (arg_avg_narrays_read_per_stmt - 1) + 1, nstmts * arg_avg_narrays_read_per_stmt) # 总读数组数量，允许有一定浮动
+        narrays_read_by_stmt = np.random.multinomial(narrays_read, [1/nstmts] * nstmts) # 指定语句读数组个数⑨
         
         for stmt_id in range(nstmts):
             depth_stmt = len(self.schedules[stmt_id]) // 2
@@ -218,7 +219,7 @@ class Loop_Properties_Generator:
             # narrays_read = random.randint(0, arg_avg_narrays_read_per_stmt)  # 指定语句读数组个数⑨
             # self.logger.debug(f"narrays_read in stmt {stmt_id}:{narrays_read[stmt_id]}")
             
-            for comp_read_id in range(narrays_read[stmt_id]):
+            for comp_read_id in range(narrays_read_by_stmt[stmt_id]):
                 
                 if array_name_id >= len(array_names_sequence):
                     raise IndexError(f'需要更多数组名称，当前有{len(array_names_sequence)}个，实际需要{array_name_id}个')
@@ -671,8 +672,10 @@ class Loop_Properties_Generator:
             for parent_stmt_id in parent_array_list
         ] # 各parent理论上单语句最大依赖数量（基于距离组合数）
         
+        ndeps_read = random.randint(nparent_arrays * (arg_avg_ndeps_read_per_stmt - 1) + 1, nparent_arrays * arg_avg_ndeps_read_per_stmt) # 总读依赖数量，允许有一定浮动
+        
         ndeps_read_by_parent = np.random.multinomial(
-            nparent_arrays * arg_avg_ndeps_read_per_stmt, 
+            ndeps_read, 
             [1/nparent_arrays] * nparent_arrays
         ) # 指定读依赖数量
         
@@ -721,13 +724,13 @@ class Loop_Properties_Generator:
             )
         
             # 更新权重系统
-            # 全局权重下降：减少该child被其他parent选择的概率
+            # 全局权重下降：减少child所在语句被其他parent选择的概率
             weights_global[child_stmt_id] *= 1/2
             
-            # 当前child权重上升：增加该child继续被同一parent选择的概率
+            # 当前child所在语句的选择权重上升：增加该child所在语句继续被同一parent选择的概率
             weights_per_parent[parent_stmt_id][child_stmt_id] *= 4.0
             
-            # 等价于直接×2
+            # 等价于选择概率直接×2
             prob_weights_read[child_stmt_id] *= 2.0
             
             # 处理超过上限的情况

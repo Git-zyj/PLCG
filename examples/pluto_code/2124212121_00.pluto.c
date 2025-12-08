@@ -80,22 +80,13 @@ POLYBENCH_DUMP_FINISH;
 }
 void kernel_2124212121_00(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xb,DATA_TYPE POLYBENCH_1D(B,xB,xb)){
 polybench_start_instruments;
-  int t1, t2, t3, t4;
+  int t1;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 3) {
-  for (t1=0;t1<=floord(3*PB_M-3,32);t1++) {
-    lbp=ceild(2*t1,3);
-    ubp=min(min(floord(PB_M-1,16),floord(32*t1+PB_M+30,64)),t1);
-#pragma omp parallel for private(lbv,ubv,t3,t4)
-    for (t2=lbp;t2<=ubp;t2++) {
-      for (t3=max(32*t1-32*t2,32*t2-PB_M+1);t3<=min(min(PB_M-1,16*t2+15),32*t1-32*t2+31);t3++) {
-        for (t4=max(max(32*t2,2*t3),t3+2);t4<=min(32*t2+31,t3+PB_M-1);t4++) {
-          A[(-t3+t4)-2] = B[(-t3+t4)] - A[(-t3+t4)-1] * 6;;
-        }
-      }
-    }
+if (PB_M >= 2) {
+  for (t1=0;t1<=PB_M-2;t1++) {
+    A[t1] = B[t1] - A[t1+1] - 5;;
   }
 }
 /* End of CLooG code */

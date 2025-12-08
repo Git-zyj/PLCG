@@ -124,33 +124,31 @@ polybench_start_instruments;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 1) {
-  for (t1=0;t1<=floord(PB_M+2,32);t1++) {
-    for (t2=max(0,ceild(96*t1-3*PB_M+3,32));t2<=min(floord(PB_M+1,8),floord(96*t1+PB_M+93,32));t2++) {
-      if ((t1 == 0) && (t2 == 0)) {
-        for (t3=3;t3<=min(10,PB_M-1);t3++) {
-          A[t3-1] = C[t3] - D[t3-1] * A[t3-3] - A[t3] * A[t3-2] * 3;;
-          for (t4=3*t3+1;t4<=min(31,3*t3+PB_M);t4++) {
-            B[(-3*t3+t4)-1][t3+1] = B[t3-3][(-3*t3+t4)+1] * 1;;
-          }
-        }
-      }
+if (PB_M >= 2) {
+  for (t1=0;t1<=floord(PB_M-2,32);t1++) {
+    for (t2=0;t2<=floord(PB_M-2,32);t2++) {
       if (t2 == 0) {
-        for (t3=max(11,32*t1);t3<=min(PB_M-1,32*t1+31);t3++) {
-          A[t3-1] = C[t3] - D[t3-1] * A[t3-3] - A[t3] * A[t3-2] * 3;;
+        for (t3=max(32,32*t1);t3<=min(PB_M-2,32*t1+31);t3++) {
+          A[t3+1] = C[t3+1] * A[t3+2] + A[t3] * A[t3-1] - 2;;
         }
       }
       if (t2 >= 1) {
-        for (t3=max(max(3,ceild(32*t2-PB_M,3)),32*t1);t3<=min(min(floord(32*t2+30,3),PB_M+2),32*t1+31);t3++) {
-          for (t4=max(32*t2,3*t3+1);t4<=min(32*t2+31,3*t3+PB_M);t4++) {
-            B[(-3*t3+t4)-1][t3+1] = B[t3-3][(-3*t3+t4)+1] * 1;;
+        for (t3=32*t1;t3<=min(min(PB_M-2,32*t1+31),32*t2+31);t3++) {
+          for (t4=max(32*t2,t3);t4<=min(PB_M-2,32*t2+31);t4++) {
+            B[t3][t4] = D[t3+1] - B[t3][t4+1] * 2;;
           }
         }
       }
       if ((t1 == 0) && (t2 == 0)) {
-        for (t3=max(3,PB_M);t3<=min(10,PB_M+2);t3++) {
-          for (t4=3*t3+1;t4<=min(31,3*t3+PB_M);t4++) {
-            B[(-3*t3+t4)-1][t3+1] = B[t3-3][(-3*t3+t4)+1] * 1;;
+        for (t4=0;t4<=min(31,PB_M-2);t4++) {
+          B[0][t4] = D[0 +1] - B[0][t4+1] * 2;;
+        }
+      }
+      if ((t1 == 0) && (t2 == 0)) {
+        for (t3=1;t3<=min(31,PB_M-2);t3++) {
+          A[t3+1] = C[t3+1] * A[t3+2] + A[t3] * A[t3-1] - 2;;
+          for (t4=t3;t4<=min(31,PB_M-2);t4++) {
+            B[t3][t4] = D[t3+1] - B[t3][t4+1] * 2;;
           }
         }
       }

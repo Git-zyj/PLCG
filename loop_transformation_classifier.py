@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+from path_settings import DATASET_PATH
 from extraction_tools import extraction_tools
 
 TODAY = datetime.datetime.now().strftime('%Y%m%d')
@@ -66,7 +67,7 @@ def parse_arguments():
     parser = ap.ArgumentParser(description=parser_description)
     parser.add_argument("-i", "--input-path", dest="dataset_path", 
                        help="path of the folder of stdout info and pluto code", 
-                       type=str, default="examples")
+                       type=str, default=DATASET_PATH)
     parser.add_argument("-o", "--output", dest="output", 
                        help="output csv file for classification results", 
                        type=str, default="classification_output.csv")
@@ -75,7 +76,7 @@ def parse_arguments():
                        type=int, default=min(os.cpu_count(), 16))
     parser.add_argument("--batch-size", dest="batch_size", 
                        help="batch size to reduce memory usage", 
-                       type=int, default=1000)
+                       type=int, default=5000)
     
     args = parser.parse_args()
         
@@ -174,8 +175,8 @@ class Loop_Transformation_Classifier:
         self.schedules[1] = [row[:min_len] for row in self.schedules[1]]
         self.loop_types[1] = [row[:min_len] for row in self.loop_types[1]]
 
-        print(self.filename)
-        print(self.schedules)
+        # print(self.filename)
+        # print(self.schedules)
 
         # 处理调度和循环类型
         for i in range(self.max_loop_depth):
@@ -241,7 +242,7 @@ class Loop_Transformation_Classifier:
                                 self.coefs[j][i][k] = 1
                                 self.var_neg[j][i][k] = -1
 
-        print(self.schedules)
+        # print(self.schedules)
 
         # 调整调度长度
         if len(self.loop_types[1][0]) == len(self.loop_types[0][0]) - 1:
@@ -252,7 +253,7 @@ class Loop_Transformation_Classifier:
             self.answer[8] = 1  # other
             return self.answer
 
-        print(self.schedules)
+        # print(self.schedules)
 
         # 转换为 numpy 数组
         self.schedules = np.array(self.schedules, dtype=object)
@@ -278,8 +279,7 @@ class Loop_Transformation_Classifier:
                         self.answer[8] = 1  # other
                         return self.answer
 
-        print(self.schedules)
-        print("end")
+        # print(self.schedules)
 
         # 提取常量部分
         self.consts[0] = self.schedules[0][:, ::2].astype(int)
@@ -405,7 +405,8 @@ class Classification_Batch_Processor:
                         self.logger.error(f"✗ {filename}: {status}")
                     
                     # 进度报告
-                    if i % 50 == 0:
+                    length_report_section = len(batch_files) // 4
+                    if i % length_report_section == 0:
                         progress = i / len(batch_files) * 100
                         self.logger.info(f"Batch progress: {i}/{len(batch_files)} ({progress:.1f}%)")
                         
@@ -517,9 +518,8 @@ def main():
         processor.run_classification()
         
     except KeyboardInterrupt:
-        print("\nClassification interrupted by user")
+        logging.getLogger().error("\nClassification interrupted by user")
     except Exception as e:
-        print(f"Fatal error: {e}")
         logging.getLogger().error(f"Fatal error in main: {str(e)}")
 
 if __name__ == "__main__":

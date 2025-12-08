@@ -1,25 +1,18 @@
 {
     "params": {
-        "PB_M": 40,
-        "PB_L": 40,
-        "PB_P": 30,
-        "PB_Q": 40
+        "PB_M": 5000
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_L,PB_L,PB_P]",
-        "B[PB_M,PB_L,PB_Q]"
+        "A[PB_M]",
+        "B[PB_M]"
     ],
     "instructions": [
         {
             "schedule": [
                 0,
                 "i_0",
-                0,
-                "i_1",
-                0,
-                "i_2",
                 0
             ],
             "additional_computation": [
@@ -33,21 +26,7 @@
                     "array_access_function": [
                         [
                             0,
-                            1,
-                            0,
-                            0
-                        ],
-                        [
-                            0,
-                            0,
-                            0,
                             1
-                        ],
-                        [
-                            0,
-                            0,
-                            1,
-                            0
                         ]
                     ]
                 },
@@ -61,21 +40,7 @@
                     "array_access_function": [
                         [
                             0,
-                            0,
-                            0,
                             1
-                        ],
-                        [
-                            0,
-                            1,
-                            0,
-                            0
-                        ],
-                        [
-                            -1,
-                            0,
-                            1,
-                            0
                         ]
                     ]
                 }
@@ -88,14 +53,10 @@
                     ],
                     "category": "read",
                     "distance": [
-                        0,
-                        2,
                         -2
                     ],
                     "mapping": {
-                        "0": 0,
-                        "1": 1,
-                        "2": 2
+                        "0": 0
                     },
                     "parent_stmt_id": 0
                 }

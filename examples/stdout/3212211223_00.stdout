@@ -1,215 +1,182 @@
 [plcg-info] Before affine transformations
-nvar = 3, npar = 3
-Parameters: PB_M PB_L PB_Q 
-S1 "A[i_0][i_1][i_2] = A[i_0][i_2][i_1-2] + A[i_0][i_2][i_1-1] - 6;"
-ndims: 3; orig_depth: 3
-iterators: i_0, i_1, i_2
+nvar = 2, npar = 2
+Parameters: PB_N PB_M 
+S1 "B[i_0] = B[i_0] + 5;"
+ndims: 1; orig_depth: 1
+iterators: i_0
 Index set
-9 8
-1 1 0 0 0 0 0 0 
-1 -1 0 0 1 0 0 -1 
-1 0 0 0 1 0 0 -1 
-1 0 1 0 0 0 0 -2 
-1 0 -1 0 0 1 0 -1 
-1 0 0 0 0 1 0 -3 
-1 0 0 1 0 0 0 0 
-1 0 0 -1 0 1 0 -1 
-1 0 0 0 0 1 0 -1 
-T(S1): (0, i_0, 0, i_1, 0, i_2, 0)
-loop types (loop, loop, loop, loop, loop, loop, loop)
+3 5
+1 1 0 0 -1 
+1 -1 1 0 -1 
+1 0 1 0 -2 
+T(S1): (0, i_0, 0, 0, 0)
+loop types (loop, loop, loop, scalar, scalar)
 
 Read accesses
-A[i_0][i_2][i_1-2]
-A[i_0][i_2][i_1-1]
+B[i_0]
 Write accesses
-A[i_0][i_1][i_2]
+B[i_0]
 Original loop: 0 -> yes
-Original loop: 1 -> yes
-Original loop: 2 -> yes
 
-S2 "A[i_3+1][i_4+2][i_5] = C[i_4][i_4][i_3+1] * C[i_5][i_4-1][i_3] - 2;"
-ndims: 3; orig_depth: 3
-iterators: i_3, i_4, i_5
+S2 "B[i_1] = C[i_1][i_0][i_0] + D[i_1+i_0-1][i_1] + B[i_1-1] * 3;"
+ndims: 2; orig_depth: 2
+iterators: i_0, i_1
 Index set
-9 8
-1 1 0 0 0 0 0 0 
-1 -1 0 0 0 0 1 -2 
-1 0 0 0 0 0 1 -2 
-1 0 1 0 0 0 0 -1 
-1 0 -1 0 0 1 0 -3 
-1 0 0 0 0 1 0 -4 
-1 0 0 1 0 0 0 0 
-1 0 0 -1 1 0 0 -1 
-1 0 0 0 1 0 0 -1 
-T(S2): (1, i_3, 0, i_4, 0, i_5, 0)
-loop types (loop, loop, loop, loop, loop, loop, loop)
+6 6
+1 1 0 0 0 -1 
+1 -1 0 1 0 -1 
+1 0 0 1 0 -2 
+1 -1 1 0 0 0 
+1 -1 -1 0 1 0 
+1 -2 0 0 1 0 
+T(S2): (0, i_0, 1, i_1, 0)
+loop types (loop, loop, loop, loop, loop)
 
 Read accesses
-C[i_4][i_4][i_3+1]
-C[i_5][i_4-1][i_3]
+C[i_1][i_0][i_0]
+D[i_0+i_1-1][i_1]
+B[i_1-1]
 Write accesses
-A[i_3+1][i_4+2][i_5]
+B[i_1]
 Original loop: 0 -> yes
 Original loop: 1 -> yes
-Original loop: 2 -> yes
 
---- Dep 1 from S1 to S1; satisfied: 0, sat level: -1; Type: RAW
-on variable: A
+--- Dep 1 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
 Dependence polyhedron
 Set #1
-[9 dims; 8 constraints]
--i_1+i_2' = 0
--i_2+i_1'-2 = 0
--i_0+i_0' = 0
-i_0 >= 0
--i_0+PB_M-1 >= 0
-i_1-2 >= 0
--i_1+i_2+1 >= 0
--i_2+PB_L-3 >= 0
+[6 dims; 6 constraints]
+-i_1+i_1'-1 = 0
+i_0-1 >= 0
+-i_0+i_0'-1 >= 0
+i_1-i_0'+1 >= 0
+-i_1-i_0'+PB_M-1 >= 0
+-i_0'+PB_N-1 >= 0
 
 
---- Dep 2 from S1 to S1; satisfied: 0, sat level: -1; Type: RAW
-on variable: A
+--- Dep 2 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
 Dependence polyhedron
 Set #1
-[9 dims; 8 constraints]
--i_1+i_2' = 0
--i_1+i_1' = 0
+[6 dims; 6 constraints]
+-i_1+i_1'-1 = 0
 -i_0+i_0' = 0
--i_1+i_2+2 = 0
-i_0 >= 0
--i_0+PB_M-1 >= 0
-i_1-2 >= 0
--i_1+PB_L-1 >= 0
+i_0-1 >= 0
+-i_0+PB_N-1 >= 0
+-i_0+i_1 >= 0
+-i_0-i_1+PB_M-1 >= 0
 
 
---- Dep 3 from S1 to S1; satisfied: 0, sat level: -1; Type: RAW
-on variable: A
+--- Dep 3 from S2 to S1; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
 Dependence polyhedron
 Set #1
-[9 dims; 8 constraints]
--i_1+i_2' = 0
--i_2+i_1'-1 = 0
--i_0+i_0' = 0
-i_0 >= 0
--i_0+PB_M-1 >= 0
-i_1-2 >= 0
--i_1+i_2 >= 0
--i_2+PB_L-2 >= 0
+[5 dims; 5 constraints]
+-i_1+i_0' = 0
+i_0-1 >= 0
+-i_0+i_1-1 >= 0
+-i_0-i_1+PB_M >= 0
+-i_1+PB_N-1 >= 0
 
 
---- Dep 4 from S1 to S1; satisfied: 0, sat level: -1; Type: RAW
-on variable: A
+--- Dep 4 from S1 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
 Dependence polyhedron
 Set #1
-[9 dims; 8 constraints]
--i_1+i_2' = 0
--i_1+i_1' = 0
--i_0+i_0' = 0
--i_1+i_2+1 = 0
-i_0 >= 0
--i_0+PB_M-1 >= 0
-i_1-2 >= 0
--i_1+PB_L-1 >= 0
+[5 dims; 6 constraints]
+-i_0+i_1'-1 = 0
+i_0-1 >= 0
+-i_0+i_0' >= 0
+i_0-i_0'+1 >= 0
+-i_0-i_0'+PB_M-1 >= 0
+-i_0'+PB_N-1 >= 0
 
 
---- Dep 5 from S1 to S1; satisfied: 0, sat level: -1; Type: WAR
-on variable: A
+--- Dep 5 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
 Dependence polyhedron
 Set #1
-[9 dims; 8 constraints]
--i_1+i_2'+2 = 0
--i_2+i_1' = 0
--i_0+i_0' = 0
-i_0 >= 0
--i_0+PB_M-1 >= 0
-i_1-2 >= 0
--i_1+i_2-1 >= 0
--i_2+PB_L-1 >= 0
+[6 dims; 6 constraints]
+-i_1+i_1'+1 = 0
+i_0-1 >= 0
+-i_0+i_0'-1 >= 0
+i_1-i_0'-1 >= 0
+-i_1-i_0'+PB_M+1 >= 0
+-i_0'+PB_N-1 >= 0
 
 
 --- Dep 6 from S1 to S2; satisfied: 0, sat level: -1; Type: WAR
-on variable: A
+on variable: B
 Dependence polyhedron
 Set #1
-[9 dims; 11 constraints]
--i_1+i_5'+1 = 0
--i_2+i_4'+2 = 0
--i_0+i_3'+1 = 0
-i_0-1 >= 0
--i_0+PB_Q-1 >= 0
--i_0+PB_M-1 >= 0
-i_1-2 >= 0
--i_1+PB_L-1 >= 0
--i_1+PB_M >= 0
-i_2-3 >= 0
--i_2+PB_L-1 >= 0
-
-
---- Dep 7 from S1 to S2; satisfied: 0, sat level: -1; Type: WAR
-on variable: A
-Dependence polyhedron
-Set #1
-[9 dims; 11 constraints]
--i_1+i_5'+2 = 0
--i_2+i_4'+2 = 0
--i_0+i_3'+1 = 0
-i_0-1 >= 0
--i_0+PB_Q-1 >= 0
--i_0+PB_M-1 >= 0
-i_1-2 >= 0
--i_1+PB_L-1 >= 0
--i_1+PB_M+1 >= 0
-i_2-3 >= 0
--i_2+PB_L-1 >= 0
-
-
---- Dep 8 from S1 to S1; satisfied: 0, sat level: -1; Type: WAR
-on variable: A
-Dependence polyhedron
-Set #1
-[9 dims; 8 constraints]
--i_1+i_2'+1 = 0
--i_2+i_1' = 0
+[5 dims; 5 constraints]
+-i_0+i_1' = 0
 -i_0+i_0' = 0
-i_0 >= 0
--i_0+PB_M-1 >= 0
-i_1-2 >= 0
--i_1+i_2-1 >= 0
--i_2+PB_L-1 >= 0
+i_0-1 >= 0
+-i_0+PB_N-1 >= 0
+-2i_0+PB_M >= 0
 
 
---- Dep 9 from S1 to S2; satisfied: 0, sat level: -1; Type: WAW
-on variable: A
+--- Dep 7 from S2 to S1; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
 Dependence polyhedron
 Set #1
-[9 dims; 11 constraints]
--i_2+i_5' = 0
--i_1+i_4'+2 = 0
--i_0+i_3'+1 = 0
+[5 dims; 5 constraints]
+-i_1+i_0'+1 = 0
 i_0-1 >= 0
--i_0+PB_Q-1 >= 0
--i_0+PB_M-1 >= 0
-i_1-3 >= 0
--i_1+PB_L-1 >= 0
-i_2 >= 0
--i_2+PB_L-1 >= 0
--i_2+PB_M-1 >= 0
+-i_0+i_1-2 >= 0
+-i_0-i_1+PB_M >= 0
+-i_1+PB_N >= 0
+
+
+--- Dep 8 from S2 to S1; satisfied: 0, sat level: -1; Type: WAW
+on variable: B
+Dependence polyhedron
+Set #1
+[5 dims; 5 constraints]
+-i_1+i_0' = 0
+i_0-1 >= 0
+-i_0+i_1-1 >= 0
+-i_0-i_1+PB_M >= 0
+-i_1+PB_N-1 >= 0
+
+
+--- Dep 9 from S2 to S2; satisfied: 0, sat level: -1; Type: WAW
+on variable: B
+Dependence polyhedron
+Set #1
+[6 dims; 6 constraints]
+-i_1+i_1' = 0
+i_0-1 >= 0
+-i_0+i_0'-1 >= 0
+i_1-i_0' >= 0
+-i_1-i_0'+PB_M >= 0
+-i_0'+PB_N-1 >= 0
+
+
+--- Dep 10 from S1 to S2; satisfied: 0, sat level: -1; Type: WAW
+on variable: B
+Dependence polyhedron
+Set #1
+[5 dims; 5 constraints]
+-i_0+i_1' = 0
+-i_0+i_0' = 0
+i_0-1 >= 0
+-i_0+PB_N-1 >= 0
+-2i_0+PB_M >= 0
 
 
 
 [plcg-info] After affine transformations
-T(S1): (i_0/32, i_1/32, (3i_1+i_2)/32, i_1, 3i_1+i_2, i_0, 0)
-loop types (loop, loop, loop, loop, loop, loop, scalar)
+T(S1): (i_0/32+2i_0/32, 2i_0/32, i_0, 2i_0, 0)
+loop types (loop, loop, loop, loop, scalar)
 
-T(S2): (zT3, zT4, zT5, i_4+i_5+2, 3i_4+4i_5+6, i_3+1, 1)
-loop types (loop, loop, loop, loop, loop, loop, scalar)
+T(S2): (i_0/32+(i_0+i_1)/32, (i_0+i_1)/32, i_0, i_0+i_1, 1)
+loop types (loop, loop, loop, loop, scalar)
 
 t1 --> unknown  loop   (band -1)no-ujam
 t2 --> unknown  loop   (band -1)no-ujam
 t3 --> unknown  loop   (band -1)no-ujam
 t4 --> unknown  loop   (band -1)no-ujam
-t5 --> unknown  loop   (band -1)no-ujam
-t6 --> unknown  loop   (band -1)no-ujam
-t7 --> unknown  scalar (band -1)no-ujam
+t5 --> unknown  scalar (band -1)no-ujam
 

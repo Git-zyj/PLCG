@@ -104,22 +104,20 @@ POLYBENCH_DUMP_FINISH;
 }
 void kernel_3122212221_00(int xa,int ya,int za,DATA_TYPE POLYBENCH_3D(A,xA,yA,zA,xa,ya,za),int xb,int yb,int zb,DATA_TYPE POLYBENCH_3D(B,xB,yB,zB,xb,yb,zb)){
 polybench_start_instruments;
-  int t1, t2, t3, t4, t5, t6;
+  int t1, t2, t3, t4, t5;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if ((PB_L >= 7) && (PB_M >= 3)) {
-  for (t1=0;t1<=min(floord(PB_L-2,8),floord(PB_L+3*PB_M-8,32));t1++) {
-    lbp=max(max(ceild(2*t1,3),ceild(32*t1-PB_L+1,32)),ceild(32*t1-PB_M+1,32));
-    ubp=min(min(min(floord(3*PB_L-7,32),floord(PB_L+2*PB_M-7,32)),floord(64*t1+PB_L+57,96)),t1);
-#pragma omp parallel for private(lbv,ubv,t3,t4,t5,t6)
-    for (t2=lbp;t2<=ubp;t2++) {
-      for (t3=max(ceild(96*t2-3*PB_L-47,64),3*t1-3*t2);t3<=min(min(min(floord(3*PB_M-3,32),floord(2*PB_L+PB_M-3,32)),floord(32*t2+PB_M+27,32)),floord(64*t1-64*t2+PB_M+61,32));t3++) {
-        for (t4=max(max(ceild(32*t2-PB_L+5,2),ceild(32*t3-PB_M+1,2)),32*t1-32*t2);t4<=min(min(min(min(floord(32*t3+31,3),PB_L-1),PB_M-1),16*t2+14),32*t1-32*t2+31);t4++) {
-          for (t5=max(max(32*t3,3*t4),2*t4+2);t5<=min(32*t3+31,2*t4+PB_M-1);t5++) {
-            for (t6=max(32*t2,2*t4+2);t6<=min(32*t2+31,2*t4+PB_L-5);t6++) {
-              A[(-2*t4+t5)][(-2*t4+t6)+2][(-2*t4+t6)-2] = B[(-2*t4+t5)][t4][(-2*t4+t6)-1] * A[(-2*t4+t5)-2][(-2*t4+t6)+2][(-2*t4+t6)-2] * A[(-2*t4+t5)][(-2*t4+t6)+4][(-2*t4+t6)] * 2;;
-            }
+if ((PB_L >= 1) && (PB_M >= 5)) {
+  for (t1=2;t1<=PB_M-3;t1++) {
+    for (t2=0;t2<=floord(PB_M+4*PB_L-6,32);t2++) {
+      lbp=max(ceild(3*t2,4),ceild(32*t2-PB_L+1,32));
+      ubp=min(min(floord(PB_M+3*PB_L-5,32),floord(96*t2+PB_M+91,128)),t2);
+#pragma omp parallel for private(lbv,ubv,t4,t5)
+      for (t3=lbp;t3<=ubp;t3++) {
+        for (t4=max(ceild(32*t3-PB_M+2,3),32*t2-32*t3);t4<=min(min(floord(32*t3+31,3),PB_L-1),32*t2-32*t3+31);t4++) {
+          for (t5=max(32*t3,3*t4);t5<=min(32*t3+31,3*t4+PB_M-2);t5++) {
+            A[t1][(-3*t4+t5)][(-3*t4+t5)] = B[(-3*t4+t5)][t1-2][t4] * A[t1-1][(-3*t4+t5)+1][(-3*t4+t5)+1] * A[(-3*t4+t5)+1][t1+2][t1+2] - 5;;
           }
         }
       }

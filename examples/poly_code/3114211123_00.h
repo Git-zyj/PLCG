@@ -2,12 +2,11 @@
 #define _3114211123_00_H
 /* params start */
 # define PB_M 30
-# define PB_L 40
-# define PB_P 50
+# define PB_L 50
+# define PB_P 30
 /* params end */
 # define xA PB_M
-# define yA PB_L
-# define zA PB_P
+# define yA PB_P
 # define xB PB_M
 # define yB PB_L
 # define zB PB_P

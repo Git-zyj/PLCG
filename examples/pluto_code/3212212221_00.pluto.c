@@ -113,100 +113,55 @@ polybench_start_instruments;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if ((PB_L >= max(0,ceild(-4*PB_Q+20,5))) && (PB_Q >= 0)) {
-  for (t1=0;t1<=min(floord(PB_L+3*PB_Q-1,32),floord(11*PB_L+12*PB_Q-32,128));t1++) {
-    for (t2=max(max(0,ceild(32*t1-PB_L-2*PB_Q-26,32)),ceild(1088*t1-34*PB_L-95*PB_Q+34,224));t2<=min(min(floord(t1,2),floord(PB_Q,32)),floord(3*PB_L+4*PB_Q-12,128));t2++) {
-      for (t3=max(max(max(ceild(32*t1-32*t2-PB_L-PB_Q-59,32),ceild(32*t1-PB_L-PB_Q-58,64)),ceild(1056*t1-33*PB_L-92*PB_Q+33,224)),t2);t3<=min(min(min(floord(PB_Q,32),floord(PB_L+2*PB_Q-4,64)),floord(-64*t1+64*t2+2*PB_L+31*PB_Q-2,864)),t1-t2);t3++) {
-        if ((PB_Q >= 5) && (t2 == 0) && (t3 == 0)) {
-          for (t4=max(3,32*t1);t4<=min(min(min(PB_L-1,PB_Q+58),3*PB_Q-8),32*t1+31);t4++) {
-            A[t4-2] = C[t4] * C[t4] * A[t4-3] + 1;;
-            lbp=max(max(0,t4-2*PB_Q+5),t4-PB_Q-28);
-            ubp=min(min(30,floord(t4-3,2)),PB_Q-3);
-#pragma omp parallel for private(lbv,ubv,t6)
-            for (t5=lbp;t5<=ubp;t5++) {
-              lbv=max(t5+1,t4-t5-PB_Q+3);
-              ubv=min(min(31,PB_Q-2),t4-t5-2);
-#pragma ivdep
-#pragma vector always
-              for (t6=lbv;t6<=ubv;t6++) {
-                B[t5][(t4-t5-t6)][t6] = B[t5][(t4-t5-t6)][t6+1] + B[t5][(t4-t5-t6)-2][t6] * B[t6+2][t5][(t4-t5-t6)+2] + 1;;
-              }
-            }
-          }
-        }
-        if ((PB_Q <= 4) && (t2 == 0) && (t3 == 0)) {
-          for (t4=max(3,32*t1);t4<=min(PB_L-1,32*t1+31);t4++) {
-            A[t4-2] = C[t4] * C[t4] * A[t4-3] + 1;;
-          }
-        }
-        if ((PB_Q >= 5) && (t2 == 0) && (t3 == 0)) {
-          for (t4=max(32*t1,3*PB_Q-7);t4<=min(min(PB_L-1,PB_Q+58),32*t1+31);t4++) {
-            A[t4-2] = C[t4] * C[t4] * A[t4-3] + 1;;
-          }
-        }
-        if ((t2 <= floord(PB_Q-3,32)) && (t3 >= 1) && (t3 <= floord(PB_Q-2,32))) {
-          for (t4=max(max(32*t1,64*t2+3),32*t2+32*t3+2);t4<=min(min(min(min(3*PB_Q-8,32*t1+31),32*t2+2*PB_Q+26),64*t3+PB_Q+58),32*t2+32*t3+PB_Q+59);t4++) {
-            lbp=max(max(32*t2,t4-2*PB_Q+5),-32*t3+t4-PB_Q-28);
-            ubp=min(min(min(min(floord(t4-3,2),PB_Q-3),32*t2+31),32*t3+30),-32*t3+t4-2);
-#pragma omp parallel for private(lbv,ubv,t6)
-            for (t5=lbp;t5<=ubp;t5++) {
-              lbv=max(max(32*t3,t5+1),t4-t5-PB_Q+3);
-              ubv=min(min(PB_Q-2,32*t3+31),t4-t5-2);
-#pragma ivdep
-#pragma vector always
-              for (t6=lbv;t6<=ubv;t6++) {
-                B[t5][(t4-t5-t6)][t6] = B[t5][(t4-t5-t6)][t6+1] + B[t5][(t4-t5-t6)-2][t6] * B[t6+2][t5][(t4-t5-t6)+2] + 1;;
-              }
-            }
-          }
-        }
-        if ((PB_Q >= 5) && (t2 == 0) && (t3 == 0)) {
-          for (t4=max(max(3,PB_L),32*t1);t4<=min(min(PB_Q+58,3*PB_Q-8),32*t1+31);t4++) {
-            lbp=max(max(0,t4-2*PB_Q+5),t4-PB_Q-28);
-            ubp=min(min(30,floord(t4-3,2)),PB_Q-3);
-#pragma omp parallel for private(lbv,ubv,t6)
-            for (t5=lbp;t5<=ubp;t5++) {
-              lbv=max(t5+1,t4-t5-PB_Q+3);
-              ubv=min(min(31,PB_Q-2),t4-t5-2);
-#pragma ivdep
-#pragma vector always
-              for (t6=lbv;t6<=ubv;t6++) {
-                B[t5][(t4-t5-t6)][t6] = B[t5][(t4-t5-t6)][t6+1] + B[t5][(t4-t5-t6)-2][t6] * B[t6+2][t5][(t4-t5-t6)+2] + 1;;
-              }
-            }
-          }
-        }
-        if ((PB_Q >= 5) && (t2 == 0) && (t3 == 0)) {
-          for (t4=max(32*t1,PB_Q+59);t4<=min(PB_L-1,32*t1+31);t4++) {
-            A[t4-2] = C[t4] * C[t4] * A[t4-3] + 1;;
-          }
+if (PB_N >= 5) {
+  for (t1=0;t1<=floord(PB_N-3,32);t1++) {
+    for (t2=0;t2<=floord(PB_N-1,32);t2++) {
+      if ((PB_L <= -1) && (t2 == 0)) {
+        for (t4=max(2,32*t1);t4<=min(PB_N-3,32*t1+31);t4++) {
+          A[t4] = C[t4+2] + C[t4] * A[t4-1] - A[t4-2] - A[t4+2] + 5;;
         }
       }
-    }
-  }
-}
-if ((PB_L >= 4) && (PB_Q <= -1)) {
-  for (t1=0;t1<=floord(PB_L-1,32);t1++) {
-    for (t4=max(3,32*t1);t4<=min(PB_L-1,32*t1+31);t4++) {
-      A[t4-2] = C[t4] * C[t4] * A[t4-3] + 1;;
-    }
-  }
-}
-if ((PB_L <= -1) && (PB_Q >= 5)) {
-  for (t1=0;t1<=floord(3*PB_Q-8,32);t1++) {
-    for (t2=max(0,ceild(16*t1-PB_Q-13,16));t2<=min(floord(t1,2),floord(PB_Q-3,32));t2++) {
-      for (t3=max(max(ceild(32*t1-32*t2-PB_Q-59,32),ceild(32*t1-PB_Q-58,64)),t2);t3<=min(floord(PB_Q-2,32),t1-t2);t3++) {
-        for (t4=max(max(32*t1,64*t2+3),32*t2+32*t3+2);t4<=min(min(min(min(3*PB_Q-8,32*t1+31),32*t2+2*PB_Q+26),64*t3+PB_Q+58),32*t2+32*t3+PB_Q+59);t4++) {
-          lbp=max(max(32*t2,t4-2*PB_Q+5),-32*t3+t4-PB_Q-28);
-          ubp=min(min(min(min(floord(t4-3,2),PB_Q-3),32*t2+31),32*t3+30),-32*t3+t4-2);
-#pragma omp parallel for private(lbv,ubv,t6)
-          for (t5=lbp;t5<=ubp;t5++) {
-            lbv=max(max(32*t3,t5+1),t4-t5-PB_Q+3);
-            ubv=min(min(PB_Q-2,32*t3+31),t4-t5-2);
+      for (t3=0;t3<=min(floord(PB_L,32),floord(-32*t2+PB_N+4*PB_L-5,128));t3++) {
+        if ((PB_L >= 1) && (t2 == 0) && (t3 == 0)) {
+          for (t4=max(2,32*t1);t4<=min(PB_N-3,32*t1+31);t4++) {
+            B[0][t4][0] = 1;;
+            A[t4] = C[t4+2] + C[t4] * A[t4-1] - A[t4-2] - A[t4+2] + 5;;
+            lbv=1;
+            ubv=min(31,PB_L-1);
 #pragma ivdep
 #pragma vector always
             for (t6=lbv;t6<=ubv;t6++) {
-              B[t5][(t4-t5-t6)][t6] = B[t5][(t4-t5-t6)][t6+1] + B[t5][(t4-t5-t6)-2][t6] * B[t6+2][t5][(t4-t5-t6)+2] + 1;;
+              B[0][t4][t6] = 1;;
+            }
+            for (t5=1;t5<=min(31,PB_N-1);t5++) {
+              lbv=0;
+              ubv=min(31,PB_L-1);
+#pragma ivdep
+#pragma vector always
+              for (t6=lbv;t6<=ubv;t6++) {
+                B[t5][t4][t6] = 1;;
+              }
+            }
+          }
+        }
+        if ((PB_L == 0) && (t2 == 0) && (t3 == 0)) {
+          for (t4=max(2,32*t1);t4<=min(PB_N-3,32*t1+31);t4++) {
+            A[t4] = C[t4+2] + C[t4] * A[t4-1] - A[t4-2] - A[t4+2] + 5;;
+          }
+        }
+        if ((t2 >= -t3+1) && (t3 <= floord(PB_L-1,32))) {
+          lbp=max(2,32*t1);
+          ubp=min(PB_N-3,32*t1+31);
+#pragma omp parallel for private(lbv,ubv,t5,t6)
+          for (t4=lbp;t4<=ubp;t4++) {
+            for (t5=32*t2;t5<=min(PB_N-1,32*t2+31);t5++) {
+              lbv=32*t3;
+              ubv=min(PB_L-1,32*t3+31);
+#pragma ivdep
+#pragma vector always
+              for (t6=lbv;t6<=ubv;t6++) {
+                B[t5][t4][t6] = 1;;
+              }
             }
           }
         }

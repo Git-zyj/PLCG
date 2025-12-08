@@ -125,10 +125,10 @@ POLYBENCH_DUMP_FINISH;
 void kernel_3124132213_00(int xa,int ya,int za,DATA_TYPE POLYBENCH_3D(A,xA,yA,zA,xa,ya,za),int xb,int yb,int zb,DATA_TYPE POLYBENCH_3D(B,xB,yB,zB,xb,yb,zb),int xc,int yc,DATA_TYPE POLYBENCH_2D(C,xC,yC,xc,yc)){
 polybench_start_instruments;
 #pragma scop
-    for (int i_0 = 1; i_0 < PB_L-2; i_0++) {
-        for (int i_1 = 0; i_1 < PB_L-1; i_1++) {
-            for (int i_2 = 1; i_2 < PB_P-1; i_2++) {
-                A[i_0][i_0][i_1] = B[i_1+1][i_2+1][i_0] - C[i_2-1][i_0+2] + B[i_0+1][i_2][i_1] - A[i_0-1][i_0-1][i_1] * A[i_0][i_0][i_1+1] - 2;
+    for (int i_0 = 0; i_0 < PB_L; i_0++) {
+        for (int i_1 = 0; i_1 < i_0; i_1++) {
+            for (int i_2 = i_1; i_2 < min(-i_0+PB_L, -i_1+PB_M); i_2++) {
+                A[i_2+i_0][i_1+2][i_1] = B[i_2+i_1][i_0][i_1] + C[i_1][i_2] * C[i_0][i_1] + A[i_2+i_0][i_1+2][i_1] * A[i_2+i_0][i_1+3][i_1+1] + 5;
             }
         }
     }

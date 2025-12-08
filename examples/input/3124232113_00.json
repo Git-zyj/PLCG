@@ -1,15 +1,17 @@
 {
     "params": {
-        "PB_M": 30,
+        "PB_N": 40,
+        "PB_M": 50,
         "PB_L": 50,
         "PB_P": 50
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_M,PB_M,PB_L]",
-        "B[PB_M,PB_L]",
-        "C[PB_M,PB_L,PB_P]"
+        "A[PB_N,PB_M]",
+        "B[PB_M,PB_L,PB_P]",
+        "C[PB_M,PB_L,PB_P,PB_P]",
+        "D[PB_M,PB_L]"
     ],
     "instructions": [
         {
@@ -33,21 +35,15 @@
                     "array_access_function": [
                         [
                             0,
-                            1,
-                            0,
-                            0
-                        ],
-                        [
-                            -1,
                             0,
                             1,
-                            0
-                        ],
-                        [
-                            -1,
-                            0,
-                            0,
                             1
+                        ],
+                        [
+                            1,
+                            0,
+                            0,
+                            0
                         ]
                     ]
                 },
@@ -60,13 +56,19 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
+                            2,
                             0,
-                            0,
-                            0,
+                            1,
                             1
                         ],
                         [
                             0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            -2,
                             0,
                             1,
                             0
@@ -82,19 +84,25 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
                             1,
                             0,
                             1,
                             0
                         ],
                         [
-                            -2,
+                            0,
                             0,
                             0,
                             1
                         ],
                         [
-                            -2,
+                            -1,
                             1,
                             0,
                             0
@@ -106,23 +114,17 @@
                         0,
                         3
                     ],
-                    "array_name": "C",
+                    "array_name": "D",
                     "array_type": "read",
                     "array_access_function": [
                         [
                             0,
+                            0,
                             1,
-                            0,
-                            0
-                        ],
-                        [
-                            0,
-                            0,
-                            0,
                             1
                         ],
                         [
-                            2,
+                            -1,
                             0,
                             1,
                             0
@@ -139,11 +141,9 @@
                     "category": "read",
                     "distance": [
                         0,
-                        1,
-                        0
+                        1
                     ],
                     "mapping": {
-                        "0": 0,
                         "1": 1,
                         "2": 2
                     },

@@ -1,13 +1,14 @@
 {
     "params": {
-        "PB_M": 4000,
+        "PB_M": 7000,
         "PB_L": 7000
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
         "A[PB_M]",
-        "B[PB_L]"
+        "B[PB_M]",
+        "C[PB_M,PB_L]"
     ],
     "instructions": [
         {
@@ -26,7 +27,7 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
-                            0,
+                            1,
                             1
                         ]
                     ]
@@ -40,7 +41,7 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            1,
+                            0,
                             1
                         ]
                     ]
@@ -50,9 +51,13 @@
                         0,
                         2
                     ],
-                    "array_name": "B",
+                    "array_name": "C",
                     "array_type": "read",
                     "array_access_function": [
+                        [
+                            -1,
+                            1
+                        ],
                         [
                             0,
                             1
@@ -68,7 +73,7 @@
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            1,
+                            0,
                             1
                         ]
                     ]
@@ -82,7 +87,7 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1
+                        2
                     ],
                     "mapping": {
                         "0": 0

@@ -1,19 +1,22 @@
 {
     "params": {
-        "PB_M": 90,
-        "PB_L": 90,
-        "PB_P": 60
+        "PB_M": 90
     },
     "max_degree": 1,
     "special_loop_bounds": {
         "i_1": [
             "0",
             "i_0"
+        ],
+        "i_3": [
+            "i_2",
+            "inf"
         ]
     },
     "arrays": [
-        "A[PB_M,PB_P]",
-        "C[PB_M,PB_L]"
+        "A[PB_M]",
+        "B[PB_M]",
+        "C[PB_M]"
     ],
     "instructions": [
         {
@@ -34,14 +37,9 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
-                            0,
+                            1,
                             0,
                             1
-                        ],
-                        [
-                            -1,
-                            1,
-                            0
                         ]
                     ]
                 },
@@ -56,11 +54,6 @@
                         [
                             0,
                             0,
-                            1
-                        ],
-                        [
-                            0,
-                            1,
                             0
                         ]
                     ]
@@ -74,27 +67,9 @@
                     ],
                     "category": "read",
                     "distance": [
-                        -1,
-                        0
+                        1
                     ],
                     "mapping": {
-                        "0": 0,
-                        "1": 1
-                    },
-                    "parent_stmt_id": 0
-                },
-                {
-                    "array_id": [
-                        0,
-                        3
-                    ],
-                    "category": "read",
-                    "distance": [
-                        1,
-                        0
-                    ],
-                    "mapping": {
-                        "0": 0,
                         "1": 1
                     },
                     "parent_stmt_id": 0
@@ -103,30 +78,25 @@
         },
         {
             "schedule": [
-                0,
-                "i_0",
                 1,
                 "i_2",
+                0,
+                "i_3",
                 0
             ],
             "additional_computation": [
                 {
                     "array_id": [
                         1,
-                        1
+                        0
                     ],
-                    "array_name": "C",
-                    "array_type": "read",
+                    "array_name": "B",
+                    "array_type": "write",
                     "array_access_function": [
                         [
                             0,
-                            1,
-                            0
-                        ],
-                        [
                             0,
-                            0,
-                            0
+                            1
                         ]
                     ]
                 }
@@ -135,18 +105,30 @@
                 {
                     "array_id": [
                         1,
-                        0
+                        1
                     ],
-                    "category": "write",
+                    "category": "read",
                     "distance": [
-                        0,
-                        0
+                        1
                     ],
                     "mapping": {
-                        "0": 0,
                         "1": 1
                     },
-                    "parent_stmt_id": 0
+                    "parent_stmt_id": 1
+                },
+                {
+                    "array_id": [
+                        1,
+                        2
+                    ],
+                    "category": "read",
+                    "distance": [
+                        -1
+                    ],
+                    "mapping": {
+                        "1": 1
+                    },
+                    "parent_stmt_id": 1
                 }
             ]
         }

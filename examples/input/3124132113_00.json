@@ -1,11 +1,13 @@
 {
     "params": {
-        "PB_M": 5000
+        "PB_M": 8000,
+        "PB_L": 8000,
+        "PB_P": 5000
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_M]",
+        "A[PB_L,PB_P]",
         "B[PB_M]"
     ],
     "instructions": [
@@ -25,8 +27,12 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
-                            -1,
+                            -2,
                             1
+                        ],
+                        [
+                            2,
+                            0
                         ]
                     ]
                 },

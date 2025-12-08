@@ -1,13 +1,21 @@
 {
     "params": {
-        "PB_M": 80,
-        "PB_L": 60
+        "PB_M": 60,
+        "PB_L": 90,
+        "PB_P": 70
     },
     "max_degree": 1,
-    "special_loop_bounds": {},
+    "special_loop_bounds": {
+        "i_1": [
+            "0",
+            "i_0"
+        ]
+    },
     "arrays": [
-        "A[PB_M,PB_M]",
-        "B[PB_M,PB_L]"
+        "A[PB_M,PB_L]",
+        "B[PB_M,PB_M]",
+        "C[PB_L,PB_L,PB_P]",
+        "D[PB_M]"
     ],
     "instructions": [
         {
@@ -28,14 +36,14 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
-                            0,
-                            0,
-                            1
+                            -2,
+                            1,
+                            0
                         ],
                         [
                             0,
-                            1,
-                            0
+                            0,
+                            1
                         ]
                     ]
                 },
@@ -64,11 +72,11 @@
                         0,
                         2
                     ],
-                    "array_name": "B",
+                    "array_name": "C",
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            -2,
+                            2,
                             1,
                             0
                         ],
@@ -76,6 +84,11 @@
                             0,
                             0,
                             1
+                        ],
+                        [
+                            0,
+                            0,
+                            0
                         ]
                     ]
                 },
@@ -84,14 +97,9 @@
                         0,
                         3
                     ],
-                    "array_name": "B",
+                    "array_name": "D",
                     "array_type": "read",
                     "array_access_function": [
-                        [
-                            -1,
-                            1,
-                            0
-                        ],
                         [
                             0,
                             1,
@@ -108,8 +116,8 @@
                     ],
                     "category": "read",
                     "distance": [
-                        -1,
-                        0
+                        2,
+                        1
                     ],
                     "mapping": {
                         "0": 0,

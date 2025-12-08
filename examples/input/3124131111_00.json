@@ -1,22 +1,20 @@
 {
     "params": {
-        "PB_M": 100,
-        "PB_L": 60
+        "PB_N": 6000,
+        "PB_M": 7000
     },
     "max_degree": 1,
     "special_loop_bounds": {},
     "arrays": [
-        "A[PB_M,PB_L]",
-        "B[PB_M,PB_L]",
-        "C[PB_L]"
+        "A[PB_M]",
+        "B[PB_N]",
+        "C[PB_N,PB_N]"
     ],
     "instructions": [
         {
             "schedule": [
                 0,
                 "i_0",
-                0,
-                "i_1",
                 0
             ],
             "additional_computation": [
@@ -30,13 +28,7 @@
                     "array_access_function": [
                         [
                             1,
-                            1,
-                            0
-                        ],
-                        [
-                            0,
-                            0,
-                            0
+                            1
                         ]
                     ]
                 },
@@ -50,12 +42,6 @@
                     "array_access_function": [
                         [
                             0,
-                            1,
-                            0
-                        ],
-                        [
-                            0,
-                            0,
                             1
                         ]
                     ]
@@ -65,18 +51,16 @@
                         0,
                         2
                     ],
-                    "array_name": "B",
+                    "array_name": "C",
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            0,
                             1,
-                            0
+                            1
                         ],
                         [
                             1,
-                            0,
-                            1
+                            0
                         ]
                     ]
                 },
@@ -85,11 +69,10 @@
                         0,
                         3
                     ],
-                    "array_name": "C",
+                    "array_name": "B",
                     "array_type": "read",
                     "array_access_function": [
                         [
-                            -1,
                             0,
                             1
                         ]

@@ -1,0 +1,228 @@
+[plcg-info] Before affine transformations
+nvar = 2, npar = 3
+Parameters: PB_M PB_P PB_L 
+S1 "A[i_0] = 5;"
+ndims: 1; orig_depth: 1
+iterators: i_0
+Index set
+3 6
+1 1 0 0 0 0 
+1 -1 1 0 0 -1 
+1 0 1 0 0 -1 
+T(S1): (0, i_0, 0, 0, 0)
+loop types (loop, loop, loop, scalar, scalar)
+
+No Read accesses
+Write accesses
+A[i_0]
+Original loop: 0 -> yes
+
+S2 "B[i_2-2][i_2] = C[i_2][i_2+i_1] * B[i_2-1][i_2+1] - B[i_2-3][i_2-1] * B[i_2-3][i_2-1] + B[i_2-3][i_2-1] * 1;"
+ndims: 2; orig_depth: 2
+iterators: i_1, i_2
+Index set
+8 7
+1 1 0 0 0 0 0 
+1 -1 0 0 1 0 -1 
+1 0 0 0 1 0 -1 
+1 0 1 0 0 0 -3 
+1 -1 -1 0 1 0 -1 
+1 0 -1 0 0 1 -1 
+1 -1 0 0 1 0 -4 
+1 0 0 0 0 1 -4 
+T(S2): (1, i_1, 0, i_2, 0)
+loop types (loop, loop, loop, loop, loop)
+
+Read accesses
+C[i_2][i_1+i_2]
+B[i_2-1][i_2+1]
+B[i_2-3][i_2-1]
+B[i_2-3][i_2-1]
+B[i_2-3][i_2-1]
+Write accesses
+B[i_2-2][i_2]
+Original loop: 0 -> yes
+Original loop: 1 -> yes
+
+--- Dep 1 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'-1 = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-2 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P-2 >= 0
+
+
+--- Dep 2 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'-1 = 0
+-i_1+i_1' = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-2 >= 0
+-i_1-i_2+PB_P-2 >= 0
+
+
+--- Dep 3 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'+1 = 0
+i_1 >= 0
+i_2-4 >= 0
+-i_2+PB_L-1 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P >= 0
+
+
+--- Dep 4 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'-1 = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-2 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P-2 >= 0
+
+
+--- Dep 5 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'-1 = 0
+-i_1+i_1' = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-2 >= 0
+-i_1-i_2+PB_P-2 >= 0
+
+
+--- Dep 6 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'-1 = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-2 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P-2 >= 0
+
+
+--- Dep 7 from S2 to S2; satisfied: 0, sat level: -1; Type: RAW
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'-1 = 0
+-i_1+i_1' = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-2 >= 0
+-i_1-i_2+PB_P-2 >= 0
+
+
+--- Dep 8 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'-1 = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-2 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P-2 >= 0
+
+
+--- Dep 9 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'-1 = 0
+-i_1+i_1' = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-2 >= 0
+-i_1-i_2+PB_P-2 >= 0
+
+
+--- Dep 10 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'+1 = 0
+i_1 >= 0
+i_2-4 >= 0
+-i_2+PB_L-1 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P >= 0
+
+
+--- Dep 11 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'+1 = 0
+i_1 >= 0
+i_2-4 >= 0
+-i_2+PB_L-1 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P >= 0
+
+
+--- Dep 12 from S2 to S2; satisfied: 0, sat level: -1; Type: WAR
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2'+1 = 0
+i_1 >= 0
+i_2-4 >= 0
+-i_2+PB_L-1 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P >= 0
+
+
+--- Dep 13 from S2 to S2; satisfied: 0, sat level: -1; Type: WAW
+on variable: B
+Dependence polyhedron
+Set #1
+[7 dims; 6 constraints]
+-i_2+i_2' = 0
+i_1 >= 0
+i_2-3 >= 0
+-i_2+PB_L-1 >= 0
+-i_1+i_1'-1 >= 0
+-i_2-i_1'+PB_P-1 >= 0
+
+
+
+[plcg-info] After affine transformations
+T(S1): (i_0/32, 0, i_0, 0)
+loop types (loop, scalar, loop, scalar)
+
+T(S2): (i_1/32, (i_1+i_2)/32, i_1, i_1+i_2)
+loop types (loop, loop, loop, loop)
+
+t1 --> unknown  loop   (band -1)no-ujam
+t2 --> unknown  loop   (band -1)no-ujam
+t3 --> unknown  loop   (band -1)no-ujam
+t4 --> unknown  loop   (band -1)no-ujam
+

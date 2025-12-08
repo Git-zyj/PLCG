@@ -1,7 +1,7 @@
 #ifndef _2122132121_00_H
 #define _2122132121_00_H
 /* params start */
-# define PB_M 5000
+# define PB_M 6000
 /* params end */
 # define xA PB_M
 # define xB PB_M

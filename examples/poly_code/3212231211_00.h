@@ -6,21 +6,15 @@
 # define PB_P 30
 # define PB_Q 50
 /* params end */
-# define xA PB_L
-# define yA PB_P
-# define zA PB_Q
+# define xA PB_M
 # define xB PB_L
-# define yB PB_Q
+# define yB PB_P
+# define zB PB_Q
 # define xC PB_M
-# define yC PB_L
-# define xD PB_M
-# define yD PB_P
-# define zD PB_Q
+# define xD PB_L
 # define xE PB_M
 # define yE PB_M
 # define zE PB_L
-# define xF PB_M
-# define yF PB_M
 # if !defined(DATA_TYPE_IS_FLOAT) && !defined(DATA_TYPE_IS_DOUBLE)
 #  define DATA_TYPE_IS_DOUBLE
 # endif

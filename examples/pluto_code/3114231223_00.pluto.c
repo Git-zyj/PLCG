@@ -97,13 +97,13 @@ POLYBENCH_DUMP_FINISH;
 }
 void kernel_3114231223_00(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xb,DATA_TYPE POLYBENCH_1D(B,xB,xb),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc)){
 polybench_start_instruments;
-  int t1;
+  int t1, t2, t3;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 4) {
-  for (t1=1;t1<=PB_M-3;t1++) {
-    A[t1+1] = B[t1] + C[t1-1] * C[t1] * A[t1+2] + A[t1-1] + 1;;
+if (PB_M >= 3) {
+  for (t2=-PB_M+1;t2<=-2;t2++) {
+    A[-t2] = B[-t2] + C[-t2] - C[-t2] - A[-t2-2] + A[-t2-1] + 5;;
   }
 }
 /* End of CLooG code */

@@ -103,7 +103,7 @@ polybench_start_instruments;
 /* Start of CLooG code */
 if (PB_M >= 3) {
   for (t1=2;t1<=PB_M-1;t1++) {
-    A[t1] = B[t1] + C[t1-1] - C[t1+1] + A[t1-2] - 2;;
+    A[t1] = B[t1] - C[t1] * C[t1] - A[t1-2] - 5;;
   }
 }
 /* End of CLooG code */

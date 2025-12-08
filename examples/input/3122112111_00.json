@@ -1,7 +1,7 @@
 {
     "params": {
-        "PB_M": 80,
-        "PB_L": 70
+        "PB_M": 60,
+        "PB_L": 90
     },
     "max_degree": 1,
     "special_loop_bounds": {},
@@ -28,14 +28,14 @@
                     "array_type": "write",
                     "array_access_function": [
                         [
-                            1,
+                            0,
                             0,
                             1
                         ],
                         [
                             0,
-                            1,
-                            0
+                            0,
+                            1
                         ]
                     ]
                 },
@@ -68,11 +68,9 @@
                     ],
                     "category": "read",
                     "distance": [
-                        1,
-                        1
+                        -1
                     ],
                     "mapping": {
-                        "0": 0,
                         "1": 1
                     },
                     "parent_stmt_id": 0

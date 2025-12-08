@@ -6,6 +6,7 @@ import time
 import subprocess as sp
 import datetime
 import logging
+from matplotlib.pylab import str_
 import numpy as np
 import traceback
 import sys
@@ -20,6 +21,9 @@ from collections import Counter
 from loop_properties_generator import Loop_Properties_Generator
 from c_code_generator import C_Code_Generator
 from path_settings import DATASET_PATH, json_input_path, target_path, kernel_list_path
+
+random.seed(0)
+np.random.seed(0)
 
 def setup_logging(log_dir):
     """配置日志系统"""
@@ -58,16 +62,19 @@ def parse_arguments():
     
     parser = ap.ArgumentParser(description=parser_description)
     parser.add_argument("--option", dest="option", 
-                       help="generation option (0: single, 1: sequential 32, 2: parallel 1024, 3: parallel 34992, 4: parallel 349920, 5: parallel 129600)", 
+                       help="generation option (0: single, 1: sequential 32, 2: parallel 2048, 3: parallel 34992, 4: parallel 349920, 5: parallel 129600)", 
                        type=int, choices=[0, 1, 2, 3, 4, 5], default=2)
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
                        type=int, default=min(mp.cpu_count(), 16))
     parser.add_argument("--batch-size", dest="batch_size", 
                        help="batch size to reduce memory usage", 
-                       type=int, default=1000)
+                       type=int, default=2000)
     parser.add_argument("--no-clean", action="store_true",
                        help="do not clean output directories before generation")
+    parser.add_argument("--seed", dest="seed",
+                       help="random seed for reproducibility",
+                       type=str, default=None)
     
     args = parser.parse_args()
     
@@ -78,6 +85,9 @@ class Random_Generator:
         self.batch_size = args.batch_size
         self.num_processes = args.num_processes
         self.option = args.option
+        
+        if self.option == 0:
+            self.seed = args.seed
         
         self.setup_paths()
         
@@ -112,7 +122,7 @@ class Random_Generator:
         
         for path in [self.json_input_path, self.target_path]:
             if path.exists():
-                shutil.rmtree(path)
+                sp.run(['rm', '-rf', str(path)])
             path.mkdir(parents=True, exist_ok=True)
         
         # copy polybench.c and .h
@@ -140,20 +150,20 @@ class Random_Generator:
             self.logger.error(f"Failed to count files in {path}: {e}")
             return 0
     
-    def generate_single_file(self, args):
+    def generate_single_file(self, task_index, params):
         """
         适用于并行生成的单个文件生成
         """
         (arg_depth, arg_nstmts, arg_bounds_index, arg_prob_bounds_exist, 
             arg_narrays_per_dim, arg_avg_narrays_read_per_stmt, arg_bounds_coef, 
-            arg_avg_ndeps_read_per_stmt, arg_bounds_distance, arg_prob_dep_write_exist, id) = args
+            arg_avg_ndeps_read_per_stmt, arg_bounds_distance, arg_prob_dep_write_exist, id) = params
         
         task_seed = f"{arg_depth}{arg_nstmts}{arg_bounds_index}{arg_prob_bounds_exist}{arg_narrays_per_dim}{arg_avg_narrays_read_per_stmt}{arg_bounds_coef}{arg_avg_ndeps_read_per_stmt}{arg_bounds_distance}{arg_prob_dep_write_exist}"
         
         task_id = f"{task_seed}_{id:02d}"
         
-        random.seed(int(task_seed))
-        np.random.seed(int(task_seed))
+        random.seed(task_index)
+        np.random.seed(task_index)
         
         try:
             # 为每个进程创建独立的生成器实例，传入统一的日志文件位置
@@ -189,11 +199,13 @@ class Random_Generator:
         except (IndexError, ValueError, KeyError) as e:
             error_type = type(e).__name__
             error_msg = f"{error_type} in {task_id}: {str(e)}"
+            self.logger.error(error_msg)
             return "error", task_id, error_type
             
         except Exception as e:
             error_type = type(e).__name__
             error_msg = f"UNEXPECTED ERROR in {task_id}: {error_type}: {str(e)}"
+            self.logger.error(error_msg)
             return "error", task_id, error_type
     
     def process_batch(self, batch_tasks, batch_num, total_batches):
@@ -207,8 +219,7 @@ class Random_Generator:
         with ProcessPoolExecutor(max_workers=self.num_processes) as executor:
             # 提交所有任务
             future_to_task = {
-                executor.submit(self.generate_single_file, task): task 
-                for task in batch_tasks
+                executor.submit(self.generate_single_file, task_index, params): (task_index, params) for task_index, params in batch_tasks
             }
             
             # 处理完成的任务
@@ -226,7 +237,8 @@ class Random_Generator:
                         self.logger.error(f"✗ {task_id}: {error_type}")
                     
                     # 进度报告
-                    if i % 100 == 0:
+                    length_report_section = len(batch_tasks) // 4
+                    if i % length_report_section == 0:
                         progress = i / len(batch_tasks) * 100
                         self.logger.info(f"Batch {batch_num} progress: {i}/{len(batch_tasks)} ({progress:.1f}%)")
                         
@@ -281,7 +293,7 @@ class Random_Generator:
                 range(1, 3),      # arg_avg_ndeps_read_per_stmt
                 range(1, 3),      # arg_bounds_distance
                 range(1, 4, 2),   # arg_prob_dep_write_exist
-                [0]               # id
+                range(2)               # id
             ]
         elif option == 3:
             # 中规模并行 - 34992 tasks
@@ -331,19 +343,25 @@ class Random_Generator:
         else:
             raise ValueError(f"Unsupported option: {option}")
     
-    def run_single_generation(self):
+    def run_single_generation(self, params):
         """单次运行生成（用于调试）"""
         self.logger.info("Starting single generation for debugging...")
         
         loop_properties_generator = Loop_Properties_Generator(
-            log_level=logging.WARNING, 
+            log_level=logging.DEBUG, 
             log_path=str(self.log_file)
         )
         c_code_generator = C_Code_Generator(
-            log_level=logging.WARNING, 
+            log_level=logging.DEBUG, 
             log_path=str(self.log_file)
         )
-        file_path = loop_properties_generator.generate_json_file()
+        
+        if params is None:
+            params = []
+        else:
+            params = [int(param) for param in params]
+        
+        file_path = loop_properties_generator.generate_json_file(*params)
         c_code_generator.generate_c_code(file_path)
         
         self.success_count = 1
@@ -355,11 +373,11 @@ class Random_Generator:
         param_ranges = self.get_parameter_ranges(1)
         
         loop_properties_generator = Loop_Properties_Generator(
-            log_level=logging.WARNING, 
+            log_level=logging.DEBUG, 
             log_path=str(self.log_file)
         )
         c_code_generator = C_Code_Generator(
-            log_level=logging.WARNING, 
+            log_level=logging.DEBUG, 
             log_path=str(self.log_file)
         )
         
@@ -391,7 +409,7 @@ class Random_Generator:
         start_time = time.time()
         
         # 分批处理
-        all_tasks = list(it.product(*param_ranges))
+        all_tasks = list(enumerate(it.product(*param_ranges)))
         batches = [all_tasks[i:i + self.batch_size] for i in range(0, len(all_tasks), self.batch_size)]
         
         for i, batch in enumerate(batches, 1):
@@ -445,7 +463,7 @@ class Random_Generator:
         """运行生成流程"""
         try:
             if self.option == 0:
-                self.run_single_generation()
+                self.run_single_generation(self.seed)
             elif self.option == 1:
                 self.run_sequential_generation()
             elif self.option in [2, 3, 4, 5]:

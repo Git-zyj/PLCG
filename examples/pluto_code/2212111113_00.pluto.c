@@ -29,26 +29,30 @@ id: 0
 #else
 #define INIT_SEED atoi(argv[1])
 #endif
-static void init_array(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc),int seed)
+static void init_array(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc),int seed)
 {
 srand(seed);
-int i_0;
+int i_0, i_1;
 for (i_0 = 0; i_0 < xa; i_0++) {
-    A[i_0] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
+    for (i_1 = 0; i_1 < ya; i_1++) {
+        A[i_0][i_1] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
+    }
 }
 for (i_0 = 0; i_0 < xc; i_0++) {
     C[i_0] = 0.9 + (rand() / (DATA_TYPE)RAND_MAX) * (1.1 - 0.9);
 }
 }
-static void print_array(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc))
+static void print_array(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc))
 {
-int i_0;
+int i_0, i_1;
 POLYBENCH_DUMP_START;
 #ifdef CHECKELEM
     POLYBENCH_DUMP_BEGIN("A");
     for (i_0 = 0; i_0 < xa; i_0++) {
-        fprintf(POLYBENCH_DUMP_TARGET, "\n");
-        fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, A[i_0]);
+        for (i_1 = 0; i_1 < ya; i_1++) {
+            fprintf(POLYBENCH_DUMP_TARGET, "\n");
+            fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, A[i_0][i_1]);
+        }
     }
     POLYBENCH_DUMP_END("A");
     POLYBENCH_DUMP_BEGIN("C");
@@ -62,7 +66,9 @@ POLYBENCH_DUMP_START;
     POLYBENCH_DUMP_BEGIN("A");
     DATA_TYPE sum_A = 0;
     for (i_0 = 0; i_0 < xa; i_0++) {
-        sum_A += A[i_0];
+        for (i_1 = 0; i_1 < ya; i_1++) {
+            sum_A += A[i_0][i_1];
+        }
     }
     fprintf(POLYBENCH_DUMP_TARGET, "\nsum: ");
     fprintf (POLYBENCH_DUMP_TARGET, DATA_PRINTF_MODIFIER, sum_A);
@@ -78,16 +84,35 @@ POLYBENCH_DUMP_START;
 #endif
 POLYBENCH_DUMP_FINISH;
 }
-void kernel_2212111113_00(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc)){
+void kernel_2212111113_00(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc)){
 polybench_start_instruments;
-  int t1, t2;
+  int t1, t2, t3, t4, t5;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 3) {
-  for (t1=1;t1<=PB_M-2;t1++) {
-    A[t1] = C[t1-1] * A[t1+1] * 6;;
-    A[t1] = C[t1] * 4;;
+if (PB_L >= 2) {
+  lbp=0;
+  ubp=floord(PB_L-2,32);
+#pragma omp parallel for private(lbv,ubv,t2,t3,t4,t5)
+  for (t1=lbp;t1<=ubp;t1++) {
+    for (t2=0;t2<=floord(-32*t1+PB_L-1,32);t2++) {
+      for (t3=max(1,32*t2);t3<=min(32*t2+31,-32*t1+PB_L-2);t3++) {
+        lbv=32*t1;
+        ubv=min(32*t1+31,-t3+PB_L-2);
+#pragma ivdep
+#pragma vector always
+        for (t4=lbv;t4<=ubv;t4++) {
+          A[t3][t4+t3] = C[t4+t3-1] + A[t3+1][t4+t3+1] + 1;;
+          A[(t3-1)+1][t4+(t3-1)+1] = C[t4+1] + 4;;
+        }
+        if (t1 >= ceild(-t3+PB_L-32,32)) {
+          A[(t3-1)+1][(-t3+PB_L-1)+(t3-1)+1] = C[(-t3+PB_L-1)+1] + 4;;
+        }
+      }
+      if (t1 >= ceild(-32*t2+PB_L-32,32)) {
+        A[(-32*t1+PB_L-2)+1][32*t1+(-32*t1+PB_L-2)+1] = C[32*t1+1] + 4;;
+      }
+    }
   }
 }
 /* End of CLooG code */
@@ -97,12 +122,13 @@ polybench_print_instruments;
 int main(int argc, char** argv)
 {
 int xa = xA;
+int ya = yA;
 int xc = xC;
-POLYBENCH_1D_ARRAY_DECL(A, DATA_TYPE, xA,xa);
+POLYBENCH_2D_ARRAY_DECL(A, DATA_TYPE, xA,yA,xa,ya);
 POLYBENCH_1D_ARRAY_DECL(C, DATA_TYPE, xC,xc);
-init_array(xa,POLYBENCH_ARRAY(A), xc,POLYBENCH_ARRAY(C), INIT_SEED);
-kernel_2212111113_00(xa,POLYBENCH_ARRAY(A), xc,POLYBENCH_ARRAY(C));
-polybench_prevent_dce(print_array(xa,POLYBENCH_ARRAY(A), xc,POLYBENCH_ARRAY(C)));
+init_array(xa,ya,POLYBENCH_ARRAY(A), xc,POLYBENCH_ARRAY(C), INIT_SEED);
+kernel_2212111113_00(xa,ya,POLYBENCH_ARRAY(A), xc,POLYBENCH_ARRAY(C));
+polybench_prevent_dce(print_array(xa,ya,POLYBENCH_ARRAY(A), xc,POLYBENCH_ARRAY(C)));
 POLYBENCH_FREE_ARRAY(A);
 POLYBENCH_FREE_ARRAY(C);
 return 0;

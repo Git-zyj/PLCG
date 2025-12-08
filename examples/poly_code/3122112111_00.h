@@ -1,8 +1,8 @@
 #ifndef _3122112111_00_H
 #define _3122112111_00_H
 /* params start */
-# define PB_M 80
-# define PB_L 70
+# define PB_M 60
+# define PB_L 90
 /* params end */
 # define xA PB_M
 # define yA PB_L

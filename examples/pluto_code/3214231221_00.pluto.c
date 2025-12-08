@@ -137,33 +137,14 @@ POLYBENCH_DUMP_FINISH;
 }
 void kernel_3214231221_00(int xa,DATA_TYPE POLYBENCH_1D(A,xA,xa),int xb,DATA_TYPE POLYBENCH_1D(B,xB,xb),int xc,DATA_TYPE POLYBENCH_1D(C,xC,xc),int xd,DATA_TYPE POLYBENCH_1D(D,xD,xd),int xe,int ye,DATA_TYPE POLYBENCH_2D(E,xE,yE,xe,ye)){
 polybench_start_instruments;
-  int t1, t2, t3, t4, t5;
+  int t1, t2;
  int lb, ub, lbp, ubp, lb2, ub2;
  register int lbv, ubv;
 /* Start of CLooG code */
-if (PB_M >= 3) {
-  for (t1=0;t1<=floord(3*PB_M-6,32);t1++) {
-    lbp=ceild(2*t1,3);
-    ubp=min(min(floord(PB_M-2,16),floord(32*t1+PB_M+29,64)),t1);
-#pragma omp parallel for private(lbv,ubv,t3,t4,t5)
-    for (t2=lbp;t2<=ubp;t2++) {
-      if ((PB_M == 3) && (t1 == 0) && (t2 == 0)) {
-        A[1 -1] = C[1] + D[1] + D[1 -1] + C[1] + B[1] * B[1 +1] + 2;;
-      }
-      for (t3=max(max(1,32*t1-32*t2),32*t2-PB_M+2);t3<=min(16*t2-1,32*t1-32*t2+31);t3++) {
-        for (t4=32*t2;t4<=min(32*t2+31,t3+PB_M-2);t4++) {
-          B[(-t3+t4)] = E[(-t3+t4)-1][0] - E[t3][(-t3+t4)] + A[(-t3+t4)-2] * B[(-t3+t4)+1] + 3;;
-        }
-      }
-      if (PB_M >= 4) {
-        for (t3=max(1,16*t2);t3<=min(min(PB_M-2,16*t2+15),32*t1-32*t2+31);t3++) {
-          A[t3-1] = C[t3] + D[t3] + D[t3-1] + C[t3] + B[t3] * B[t3+1] + 2;;
-          for (t4=max(2*t3,t3+2);t4<=min(32*t2+31,t3+PB_M-2);t4++) {
-            B[(-t3+t4)] = E[(-t3+t4)-1][0] - E[t3][(-t3+t4)] + A[(-t3+t4)-2] * B[(-t3+t4)+1] + 3;;
-          }
-        }
-      }
-    }
+if (PB_P >= 3) {
+  for (t1=2;t1<=PB_P-1;t1++) {
+    A[t1] = C[0] + C[t1] * C[t1] * D[t1] - C[t1+1] - E[t1][t1] - B[t1-1] + 4;;
+    B[t1] = A[t1-2] + A[t1] - 6;;
   }
 }
 /* End of CLooG code */

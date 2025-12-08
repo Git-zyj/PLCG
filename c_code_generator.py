@@ -15,7 +15,7 @@ from itertools import product
 
 from parse_input import DataClass, parse_data
 from path_settings import json_input_path, target_path
-from basic_params_settings import enable_if_branch, enable_reverse_dim
+from basic_params_settings import enable_if_branch, enable_reverse_dim, prob_has_reverse_dim
 from polybench_style_file_generation import polybench_style_file_generation
 from schedule import Schedule_tree
 from array_data import ArrayData
@@ -114,7 +114,7 @@ class C_Code_Generator:
         
         self.get_final_loop()
         scop = '\n'.join(self.SCoP)
-        # self.logger.debug(f'\nSCoP: \n{scop}\n\n\n')
+        self.logger.debug(f'\nSCoP: \n{scop}\n\n\n')
         
         polybench_style_file_generation(self.filename, json_input_path, self.SCoP, target_path)
 
@@ -153,7 +153,7 @@ class C_Code_Generator:
         self.schedule_tree.check_tree()
         
         scop_init = '\n'.join(self.schedule_tree.extract_tree('code'))
-        # self.logger.debug(f'initial scop: \n{scop_init}\n')
+        self.logger.debug(f'initial scop: \n{scop_init}\n')
         
         # self.logger.debug(f'arrays_write: {self.arrays_write}\n')
         # self.logger.debug(f'arrays_reads: {self.arrays_reads}\n')
@@ -317,7 +317,7 @@ class C_Code_Generator:
         # 构建完整项
         if not term_str:  # 常数项
             if isinstance(coeff, str): # 可能计算出如PB_M的值
-                return coeff
+                return f"+{coeff}"
             else:
                 return f"{coeff:+g}"
         elif coeff == 1:
@@ -356,6 +356,9 @@ class C_Code_Generator:
             return "0"
         
         result = "".join(terms)
+        
+        # self.logger.debug(f'Converted polynomial to string: {result}')
+        
         return result[1:] if result.startswith('+') else result
 
     def get_array_info(self, child_array: ArrayData) -> ArrayData:
@@ -540,77 +543,109 @@ class C_Code_Generator:
         return np.array(new_access_functions, dtype=parent_array.array_access_function.dtype)
 
     def calculate_bounds(self, stmt_id: int, array_name: str, access_function: List[int], array_depth_id: int) -> None:
-        """Based on rank of the array_access_function update the min and max bounds."""
-        rank_iterator = self.get_rank(access_function[1:]) # don't pass the numerical value
+        """Based on rank of the array_access_function update the min and max bounds for all loop variables."""
+        # 获取所有非零系数的循环变量位置（按从外到内的顺序）
+        non_zero_positions = self.get_all_non_zero_positions(access_function[1:])
+        
+        if not non_zero_positions:  # 没有循环变量，只有常数项
+            self.handle_constant_only(stmt_id, array_name, access_function, array_depth_id)
+            return
+        
+        # 按从外到内的顺序处理每个循环变量
+        for rank in non_zero_positions:
+            self.process_variable_bounds_by_hierarchy(stmt_id, array_name, access_function.copy(), 
+                                                    array_depth_id, rank, non_zero_positions)
 
-        if rank_iterator == -1:  # we don't want to have an expression like C[-1] when access fun is [0,0,0, -1]
-            value = access_function[0]
-            param = self._parsed_data.array_sizes[array_name][array_depth_id]
-            max_array_size = self._parsed_data.params[param]
-            if value not in range(0, max_array_size):
-                
-                # self.logger.debug(f'The constant in the {array_depth_id}th array access function {access_function} of {array_name} not within the array size bounds, reverse it for available generation')
-                
-                access_function[0] = -access_function[0]
-                self.calculate_bounds(stmt_id, array_name, access_function, array_depth_id)
-        else:
-            
-            access_function = access_function.copy() # 避免污染！
-            
-            rank = rank_iterator + 1 # 常量维位置补回
-            
-            value_at_rank = access_function[rank]
-            
-            access_function[rank] = 0  # ori value at rank reset to 0
-
-            right_bound = self._parsed_data.array_sizes[array_name][array_depth_id]  # TODO: left bound is always 0 now
-            
-            # self.logger.debug(f'access_fun: {access_function}\nrank: {rank}\nright_bound: {right_bound}\n')
-            
-            fun = None
-            lower_bound, upper_bound = [], []
-            
-            if value_at_rank == 1:
-                lower_bound = self.get_opposite_numbers(access_function)
-                upper_bound = lower_bound[:]
-                upper_bound[0] = self.build_simple_expression(right_bound, 1, upper_bound[0])
-            elif value_at_rank == -1:
-                upper_bound = access_function[:]
-                lower_bound = upper_bound[:]
-                lower_bound[0] = self.build_simple_expression(right_bound, -1, lower_bound[0])
-            elif value_at_rank > 1:
-                alpha = value_at_rank
-                alpha_min_1 = alpha - 1
-                lower_bound = self.get_opposite_numbers(access_function)
-                lower_bound[0] += alpha_min_1
-                upper_bound = lower_bound[:]
-                upper_bound[0] = self.build_simple_expression(right_bound, 1, upper_bound[0])
-                fun = self.write_as_fraction
-            elif value_at_rank < -1:
-                alpha = value_at_rank * (-1)
-                alpha_min_1 = alpha - 1
-                lower_bound = access_function[:]
-                lower_bound[0] = self.build_simple_expression(right_bound, -1, alpha_min_1 + lower_bound[0])
-                upper_bound = access_function[:]
-                upper_bound[0] = alpha_min_1 + upper_bound[0]
-                fun = self.write_as_fraction
-                
-            # self.logger.debug(f'upp: {upper_bound}\n')
-            # self.logger.debug(f'low: {lower_bound}\n')
-            
-            self.update_bounds(stmt_id, [lower_bound], rank, 'min', value_at_rank, fun)
-            self.update_bounds(stmt_id, [upper_bound], rank, 'max', value_at_rank, fun)
-    
-    def get_rank(self, sequence: List[int]) -> int:
-        """Return the position in the sequence that is the last one to have the value != 0."""
-        for i, el in enumerate(reversed(sequence)):
+    def get_all_non_zero_positions(self, sequence: List[int]) -> List[int]:
+        """Return all positions in the sequence that have non-zero values, in order of appearance."""
+        positions = []
+        for i, el in enumerate(sequence):
             if el != 0:
-                return len(sequence) - i - 1
-        return -1    
-    
-    def get_opposite_numbers(self, sequence: List[int]) -> List[int]:
-        """Multiply each element in a sequence by -1 and return as a list."""
-        return [-el for el in sequence]    
+                positions.append(i)
+        return positions
+
+    def handle_constant_only(self, stmt_id: int, array_name: str, access_function: List[int], array_depth_id: int) -> None:
+        """处理只有常数项的情况"""
+        value = access_function[0]
+        param = self._parsed_data.array_sizes[array_name][array_depth_id]
+        max_array_size = self._parsed_data.params[param]
+        
+        if value < 0:
+            # 常数越界，取反
+            access_function[0] = -access_function[0]
+            self.handle_constant_only(stmt_id, array_name, access_function, array_depth_id)
+        elif value < max_array_size:
+            # 常数在边界内，为所有循环变量设置边界
+            for i in range(len(self.iterators_stmts[stmt_id])):
+                self.update_constant_bounds(stmt_id, i, param)
+        else:
+            raise ValueError("exceed array size") # TODO: add to logger
+
+    def update_constant_bounds(self, stmt_id: int, var_index: int, max_param: str) -> None:
+        """为循环变量更新常数边界"""
+        # 对于常数访问，循环变量的边界应该是完整的范围
+        iterator_name = self.iterators_stmts[stmt_id][var_index]
+        
+        # 设置最小边界为0（或其他合适的默认值）
+        self.bounds_data[iterator_name]['min']['numerical'].add(0)
+        
+        # 设置最大边界为数组大小（考虑到后续变量可能的影响）
+        self.bounds_data[iterator_name]['max']['string'].add(max_param)
+
+    def process_variable_bounds_by_hierarchy(self, stmt_id: int, array_name: str, 
+                                        access_function: List[int], array_depth_id: int, 
+                                        rank: int, all_positions: List[int]) -> None:
+        """根据循环变量层次处理边界计算"""
+        # 调整rank位置（因为跳过了常数项）
+        adjusted_rank = rank + 1
+        
+        value_at_rank = access_function[adjusted_rank]
+        
+        # 对于当前处理的变量，将其系数设为0
+        access_function[adjusted_rank] = 0
+        
+        # 对于所有内层循环变量（在当前变量之后处理的变量），将它们的系数也设为0
+        # 因为外层变量的边界不能依赖内层变量
+        inner_positions = [pos for pos in all_positions if pos > rank]
+        for inner_rank in inner_positions:
+            access_function[inner_rank + 1] = 0
+        
+        right_bound = self._parsed_data.array_sizes[array_name][array_depth_id]
+        
+        fun = None
+        lower_bound, upper_bound = [], []
+        
+        # 根据当前变量的系数计算边界
+        if value_at_rank == 1:
+            lower_bound = [-coef for coef in access_function]
+            upper_bound = lower_bound[:]
+            upper_bound[0] = self.build_simple_expression(right_bound, 1, upper_bound[0])
+        elif value_at_rank == -1:
+            upper_bound = access_function[:]
+            lower_bound = upper_bound[:]
+            lower_bound[0] = self.build_simple_expression(right_bound, -1, lower_bound[0])
+        elif value_at_rank > 1:
+            alpha = value_at_rank
+            alpha_min_1 = alpha - 1
+            lower_bound = [-coef for coef in access_function]
+            lower_bound[0] += alpha_min_1
+            upper_bound = lower_bound[:]
+            upper_bound[0] = self.build_simple_expression(right_bound, 1, upper_bound[0])
+            fun = self.write_as_fraction
+        elif value_at_rank < -1:
+            alpha = value_at_rank * (-1)
+            alpha_min_1 = alpha - 1
+            lower_bound = access_function[:]
+            lower_bound[0] = self.build_simple_expression(right_bound, -1, alpha_min_1 + lower_bound[0])
+            upper_bound = access_function[:]
+            upper_bound[0] = alpha_min_1 + upper_bound[0]
+            fun = self.write_as_fraction
+        else:  # value_at_rank == 0，不应该发生
+            return
+        
+        # 更新边界
+        self.update_bounds(stmt_id, [lower_bound], adjusted_rank, 'min', value_at_rank, fun)
+        self.update_bounds(stmt_id, [upper_bound], adjusted_rank, 'max', value_at_rank, fun) 
     
     def build_simple_expression(self, iterator_name: Optional[str] = None, iterator_coeff: float = 0, constant: float = 0) -> str:
         """构建简单表达式
@@ -780,9 +815,10 @@ class C_Code_Generator:
         ndims = len(sorted_keys_bounds)
         reverse_dim = [False] * ndims
         
-        # TODO: prepared for reversed loop, only one dim now
+        # prepared for reversed loop
         if enable_reverse_dim:
-            reverse_dim[random.sample(range(ndims), 1)[0]] = True
+            if random.random() < 1 - (1 - prob_has_reverse_dim) ** (1/ndims):
+                reverse_dim[random.sample(range(ndims), 1)[0]] = True
         
         for i, key in enumerate(sorted_keys_bounds):
             self.calc_bound(key, 0)  # lower -> max
@@ -832,6 +868,8 @@ class C_Code_Generator:
             for bound_param in self.bounds_data[key][func[id].__name__]['string']:
                 str_to_val[bound_param] = eval(bound_param, self._parsed_data.params.copy())
             
+            # self.logger.debug(f"str_to_val: {str_to_val}")
+            
             extreme_val = func[-id-1](str_to_val.values())
             bound_keys = [k for k, v in str_to_val.items() if v == extreme_val]
             bound = sorted(bound_keys)[0] if bound_keys else bound
@@ -853,7 +891,10 @@ class C_Code_Generator:
             for iterators, exprs in self.bounds_data[key][func[id].__name__]['iterator'].items():
                 # Set iterators to 0 to evaluate expressions without iterator influence
                 for iterator in iterators:
-                    value_params[iterator] = 0
+                    if iterator[0] == '-':
+                        value_params[iterator[1:]] = 0
+                    else:
+                        value_params[iterator] = 0
                     
                 # self.logger.debug(f"value_params updated:\n{value_params}\n")
                 
@@ -874,8 +915,26 @@ class C_Code_Generator:
             vals_iterator_1 = {bound: bound_val}
             
             for bound_iterator in bounds_iterator:
-                vals_iterator_0[bound_iterator] = eval(bound_iterator, self.value_params_and_iterators[func[-id-1].__name__].copy())
-                vals_iterator_1[bound_iterator] = eval(bound_iterator, self.value_params_and_iterators[func[id].__name__].copy())
+                context_min = self.value_params_and_iterators['min'].copy()
+                context_max = self.value_params_and_iterators['max'].copy()
+                
+                signed_values_0 = {}
+                signed_values_1 = {}
+                for param_name in context_min.keys():
+                    if param_name in bound_iterator:
+                        has_negative = f'-{param_name}' in bound_iterator
+                        if has_negative:
+                            # 负参数：计算上界的min用max值，max用min值；计算下界的max用min值，min用max值
+                            signed_values_0[param_name] = context_min[param_name] if func[id].__name__ == 'min' else context_max[param_name]
+                            signed_values_1[param_name] = context_max[param_name] if func[id].__name__ == 'min' else context_min[param_name]
+                        else:
+                            # 正参数：计算上界的min用min值，max用max值；计算下界的max用max值，min用min值
+                            signed_values_0[param_name] = context_max[param_name] if func[id].__name__ == 'min' else context_min[param_name]
+                            signed_values_1[param_name] = context_min[param_name] if func[id].__name__ == 'min' else context_max[param_name]
+                
+                # 两个iterator使用相同的优化上下文
+                vals_iterator_0[bound_iterator] = eval(bound_iterator, signed_values_0)
+                vals_iterator_1[bound_iterator] = eval(bound_iterator, signed_values_1)
             
             # self.logger.debug(f"{func[-id-1].__name__} bound value containing iterators: {vals_iterator_0}\n")
             # self.logger.debug(f"{func[id].__name__} bound value containing iterators: {vals_iterator_1}\n")
