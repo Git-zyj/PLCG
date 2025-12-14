@@ -4,7 +4,7 @@
 Execute the following command to sythesize 2048 code in ./examples:
 
 ```bash
-python ./Generation.py
+python ./Dataset_Generation.py
 ```
 
 # Details
@@ -32,7 +32,7 @@ python ./random_generation.py
 - Intermediate JSON files: `./examples/input/`
 - Code and header files: `./examples/poly_code/`
 
-## Post-Synthesis Processing
+## Post-Synthesis Processing (for experiments, PLuTo for PLCG is need)
 
 ### 1. Code Optimization & Analysis
 ```bash
