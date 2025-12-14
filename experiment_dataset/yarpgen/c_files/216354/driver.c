@@ -1,0 +1,52 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+int var_4 = 604510406;
+unsigned char var_8 = (unsigned char)100;
+unsigned int var_9 = 3849708025U;
+long long int var_10 = -6045050012964644069LL;
+int zero = 0;
+unsigned int var_11 = 2603179421U;
+unsigned char var_12 = (unsigned char)107;
+unsigned char var_13 = (unsigned char)114;
+unsigned int arr_1 [17] ;
+unsigned int arr_4 [17] [17] ;
+int arr_5 [17] ;
+unsigned short arr_6 [17] [17] [17] ;
+void init() {
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        arr_1 [i_0] = 2166275755U;
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 17; ++i_1) 
+            arr_4 [i_0] [i_1] = (i_0 % 2 == 0) ? 1888222848U : 3180950367U;
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        arr_5 [i_0] = (i_0 % 2 == 0) ? -1952694732 : 632146935;
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 17; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 17; ++i_2) 
+                arr_6 [i_0] [i_1] [i_2] = (i_2 % 2 == 0) ? (unsigned short)20526 : (unsigned short)27157;
+}
+
+void checksum() {
+    hash(&seed, var_11);
+    hash(&seed, var_12);
+    hash(&seed, var_13);
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        hash(&seed, arr_5 [i_0] );
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 17; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 17; ++i_2) 
+                hash(&seed, arr_6 [i_0] [i_1] [i_2] );
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

@@ -1,0 +1,13 @@
+extern short var_4;
+extern short var_10;
+extern int zero;
+extern short var_20;
+extern short var_21;
+extern short var_22;
+extern short var_23;
+extern short var_24;
+extern short var_25;
+extern short var_26;
+extern short arr_0 [13] [13] ;
+extern short arr_6 [13] [13] [13] ;
+extern short arr_7 [13] ;

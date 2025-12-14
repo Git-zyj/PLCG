@@ -1,0 +1,11 @@
+extern short var_7;
+extern int zero;
+extern short var_16;
+extern short arr_0 [24] [24] ;
+extern signed char arr_1 [24] ;
+extern short arr_2 [24] ;
+extern signed char arr_3 [24] ;
+extern long long int arr_6 [24] [24] ;
+extern short arr_7 [24] [24] [24] ;
+extern short arr_8 [24] ;
+extern signed char arr_9 [24] ;

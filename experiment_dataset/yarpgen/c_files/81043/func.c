@@ -1,0 +1,80 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 81043
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=81043 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/81043
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    /* LoopSeq 3 */
+    /* vectorizable */
+    for (short i_0 = 0; i_0 < 15; i_0 += 4) 
+    {
+        arr_4 [i_0] [i_0] = ((/* implicit */unsigned char) (short)2474);
+        /* LoopNest 2 */
+        for (_Bool i_1 = 0; i_1 < 1; i_1 += 1) 
+        {
+            for (unsigned long long int i_2 = 2; i_2 < 12; i_2 += 3) 
+            {
+                {
+                    var_16 -= ((/* implicit */short) ((((/* implicit */_Bool) 279358647U)) ? (((/* implicit */unsigned long long int) 3560918938U)) : (16042602221885220167ULL)));
+                    /* LoopNest 2 */
+                    for (_Bool i_3 = 1; i_3 < 1; i_3 += 1) 
+                    {
+                        for (_Bool i_4 = 0; i_4 < 1; i_4 += 1) 
+                        {
+                            {
+                                var_17 = ((/* implicit */_Bool) ((((/* implicit */_Bool) ((((/* implicit */_Bool) 750951794175187259ULL)) ? (((/* implicit */long long int) 715721602)) : (var_0)))) ? (((/* implicit */long long int) -1605908465)) : (arr_13 [i_3 - 1] [i_2] [i_3 - 1] [i_3 - 1] [i_3])));
+                                arr_15 [i_0] [6LL] [i_2 + 3] [i_3] [i_2] = ((/* implicit */unsigned short) (!(((/* implicit */_Bool) (unsigned short)32767))));
+                            }
+                        } 
+                    } 
+                }
+            } 
+        } 
+    }
+    /* vectorizable */
+    for (unsigned long long int i_5 = 0; i_5 < 10; i_5 += 3) 
+    {
+        var_18 = ((/* implicit */unsigned char) ((((/* implicit */_Bool) arr_1 [i_5] [i_5])) ? (3847613678U) : (((/* implicit */unsigned int) ((/* implicit */int) (unsigned short)50324)))));
+        /* LoopSeq 2 */
+        for (long long int i_6 = 1; i_6 < 7; i_6 += 3) 
+        {
+            /* LoopNest 2 */
+            for (unsigned char i_7 = 0; i_7 < 10; i_7 += 2) 
+            {
+                for (short i_8 = 0; i_8 < 10; i_8 += 3) 
+                {
+                    {
+                        arr_26 [i_6] [i_6] = ((/* implicit */long long int) (-(var_3)));
+                        arr_27 [i_5] [i_5] [i_5] [i_5] [i_6] = ((/* implicit */unsigned char) ((((/* implicit */_Bool) ((short) var_8))) ? (((/* implicit */long long int) ((/* implicit */int) arr_25 [i_5] [i_6] [i_6 + 2] [i_5]))) : (arr_13 [i_8] [i_6] [i_6] [i_6] [i_5])));
+                        var_19 = ((/* implicit */unsigned long long int) 879720688U);
+                    }
+                } 
+            } 
+            arr_28 [9LL] [i_6] [i_5] = ((/* implicit */_Bool) ((((/* implicit */_Bool) arr_24 [i_6] [i_6] [i_6 - 1])) ? (((/* implicit */unsigned long long int) ((((/* implicit */_Bool) var_10)) ? (var_10) : (((/* implicit */int) arr_16 [i_5]))))) : ((-(6240438625657461437ULL)))));
+        }
+        for (unsigned long long int i_9 = 1; i_9 < 9; i_9 += 3) 
+        {
+            arr_32 [i_9] = ((/* implicit */unsigned long long int) ((((/* implicit */_Bool) 8640465538391631973ULL)) ? (arr_11 [i_9] [i_9 + 1] [i_9]) : (arr_11 [i_9 - 1] [i_9 - 1] [i_9])));
+            var_20 = 4339728478687786250ULL;
+        }
+    }
+    for (short i_10 = 0; i_10 < 24; i_10 += 2) 
+    {
+        arr_35 [8] [8] = ((/* implicit */short) ((((/* implicit */_Bool) ((((/* implicit */_Bool) ((((/* implicit */_Bool) (short)25492)) ? (((/* implicit */unsigned int) ((/* implicit */int) arr_33 [i_10]))) : (1994716332U)))) ? (((/* implicit */int) var_14)) : (((/* implicit */int) (short)8038))))) ? ((+(((((/* implicit */_Bool) var_13)) ? (((/* implicit */int) arr_33 [i_10])) : (((/* implicit */int) arr_33 [i_10])))))) : (((/* implicit */int) (short)9591))));
+        arr_36 [i_10] [i_10] |= ((/* implicit */short) var_3);
+        arr_37 [i_10] [i_10] |= ((/* implicit */short) ((((/* implicit */_Bool) 101270178U)) ? ((-((+(((/* implicit */int) var_2)))))) : (((int) 15590377931339498681ULL))));
+    }
+    var_21 = ((/* implicit */unsigned long long int) ((((/* implicit */_Bool) ((((/* implicit */_Bool) ((short) 1186661663U))) ? (((/* implicit */int) ((((/* implicit */unsigned long long int) 2323091696U)) != (16126469783645931737ULL)))) : (var_10)))) ? (((/* implicit */unsigned int) ((/* implicit */int) var_6))) : (min(((~(var_11))), (((/* implicit */unsigned int) min((var_4), (((/* implicit */int) (short)7996)))))))));
+    var_22 = ((/* implicit */int) var_6);
+    var_23 = ((/* implicit */unsigned int) (!(((/* implicit */_Bool) var_6))));
+    var_24 = ((/* implicit */_Bool) (~(((((/* implicit */_Bool) ((((/* implicit */_Bool) 8437349242553702752ULL)) ? (1129785462U) : (3559880707U)))) ? (min((-465271841), (((/* implicit */int) (unsigned char)193)))) : (((/* implicit */int) var_1))))));
+}

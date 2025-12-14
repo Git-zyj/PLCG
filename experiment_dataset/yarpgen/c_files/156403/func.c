@@ -1,0 +1,20 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 156403
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=156403 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/156403
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    var_18 = var_1;
+    var_19 = ((/* implicit */signed char) ((short) var_7));
+    var_20 = ((/* implicit */signed char) ((((/* implicit */int) (!(((/* implicit */_Bool) max((((/* implicit */unsigned long long int) -7376423745478053391LL)), (var_12))))))) << (((((/* implicit */int) (short)6313)) - (6287)))));
+    var_21 = (+(((/* implicit */int) var_0)));
+}

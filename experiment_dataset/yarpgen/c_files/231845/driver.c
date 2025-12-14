@@ -1,0 +1,148 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+unsigned long long int var_0 = 2734561563514725292ULL;
+unsigned char var_1 = (unsigned char)25;
+unsigned char var_2 = (unsigned char)77;
+unsigned short var_4 = (unsigned short)25167;
+_Bool var_5 = (_Bool)1;
+signed char var_6 = (signed char)-41;
+unsigned char var_7 = (unsigned char)35;
+unsigned short var_8 = (unsigned short)46743;
+short var_9 = (short)-12095;
+_Bool var_10 = (_Bool)1;
+long long int var_11 = -4607966051820646673LL;
+long long int var_12 = -4467330722531214728LL;
+int var_13 = 1572507575;
+_Bool var_14 = (_Bool)1;
+unsigned short var_15 = (unsigned short)61235;
+unsigned short var_16 = (unsigned short)25942;
+long long int var_17 = 3445375325041929641LL;
+int zero = 0;
+unsigned char var_18 = (unsigned char)102;
+short var_19 = (short)-9086;
+signed char var_20 = (signed char)45;
+signed char var_21 = (signed char)-55;
+unsigned short var_22 = (unsigned short)60401;
+unsigned long long int var_23 = 6039427871046150213ULL;
+long long int var_24 = -8666689037927699324LL;
+unsigned long long int var_25 = 10954993272853774578ULL;
+long long int var_26 = 1511178577991573487LL;
+signed char var_27 = (signed char)-69;
+unsigned int var_28 = 1680796730U;
+int var_29 = -1160423008;
+unsigned short var_30 = (unsigned short)11166;
+unsigned char var_31 = (unsigned char)81;
+short var_32 = (short)31490;
+int var_33 = 1971776135;
+long long int var_34 = -9033680576433033327LL;
+short var_35 = (short)13865;
+unsigned char var_36 = (unsigned char)223;
+long long int var_37 = 1552378985500493863LL;
+long long int var_38 = 151843415596898151LL;
+unsigned long long int var_39 = 15885272946570125945ULL;
+long long int var_40 = -5301625395302100315LL;
+unsigned short var_41 = (unsigned short)26649;
+unsigned short var_42 = (unsigned short)40235;
+int var_43 = -1794877047;
+unsigned short var_44 = (unsigned short)40244;
+signed char var_45 = (signed char)79;
+unsigned short var_46 = (unsigned short)20888;
+long long int var_47 = -966063792536323826LL;
+int var_48 = -451838122;
+unsigned short var_49 = (unsigned short)3357;
+long long int var_50 = 4473696525249457170LL;
+unsigned long long int var_51 = 758984913718870066ULL;
+int var_52 = -1182339708;
+long long int var_53 = 2361061789512421669LL;
+short var_54 = (short)20787;
+unsigned char var_55 = (unsigned char)242;
+unsigned int var_56 = 4210855714U;
+unsigned char var_57 = (unsigned char)120;
+int var_58 = -1379123709;
+signed char var_59 = (signed char)57;
+short var_60 = (short)31839;
+signed char var_61 = (signed char)77;
+long long int var_62 = -7198608029925958294LL;
+unsigned char var_63 = (unsigned char)36;
+int var_64 = 284864954;
+int var_65 = 1082037042;
+unsigned short var_66 = (unsigned short)16896;
+short var_67 = (short)9563;
+signed char var_68 = (signed char)-62;
+unsigned char var_69 = (unsigned char)159;
+unsigned short var_70 = (unsigned short)57511;
+short var_71 = (short)-12826;
+long long int var_72 = -6382518034475867660LL;
+void init() {
+}
+
+void checksum() {
+    hash(&seed, var_18);
+    hash(&seed, var_19);
+    hash(&seed, var_20);
+    hash(&seed, var_21);
+    hash(&seed, var_22);
+    hash(&seed, var_23);
+    hash(&seed, var_24);
+    hash(&seed, var_25);
+    hash(&seed, var_26);
+    hash(&seed, var_27);
+    hash(&seed, var_28);
+    hash(&seed, var_29);
+    hash(&seed, var_30);
+    hash(&seed, var_31);
+    hash(&seed, var_32);
+    hash(&seed, var_33);
+    hash(&seed, var_34);
+    hash(&seed, var_35);
+    hash(&seed, var_36);
+    hash(&seed, var_37);
+    hash(&seed, var_38);
+    hash(&seed, var_39);
+    hash(&seed, var_40);
+    hash(&seed, var_41);
+    hash(&seed, var_42);
+    hash(&seed, var_43);
+    hash(&seed, var_44);
+    hash(&seed, var_45);
+    hash(&seed, var_46);
+    hash(&seed, var_47);
+    hash(&seed, var_48);
+    hash(&seed, var_49);
+    hash(&seed, var_50);
+    hash(&seed, var_51);
+    hash(&seed, var_52);
+    hash(&seed, var_53);
+    hash(&seed, var_54);
+    hash(&seed, var_55);
+    hash(&seed, var_56);
+    hash(&seed, var_57);
+    hash(&seed, var_58);
+    hash(&seed, var_59);
+    hash(&seed, var_60);
+    hash(&seed, var_61);
+    hash(&seed, var_62);
+    hash(&seed, var_63);
+    hash(&seed, var_64);
+    hash(&seed, var_65);
+    hash(&seed, var_66);
+    hash(&seed, var_67);
+    hash(&seed, var_68);
+    hash(&seed, var_69);
+    hash(&seed, var_70);
+    hash(&seed, var_71);
+    hash(&seed, var_72);
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

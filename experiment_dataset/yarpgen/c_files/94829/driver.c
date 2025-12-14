@@ -1,0 +1,62 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+_Bool var_2 = (_Bool)0;
+unsigned int var_3 = 1600076246U;
+short var_5 = (short)-852;
+signed char var_8 = (signed char)72;
+_Bool var_11 = (_Bool)1;
+short var_12 = (short)24125;
+unsigned int var_14 = 387885069U;
+int zero = 0;
+_Bool var_15 = (_Bool)1;
+_Bool var_16 = (_Bool)0;
+_Bool var_17 = (_Bool)0;
+_Bool var_18 = (_Bool)0;
+unsigned short var_19 = (unsigned short)45606;
+signed char var_20 = (signed char)99;
+unsigned short var_21 = (unsigned short)40001;
+unsigned char var_22 = (unsigned char)130;
+unsigned char arr_13 [17] ;
+unsigned int arr_18 [17] [17] [17] [17] [17] ;
+void init() {
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        arr_13 [i_0] = (i_0 % 2 == 0) ? (unsigned char)8 : (unsigned char)215;
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 17; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 17; ++i_2) 
+                for (size_t i_3 = 0; i_3 < 17; ++i_3) 
+                    for (size_t i_4 = 0; i_4 < 17; ++i_4) 
+                        arr_18 [i_0] [i_1] [i_2] [i_3] [i_4] = (i_2 % 2 == 0) ? 1060397435U : 2348670832U;
+}
+
+void checksum() {
+    hash(&seed, var_15);
+    hash(&seed, var_16);
+    hash(&seed, var_17);
+    hash(&seed, var_18);
+    hash(&seed, var_19);
+    hash(&seed, var_20);
+    hash(&seed, var_21);
+    hash(&seed, var_22);
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        hash(&seed, arr_13 [i_0] );
+    for (size_t i_0 = 0; i_0 < 17; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 17; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 17; ++i_2) 
+                for (size_t i_3 = 0; i_3 < 17; ++i_3) 
+                    for (size_t i_4 = 0; i_4 < 17; ++i_4) 
+                        hash(&seed, arr_18 [i_0] [i_1] [i_2] [i_3] [i_4] );
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

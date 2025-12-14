@@ -1,0 +1,63 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+signed char var_0 = (signed char)6;
+unsigned short var_1 = (unsigned short)52482;
+int var_2 = 727664028;
+int var_4 = -1165017747;
+unsigned int var_6 = 3993759710U;
+int var_8 = -1715379806;
+_Bool var_9 = (_Bool)0;
+int zero = 0;
+unsigned char var_11 = (unsigned char)169;
+signed char var_12 = (signed char)64;
+int var_13 = -1956230557;
+int var_14 = -2044486214;
+_Bool var_15 = (_Bool)0;
+unsigned short var_16 = (unsigned short)28959;
+_Bool arr_0 [14] [14] ;
+_Bool arr_2 [14] ;
+_Bool arr_5 [14] [14] [14] ;
+unsigned char arr_6 [14] [14] ;
+void init() {
+    for (size_t i_0 = 0; i_0 < 14; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 14; ++i_1) 
+            arr_0 [i_0] [i_1] = (_Bool)1;
+    for (size_t i_0 = 0; i_0 < 14; ++i_0) 
+        arr_2 [i_0] = (i_0 % 2 == 0) ? (_Bool)0 : (_Bool)0;
+    for (size_t i_0 = 0; i_0 < 14; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 14; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 14; ++i_2) 
+                arr_5 [i_0] [i_1] [i_2] = (i_0 % 2 == 0) ? (_Bool)0 : (_Bool)0;
+    for (size_t i_0 = 0; i_0 < 14; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 14; ++i_1) 
+            arr_6 [i_0] [i_1] = (i_0 % 2 == 0) ? (unsigned char)248 : (unsigned char)193;
+}
+
+void checksum() {
+    hash(&seed, var_11);
+    hash(&seed, var_12);
+    hash(&seed, var_13);
+    hash(&seed, var_14);
+    hash(&seed, var_15);
+    hash(&seed, var_16);
+    for (size_t i_0 = 0; i_0 < 14; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 14; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 14; ++i_2) 
+                hash(&seed, arr_5 [i_0] [i_1] [i_2] );
+    for (size_t i_0 = 0; i_0 < 14; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 14; ++i_1) 
+            hash(&seed, arr_6 [i_0] [i_1] );
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

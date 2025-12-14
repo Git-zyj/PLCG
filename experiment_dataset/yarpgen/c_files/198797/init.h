@@ -1,0 +1,5 @@
+extern int var_5;
+extern short var_12;
+extern int zero;
+extern long long int var_13;
+extern short var_14;

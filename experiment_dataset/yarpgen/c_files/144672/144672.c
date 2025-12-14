@@ -1,0 +1,32 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 144672
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=144672 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/144672
+*/
+#include "init.h"
+#define max(x,y)    ((x) > (y)? (x) : (y))
+#define min(x,y)    ((x) < (y)? (x) : (y))
+void test() {
+    #pragma scop
+    var_18 = ((~(min(280925220896768, -2116297434))));
+
+    for (int i_0 = 0; i_0 < 17;i_0 += 1)
+    {
+        var_19 = (max(((((max(14, -2116297434))) ? -92 : 233)), (max((arr_1 [i_0]), (max((arr_0 [i_0]), 19589))))));
+        arr_2 [i_0] = (max(19589, ((((max(140737488224256, -13686)) != (((3766924451 ? 169 : 3766924470))))))));
+        arr_3 [i_0] [i_0] = (arr_0 [i_0]);
+        arr_4 [i_0] = (528042845 << (1759002256 - 1759002243));
+    }
+    for (int i_1 = 3; i_1 < 12;i_1 += 1)
+    {
+        arr_9 [i_1] = (((arr_7 [i_1 - 2] [i_1 - 3]) >> ((min((arr_7 [i_1 + 3] [i_1 - 1]), (arr_7 [i_1 - 1] [i_1 - 2]))))));
+
+        for (int i_2 = 2; i_2 < 13;i_2 += 1)
+        {
+            var_20 = ((-17884923885939425623 ? 2075348325 : (arr_7 [i_1] [i_1 - 1])));
+            arr_12 [i_1] [i_2] [i_1] = (9223372036854775807 ? (arr_7 [i_1] [i_2]) : (arr_11 [i_1 - 3] [i_1 - 3] [i_1]));
+        }
+    }
+    var_21 = 1097693024;
+    #pragma endscop
+}

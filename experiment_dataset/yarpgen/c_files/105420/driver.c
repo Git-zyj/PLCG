@@ -1,0 +1,70 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+long long int var_2 = -674524308690370557LL;
+_Bool var_3 = (_Bool)1;
+_Bool var_4 = (_Bool)1;
+short var_9 = (short)-27751;
+int zero = 0;
+unsigned short var_17 = (unsigned short)20070;
+_Bool var_18 = (_Bool)1;
+long long int var_19 = 3945561102716169116LL;
+short var_20 = (short)-30644;
+short var_21 = (short)2159;
+_Bool var_22 = (_Bool)0;
+_Bool var_23 = (_Bool)0;
+short var_24 = (short)-27227;
+unsigned short var_25 = (unsigned short)2414;
+_Bool arr_0 [22] ;
+_Bool arr_2 [22] [22] [22] ;
+_Bool arr_3 [22] [22] ;
+_Bool arr_5 [22] [22] [22] [22] ;
+long long int arr_9 [22] ;
+unsigned short arr_10 [22] [22] [22] [22] ;
+void init() {
+    for (size_t i_0 = 0; i_0 < 22; ++i_0) 
+        arr_0 [i_0] = (i_0 % 2 == 0) ? (_Bool)0 : (_Bool)1;
+    for (size_t i_0 = 0; i_0 < 22; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 22; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 22; ++i_2) 
+                arr_2 [i_0] [i_1] [i_2] = (_Bool)0;
+    for (size_t i_0 = 0; i_0 < 22; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 22; ++i_1) 
+            arr_3 [i_0] [i_1] = (i_0 % 2 == 0) ? (_Bool)0 : (_Bool)0;
+    for (size_t i_0 = 0; i_0 < 22; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 22; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 22; ++i_2) 
+                for (size_t i_3 = 0; i_3 < 22; ++i_3) 
+                    arr_5 [i_0] [i_1] [i_2] [i_3] = (i_0 % 2 == 0) ? (_Bool)1 : (_Bool)1;
+    for (size_t i_0 = 0; i_0 < 22; ++i_0) 
+        arr_9 [i_0] = (i_0 % 2 == 0) ? -4469088586314398930LL : 7084768194032118927LL;
+    for (size_t i_0 = 0; i_0 < 22; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 22; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 22; ++i_2) 
+                for (size_t i_3 = 0; i_3 < 22; ++i_3) 
+                    arr_10 [i_0] [i_1] [i_2] [i_3] = (i_1 % 2 == 0) ? (unsigned short)10291 : (unsigned short)58795;
+}
+
+void checksum() {
+    hash(&seed, var_17);
+    hash(&seed, var_18);
+    hash(&seed, var_19);
+    hash(&seed, var_20);
+    hash(&seed, var_21);
+    hash(&seed, var_22);
+    hash(&seed, var_23);
+    hash(&seed, var_24);
+    hash(&seed, var_25);
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

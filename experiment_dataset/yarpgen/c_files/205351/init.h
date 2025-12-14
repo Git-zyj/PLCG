@@ -1,0 +1,15 @@
+extern signed char var_1;
+extern unsigned char var_2;
+extern unsigned int var_4;
+extern signed char var_5;
+extern signed char var_7;
+extern unsigned int var_12;
+extern signed char var_14;
+extern unsigned char var_17;
+extern signed char var_18;
+extern int zero;
+extern signed char var_20;
+extern int var_21;
+extern short var_22;
+extern unsigned short var_23;
+extern short var_24;

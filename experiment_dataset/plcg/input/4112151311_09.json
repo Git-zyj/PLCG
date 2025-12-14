@@ -1,0 +1,151 @@
+{
+    "params": {
+        "PB_M": 7000,
+        "PB_L": 5000
+    },
+    "max_degree": 1,
+    "special_loop_bounds": {},
+    "arrays": [
+        "A[PB_M]",
+        "B[PB_L]"
+    ],
+    "instructions": [
+        {
+            "schedule": [
+                0,
+                "i_0",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        0,
+                        0
+                    ],
+                    "array_name": "A",
+                    "array_type": "write",
+                    "array_access_function": [
+                        [
+                            0,
+                            1
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        0,
+                        1
+                    ],
+                    "array_name": "B",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            1
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        0,
+                        2
+                    ],
+                    "array_name": "B",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            1
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        0,
+                        3
+                    ],
+                    "array_name": "B",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            1
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        0,
+                        4
+                    ],
+                    "array_name": "B",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            -1,
+                            1
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        0,
+                        5
+                    ],
+                    "array_name": "B",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            1
+                        ]
+                    ]
+                }
+            ],
+            "dependency": [
+                {
+                    "array_id": [
+                        0,
+                        6
+                    ],
+                    "category": "read",
+                    "distance": [
+                        1
+                    ],
+                    "mapping": {
+                        "0": 0
+                    },
+                    "parent_stmt_id": 0
+                },
+                {
+                    "array_id": [
+                        0,
+                        7
+                    ],
+                    "category": "read",
+                    "distance": [
+                        -1
+                    ],
+                    "mapping": {
+                        "0": 0
+                    },
+                    "parent_stmt_id": 0
+                },
+                {
+                    "array_id": [
+                        0,
+                        8
+                    ],
+                    "category": "read",
+                    "distance": [
+                        1
+                    ],
+                    "mapping": {
+                        "0": 0
+                    },
+                    "parent_stmt_id": 0
+                }
+            ]
+        }
+    ]
+}

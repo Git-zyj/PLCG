@@ -1,0 +1,33 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+unsigned long long int var_1 = 18218330586178348751ULL;
+signed char var_5 = (signed char)-45;
+unsigned long long int var_6 = 15920071061243945152ULL;
+short var_7 = (short)-7012;
+unsigned int var_8 = 768765393U;
+_Bool var_9 = (_Bool)1;
+int zero = 0;
+long long int var_11 = -6164742975379253669LL;
+unsigned int var_12 = 428828864U;
+short var_13 = (short)15098;
+void init() {
+}
+
+void checksum() {
+    hash(&seed, var_11);
+    hash(&seed, var_12);
+    hash(&seed, var_13);
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

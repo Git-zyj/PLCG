@@ -1,0 +1,57 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 14663
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=14663 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/14663
+*/
+#include "init.h"
+#define max(x,y)    ((x) > (y)? (x) : (y))
+#define min(x,y)    ((x) < (y)? (x) : (y))
+void test() {
+    #pragma scop
+    /* LoopNest 2 */
+    for (int i_0 = 0; i_0 < 1;i_0 += 1)
+    {
+        for (int i_1 = 0; i_1 < 14;i_1 += 1)
+        {
+            {
+                /* LoopNest 2 */
+                for (int i_2 = 0; i_2 < 1;i_2 += 1)
+                {
+                    for (int i_3 = 0; i_3 < 14;i_3 += 1)
+                    {
+                        {
+                            arr_13 [i_0] [i_0] [i_0] [i_3] [i_3] = (((((-(arr_3 [i_3] [i_0] [i_0])))) | ((~(max(15252964897940742235, 15252964897940742235))))));
+                            arr_14 [0] [i_0] [0] [i_0] [11] [i_1] = (((!((min(71, 15252964897940742235))))));
+                            var_16 = 3193779175768809380;
+                            arr_15 [i_0] [i_0] [i_3] = (!(((((max((arr_7 [i_0] [i_0] [i_0] [i_0]), (arr_12 [i_0] [i_0] [i_0] [1])))) & (max(var_12, 15252964897940742235))))));
+                            var_17 = (~((((max(0, 49))) + 1)));
+                        }
+                    }
+                }
+
+                for (int i_4 = 1; i_4 < 12;i_4 += 1)
+                {
+                    var_18 = max((((((900181934 ? 0 : 0)) == var_0))), ((max(var_3, var_13))));
+                    var_19 = ((-(187 && 2880422459)));
+                    /* LoopNest 2 */
+                    for (int i_5 = 0; i_5 < 14;i_5 += 1)
+                    {
+                        for (int i_6 = 0; i_6 < 14;i_6 += 1)
+                        {
+                            {
+                                arr_24 [i_0] [i_0] [4] [1] = max(900181952, 38807);
+                                var_20 = ((((min(2657608750, var_7)) == (~var_4))));
+                                arr_25 [i_0] [i_0] [i_4 - 1] [i_4 + 2] [i_5] [i_4 - 1] [i_6] = (max(((max(50111, (arr_6 [i_0] [i_0])))), ((((min(-7261173018229142520, var_13))) ? var_5 : (~-116)))));
+                                var_21 = (max(var_21, (((!((((var_14 > var_13) >> (((~var_14) - 3084501984))))))))));
+                                var_22 = (min(var_22, ((((((((max(31119643, (arr_1 [i_6])))) ? 0 : 33009))) ? 25637 : 0)))));
+                            }
+                        }
+                    }
+                    arr_26 [i_0] [i_1] [i_4] [i_0] = (arr_3 [i_4] [i_0] [i_0]);
+                }
+            }
+        }
+    }
+    var_23 = ((((var_13 ? -8545882320099521809 : 216333336))));
+    #pragma endscop
+}

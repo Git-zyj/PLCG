@@ -1,0 +1,59 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 173133
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=173133 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/173133
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    var_11 = ((/* implicit */unsigned int) var_0);
+    /* LoopSeq 1 */
+    for (long long int i_0 = 0; i_0 < 25; i_0 += 3) 
+    {
+        var_12 = (~((+(((/* implicit */int) arr_1 [i_0] [23U])))));
+        var_13 = ((/* implicit */signed char) ((((/* implicit */_Bool) ((((/* implicit */_Bool) arr_1 [i_0] [i_0])) ? (-15LL) : (((/* implicit */long long int) ((/* implicit */int) ((((/* implicit */_Bool) arr_0 [i_0])) && (((/* implicit */_Bool) arr_0 [i_0]))))))))) ? (((/* implicit */int) arr_1 [i_0] [i_0])) : (((/* implicit */int) arr_1 [i_0] [i_0]))));
+    }
+    /* LoopNest 2 */
+    for (unsigned int i_1 = 3; i_1 < 8; i_1 += 2) 
+    {
+        for (unsigned short i_2 = 0; i_2 < 12; i_2 += 1) 
+        {
+            {
+                arr_8 [i_1] [i_1] = ((/* implicit */short) (!(((/* implicit */_Bool) (+(0))))));
+                arr_9 [i_2] [i_1] = ((/* implicit */int) ((((/* implicit */_Bool) 164365289784162963LL)) ? (-164365289784162967LL) : (164365289784162963LL)));
+                /* LoopSeq 2 */
+                for (int i_3 = 2; i_3 < 11; i_3 += 2) 
+                {
+                    /* LoopSeq 2 */
+                    for (int i_4 = 1; i_4 < 10; i_4 += 4) /* same iter space */
+                    {
+                        var_14 = ((/* implicit */unsigned int) max((((((/* implicit */_Bool) (+(var_10)))) ? (max((((/* implicit */long long int) -1623394477)), (arr_6 [2U] [i_2] [i_3]))) : (((/* implicit */long long int) max((((/* implicit */int) var_4)), (var_0)))))), (((/* implicit */long long int) ((((/* implicit */_Bool) (+(((/* implicit */int) (unsigned char)15))))) ? (((/* implicit */unsigned int) (-(1623394477)))) : ((-(501913976U))))))));
+                        arr_16 [i_4] [i_1] [i_1] [i_1] = ((/* implicit */short) arr_1 [19ULL] [i_3 + 1]);
+                    }
+                    for (int i_5 = 1; i_5 < 10; i_5 += 4) /* same iter space */
+                    {
+                        arr_20 [i_1 + 1] [i_1] [9ULL] [i_1] [i_1] = ((/* implicit */int) ((max(((-(164365289784162963LL))), (((/* implicit */long long int) (!(((/* implicit */_Bool) arr_10 [i_1]))))))) >= (min((((/* implicit */long long int) (short)-29168)), (164365289784162963LL)))));
+                        var_15 = ((/* implicit */unsigned char) ((((/* implicit */_Bool) arr_17 [i_1] [i_1] [11])) ? (((int) min((arr_1 [i_2] [i_2]), (((/* implicit */unsigned short) (short)0))))) : (((/* implicit */int) min((max((((/* implicit */short) (unsigned char)0)), ((short)-30640))), (arr_12 [i_2] [i_5]))))));
+                    }
+                    var_16 = ((/* implicit */long long int) var_10);
+                    var_17 = ((/* implicit */short) max((var_17), (((/* implicit */short) max((((long long int) ((long long int) arr_3 [i_3 + 1] [10LL]))), (((/* implicit */long long int) (~(var_10)))))))));
+                }
+                for (unsigned long long int i_6 = 0; i_6 < 12; i_6 += 2) 
+                {
+                    arr_23 [i_1] [i_2] = ((/* implicit */signed char) ((((/* implicit */long long int) (-(((/* implicit */int) (short)21))))) > (arr_17 [(_Bool)1] [i_2] [8])));
+                    var_18 = ((/* implicit */unsigned int) (-(min((arr_13 [i_1 + 4] [i_1 + 1]), (arr_15 [i_1 - 1] [i_1 - 1] [i_1 - 1] [i_1])))));
+                    var_19 = ((/* implicit */long long int) arr_13 [i_1 + 4] [i_1 + 4]);
+                    var_20 &= ((/* implicit */unsigned char) (+(var_9)));
+                    arr_24 [i_1] [i_1] = ((/* implicit */signed char) ((((/* implicit */_Bool) ((((/* implicit */_Bool) 1749856865)) ? (-164365289784162963LL) : (((/* implicit */long long int) ((/* implicit */int) (short)-22)))))) ? (-1623394477) : ((+(-506162570)))));
+                }
+            }
+        } 
+    } 
+}

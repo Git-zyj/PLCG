@@ -1,0 +1,78 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+signed char var_2 = (signed char)-108;
+int var_3 = 790817425;
+long long int var_4 = 6700350059703820313LL;
+int var_5 = -1058116978;
+short var_7 = (short)17606;
+_Bool var_9 = (_Bool)0;
+unsigned char var_11 = (unsigned char)20;
+unsigned char var_12 = (unsigned char)56;
+int zero = 0;
+int var_13 = -957309623;
+long long int var_14 = 8524698369383831638LL;
+unsigned int var_15 = 533355852U;
+int var_16 = 813824174;
+short arr_0 [19] ;
+unsigned short arr_6 [19] [19] [19] ;
+long long int arr_10 [19] [19] [19] [19] ;
+unsigned char arr_5 [19] ;
+_Bool arr_14 [19] [19] [19] [19] [19] ;
+_Bool arr_15 [19] [19] [19] ;
+void init() {
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        arr_0 [i_0] = (short)1719;
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 19; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 19; ++i_2) 
+                arr_6 [i_0] [i_1] [i_2] = (unsigned short)2019;
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 19; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 19; ++i_2) 
+                for (size_t i_3 = 0; i_3 < 19; ++i_3) 
+                    arr_10 [i_0] [i_1] [i_2] [i_3] = -1013729467818568944LL;
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        arr_5 [i_0] = (unsigned char)218;
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 19; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 19; ++i_2) 
+                for (size_t i_3 = 0; i_3 < 19; ++i_3) 
+                    for (size_t i_4 = 0; i_4 < 19; ++i_4) 
+                        arr_14 [i_0] [i_1] [i_2] [i_3] [i_4] = (i_0 % 2 == 0) ? (_Bool)0 : (_Bool)1;
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 19; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 19; ++i_2) 
+                arr_15 [i_0] [i_1] [i_2] = (_Bool)1;
+}
+
+void checksum() {
+    hash(&seed, var_13);
+    hash(&seed, var_14);
+    hash(&seed, var_15);
+    hash(&seed, var_16);
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        hash(&seed, arr_5 [i_0] );
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 19; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 19; ++i_2) 
+                for (size_t i_3 = 0; i_3 < 19; ++i_3) 
+                    for (size_t i_4 = 0; i_4 < 19; ++i_4) 
+                        hash(&seed, arr_14 [i_0] [i_1] [i_2] [i_3] [i_4] );
+    for (size_t i_0 = 0; i_0 < 19; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 19; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 19; ++i_2) 
+                hash(&seed, arr_15 [i_0] [i_1] [i_2] );
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

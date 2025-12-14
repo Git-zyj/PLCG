@@ -1,0 +1,16 @@
+extern _Bool var_0;
+extern _Bool var_1;
+extern _Bool var_6;
+extern _Bool var_10;
+extern _Bool var_19;
+extern int zero;
+extern _Bool var_20;
+extern _Bool var_21;
+extern _Bool var_22;
+extern _Bool var_23;
+extern _Bool var_24;
+extern _Bool var_25;
+extern _Bool arr_0 [20] [20] ;
+extern _Bool arr_1 [20] ;
+extern _Bool arr_2 [20] [20] ;
+extern _Bool arr_4 [20] [20] ;

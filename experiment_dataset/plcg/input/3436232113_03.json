@@ -1,0 +1,472 @@
+{
+    "params": {
+        "PB_M": 40,
+        "PB_L": 50,
+        "PB_P": 50,
+        "PB_Q": 30
+    },
+    "max_degree": 1,
+    "special_loop_bounds": {
+        "i_1": [
+            "0",
+            "i_0"
+        ],
+        "i_6": [
+            "0",
+            "i_2"
+        ],
+        "i_8": [
+            "i_7",
+            "inf"
+        ],
+        "i_9": [
+            "i_8",
+            "inf"
+        ]
+    },
+    "arrays": [
+        "A[PB_L,PB_P,PB_Q]",
+        "B[PB_M,PB_L,PB_Q]",
+        "C[PB_M,PB_M,PB_M]",
+        "D[PB_L,PB_Q,PB_Q]",
+        "E[PB_M,PB_L]",
+        "F[PB_L,PB_P,PB_Q,PB_Q]",
+        "G[PB_M,PB_P]",
+        "H[PB_M,PB_L,PB_L]",
+        "I[PB_M,PB_L,PB_P]"
+    ],
+    "instructions": [
+        {
+            "schedule": [
+                0,
+                "i_0",
+                0,
+                "i_1",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        0,
+                        0
+                    ],
+                    "array_name": "A",
+                    "array_type": "write",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            -2,
+                            1,
+                            0
+                        ],
+                        [
+                            -2,
+                            0,
+                            0
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        0,
+                        1
+                    ],
+                    "array_name": "E",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            1
+                        ]
+                    ]
+                }
+            ],
+            "dependency": []
+        },
+        {
+            "schedule": [
+                1,
+                "i_2",
+                0,
+                "i_3",
+                0,
+                "i_4",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        1,
+                        0
+                    ],
+                    "array_name": "B",
+                    "array_type": "write",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            0,
+                            1
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        1,
+                        1
+                    ],
+                    "array_name": "F",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            1,
+                            0,
+                            1,
+                            0
+                        ]
+                    ]
+                }
+            ],
+            "dependency": [
+                {
+                    "array_id": [
+                        1,
+                        2
+                    ],
+                    "category": "read",
+                    "distance": [
+                        -1,
+                        1,
+                        -1
+                    ],
+                    "mapping": {
+                        "0": 0,
+                        "1": 1,
+                        "2": 2
+                    },
+                    "parent_stmt_id": 1
+                }
+            ]
+        },
+        {
+            "schedule": [
+                1,
+                "i_2",
+                1,
+                "i_5",
+                0,
+                "i_6",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        2,
+                        0
+                    ],
+                    "array_name": "C",
+                    "array_type": "write",
+                    "array_access_function": [
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            -1,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            0,
+                            1
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        2,
+                        1
+                    ],
+                    "array_name": "G",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            2,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            -1,
+                            1,
+                            0,
+                            0
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        2,
+                        2
+                    ],
+                    "array_name": "H",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            -1,
+                            0,
+                            0,
+                            1
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        2,
+                        3
+                    ],
+                    "array_name": "I",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            2,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            2,
+                            0,
+                            1,
+                            0
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        2,
+                        4
+                    ],
+                    "array_name": "F",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        2,
+                        5
+                    ],
+                    "array_name": "I",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ]
+                    ]
+                }
+            ],
+            "dependency": []
+        },
+        {
+            "schedule": [
+                2,
+                "i_7",
+                0,
+                "i_8",
+                0,
+                "i_9",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        3,
+                        0
+                    ],
+                    "array_name": "D",
+                    "array_type": "write",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            -1,
+                            1,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        3,
+                        1
+                    ],
+                    "array_name": "I",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ]
+                    ]
+                },
+                {
+                    "array_id": [
+                        3,
+                        2
+                    ],
+                    "array_name": "H",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            -2,
+                            0,
+                            1,
+                            1
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0
+                        ]
+                    ]
+                }
+            ],
+            "dependency": []
+        }
+    ]
+}

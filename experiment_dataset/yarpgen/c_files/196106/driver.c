@@ -1,0 +1,67 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+signed char var_1 = (signed char)29;
+short var_2 = (short)8191;
+unsigned long long int var_4 = 2774055192468489905ULL;
+int var_9 = -1549479540;
+unsigned int var_11 = 3687683515U;
+long long int var_13 = -3356499217180732320LL;
+int zero = 0;
+signed char var_16 = (signed char)-123;
+unsigned char var_17 = (unsigned char)122;
+long long int var_18 = -8677899704725835253LL;
+unsigned char var_19 = (unsigned char)179;
+long long int var_20 = -1579765825218072790LL;
+short arr_0 [13] ;
+unsigned char arr_1 [13] [13] ;
+signed char arr_9 [13] [13] [13] ;
+unsigned char arr_12 [13] [13] [13] ;
+long long int arr_13 [13] [13] [13] ;
+void init() {
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        arr_0 [i_0] = (short)-17490;
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 13; ++i_1) 
+            arr_1 [i_0] [i_1] = (i_1 % 2 == 0) ? (unsigned char)82 : (unsigned char)154;
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 13; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 13; ++i_2) 
+                arr_9 [i_0] [i_1] [i_2] = (signed char)-45;
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 13; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 13; ++i_2) 
+                arr_12 [i_0] [i_1] [i_2] = (i_0 % 2 == 0) ? (unsigned char)124 : (unsigned char)140;
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 13; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 13; ++i_2) 
+                arr_13 [i_0] [i_1] [i_2] = (i_0 % 2 == 0) ? 4487565048209428198LL : 5301881938576997672LL;
+}
+
+void checksum() {
+    hash(&seed, var_16);
+    hash(&seed, var_17);
+    hash(&seed, var_18);
+    hash(&seed, var_19);
+    hash(&seed, var_20);
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 13; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 13; ++i_2) 
+                hash(&seed, arr_12 [i_0] [i_1] [i_2] );
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 13; ++i_1) 
+            for (size_t i_2 = 0; i_2 < 13; ++i_2) 
+                hash(&seed, arr_13 [i_0] [i_1] [i_2] );
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

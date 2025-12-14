@@ -1,0 +1,54 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 57706
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=57706 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/57706
+*/
+#include "init.h"
+#define max(x,y)    ((x) > (y)? (x) : (y))
+#define min(x,y)    ((x) < (y)? (x) : (y))
+void test() {
+    #pragma scop
+    /* LoopNest 2 */
+    for (int i_0 = 0; i_0 < 16;i_0 += 1)
+    {
+        for (int i_1 = 2; i_1 < 15;i_1 += 1)
+        {
+            {
+
+                for (int i_2 = 4; i_2 < 15;i_2 += 1) /* same iter space */
+                {
+                    arr_6 [i_1] [i_1] = (arr_4 [i_0] [14]);
+                    arr_7 [i_0] [i_0] [i_1] [i_2] = ((15549 ? -15360 : -27970));
+                }
+                for (int i_3 = 4; i_3 < 15;i_3 += 1) /* same iter space */
+                {
+                    /* LoopNest 2 */
+                    for (int i_4 = 1; i_4 < 1;i_4 += 1)
+                    {
+                        for (int i_5 = 0; i_5 < 16;i_5 += 1)
+                        {
+                            {
+                                var_10 = (max(var_10, (~-28030)));
+                                var_11 = (max(-28030, -151));
+                            }
+                        }
+                    }
+                    arr_15 [i_1] [3] [i_1] = ((((17033596612437609819 ? var_4 : 67))) - (((arr_11 [i_0] [i_1]) * -97)));
+                    var_12 = var_2;
+                    var_13 = 28029;
+                }
+
+                for (int i_6 = 0; i_6 < 0;i_6 += 1)
+                {
+                    arr_19 [i_6] [i_1] [i_0] = var_2;
+                    var_14 = (min(var_14, (((6307539288399235986 ? (arr_10 [1] [i_1] [i_1] [i_1] [i_1] [1]) : -62)))));
+                    arr_20 [i_6] [i_1] [i_1] [i_0] = ((((((31462 > var_3) ? (((var_1 <= (arr_14 [i_1] [i_1])))) : 483477890))) ? (max((max((arr_3 [i_0] [i_1] [i_6]), (arr_5 [i_1]))), (arr_10 [i_1] [12] [i_0] [i_6] [i_0] [i_0]))) : 99));
+                }
+            }
+        }
+    }
+    var_15 = (min(var_15, var_7));
+    var_16 = var_7;
+    var_17 = (max(var_17, 1913528771));
+    #pragma endscop
+}

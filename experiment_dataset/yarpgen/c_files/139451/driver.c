@@ -1,0 +1,61 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+_Bool var_0 = (_Bool)0;
+unsigned long long int var_1 = 13377236238107343813ULL;
+int var_2 = -2062496120;
+long long int var_3 = 1637907760495970702LL;
+unsigned long long int var_4 = 13437040702952011870ULL;
+long long int var_5 = -3463861231501974230LL;
+unsigned char var_6 = (unsigned char)145;
+unsigned int var_7 = 2699502534U;
+_Bool var_8 = (_Bool)0;
+unsigned short var_9 = (unsigned short)21798;
+unsigned long long int var_10 = 15376937442832217883ULL;
+short var_11 = (short)-22133;
+int zero = 0;
+unsigned short var_12 = (unsigned short)17191;
+_Bool var_13 = (_Bool)0;
+signed char var_14 = (signed char)113;
+long long int var_15 = 6996330551884348436LL;
+short var_16 = (short)-19505;
+unsigned long long int arr_0 [18] ;
+_Bool arr_1 [18] [18] ;
+unsigned long long int arr_2 [18] [18] ;
+unsigned long long int arr_3 [18] ;
+unsigned long long int arr_4 [18] [18] ;
+void init() {
+    for (size_t i_0 = 0; i_0 < 18; ++i_0) 
+        arr_0 [i_0] = (i_0 % 2 == 0) ? 4618254771239811986ULL : 2388210381116687645ULL;
+    for (size_t i_0 = 0; i_0 < 18; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 18; ++i_1) 
+            arr_1 [i_0] [i_1] = (i_0 % 2 == 0) ? (_Bool)0 : (_Bool)1;
+    for (size_t i_0 = 0; i_0 < 18; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 18; ++i_1) 
+            arr_2 [i_0] [i_1] = 2565069638216973835ULL;
+    for (size_t i_0 = 0; i_0 < 18; ++i_0) 
+        arr_3 [i_0] = 15142680792410830366ULL;
+    for (size_t i_0 = 0; i_0 < 18; ++i_0) 
+        for (size_t i_1 = 0; i_1 < 18; ++i_1) 
+            arr_4 [i_0] [i_1] = 13746855297113281542ULL;
+}
+
+void checksum() {
+    hash(&seed, var_12);
+    hash(&seed, var_13);
+    hash(&seed, var_14);
+    hash(&seed, var_15);
+    hash(&seed, var_16);
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

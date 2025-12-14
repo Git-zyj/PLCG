@@ -1,0 +1,16 @@
+extern unsigned int var_2;
+extern long long int var_4;
+extern int var_6;
+extern int var_10;
+extern long long int var_15;
+extern int zero;
+extern unsigned char var_17;
+extern _Bool var_18;
+extern unsigned char var_19;
+extern int var_20;
+extern long long int arr_2 [23] [23] [23] ;
+extern unsigned short arr_4 [23] [23] ;
+extern unsigned short arr_5 [23] [23] [23] ;
+extern long long int arr_7 [23] [23] [23] [23] ;
+extern long long int arr_11 [23] [23] [23] [23] [23] [23] ;
+extern unsigned char arr_12 [23] [23] [23] ;

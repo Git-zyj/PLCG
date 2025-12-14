@@ -1,0 +1,41 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 239941
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=239941 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/239941
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    /* LoopNest 2 */
+    for (_Bool i_0 = 1; i_0 < 1; i_0 += 1) 
+    {
+        for (long long int i_1 = 2; i_1 < 14; i_1 += 2) 
+        {
+            {
+                /* LoopNest 2 */
+                for (signed char i_2 = 0; i_2 < 16; i_2 += 2) 
+                {
+                    for (unsigned int i_3 = 2; i_3 < 15; i_3 += 1) 
+                    {
+                        {
+                            var_17 = ((/* implicit */long long int) 4294967294U);
+                            arr_9 [i_3] [i_1] [i_1] = ((/* implicit */long long int) ((((/* implicit */_Bool) ((unsigned char) arr_2 [i_1 + 1]))) ? (((((/* implicit */_Bool) arr_2 [i_1 + 1])) ? (arr_2 [i_1 - 2]) : (((/* implicit */unsigned int) ((/* implicit */int) var_13))))) : (arr_2 [i_1 + 1])));
+                            arr_10 [i_3 - 2] [(unsigned short)6] [i_2] [i_0] [i_0] &= ((/* implicit */signed char) min((min((arr_3 [i_0 - 1] [i_1 + 1]), (arr_3 [i_0 - 1] [i_1 + 2]))), (((/* implicit */short) ((((/* implicit */int) arr_3 [i_0 - 1] [i_1 - 1])) == (((/* implicit */int) arr_3 [i_0 - 1] [i_1 - 2])))))));
+                            var_18 = ((/* implicit */unsigned short) var_8);
+                        }
+                    } 
+                } 
+                var_19 = ((/* implicit */unsigned short) max((var_19), (((/* implicit */unsigned short) ((signed char) ((((/* implicit */_Bool) arr_5 [i_0 - 1] [i_1 + 1] [(_Bool)1])) ? (((/* implicit */int) arr_5 [i_0 - 1] [i_1 + 2] [i_1 + 1])) : (((/* implicit */int) arr_5 [i_0 - 1] [i_1 + 2] [i_1 + 2]))))))));
+            }
+        } 
+    } 
+    var_20 = ((/* implicit */unsigned short) (-(min((2U), (((/* implicit */unsigned int) ((((/* implicit */int) var_6)) / (((/* implicit */int) (short)4504)))))))));
+    var_21 = ((/* implicit */short) (-(max((((/* implicit */int) max((var_10), (((/* implicit */unsigned short) (short)27368))))), (var_7)))));
+}

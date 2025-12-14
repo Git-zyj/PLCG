@@ -1,0 +1,20 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 190720
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=190720 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/190720
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    var_20 |= ((/* implicit */unsigned long long int) var_2);
+    var_21 -= ((/* implicit */unsigned char) max((((/* implicit */unsigned long long int) max((((/* implicit */long long int) (!(((/* implicit */_Bool) var_9))))), (var_6)))), (max((var_16), (var_4)))));
+    var_22 = ((/* implicit */unsigned char) ((((/* implicit */_Bool) ((((/* implicit */_Bool) (~(((/* implicit */int) (unsigned char)2))))) ? (((/* implicit */unsigned long long int) ((/* implicit */int) var_5))) : (((((/* implicit */_Bool) var_4)) ? (var_15) : (((/* implicit */unsigned long long int) ((/* implicit */int) var_12)))))))) ? (((/* implicit */unsigned int) ((((/* implicit */_Bool) max((((/* implicit */unsigned long long int) var_0)), (var_4)))) ? (((((/* implicit */_Bool) var_1)) ? (((/* implicit */int) var_5)) : (((/* implicit */int) var_1)))) : (((((/* implicit */_Bool) 2197843222820691768LL)) ? (((/* implicit */int) (unsigned char)131)) : (((/* implicit */int) (_Bool)1))))))) : (((((_Bool) 7)) ? (((/* implicit */unsigned int) ((/* implicit */int) min((((/* implicit */unsigned short) var_17)), ((unsigned short)44602))))) : (((((/* implicit */_Bool) var_9)) ? (var_2) : (((/* implicit */unsigned int) ((/* implicit */int) var_5)))))))));
+    var_23 = ((((/* implicit */_Bool) ((((/* implicit */_Bool) (-(((/* implicit */int) var_0))))) ? (((/* implicit */int) ((((/* implicit */_Bool) var_16)) || (var_13)))) : (((/* implicit */int) var_9))))) ? (((((/* implicit */_Bool) var_6)) ? (((/* implicit */int) var_0)) : (((((/* implicit */int) var_17)) * (((/* implicit */int) var_13)))))) : (var_11));
+}

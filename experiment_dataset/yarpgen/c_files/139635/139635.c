@@ -1,0 +1,74 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 139635
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=139635 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/139635
+*/
+#include "init.h"
+#define max(x,y)    ((x) > (y)? (x) : (y))
+#define min(x,y)    ((x) < (y)? (x) : (y))
+void test() {
+    #pragma scop
+
+    for (int i_0 = 0; i_0 < 21;i_0 += 1)
+    {
+
+        for (int i_1 = 0; i_1 < 21;i_1 += 1)
+        {
+
+            for (int i_2 = 2; i_2 < 18;i_2 += 1) /* same iter space */
+            {
+
+                for (int i_3 = 0; i_3 < 21;i_3 += 1)
+                {
+                    var_13 *= ((18272 ? -108 : 28412));
+                    var_14 -= (((var_6 > var_3) ? 28407 : (arr_3 [i_2 + 2] [i_2 + 1])));
+                }
+                var_15 = 92;
+                var_16 = (min(((((arr_5 [i_2] [i_1] [i_0]) ? ((-(arr_6 [i_2] [i_1] [i_1] [i_0]))) : (arr_6 [i_2] [i_2 + 3] [i_2] [i_2 + 1])))), (min(var_6, (3545503840285744100 ^ -2)))));
+                arr_11 [i_2] = max(((((((var_11 ? (arr_6 [i_2 - 2] [i_0] [i_1] [i_0]) : 83))) && ((((arr_0 [i_2] [i_0]) + (arr_1 [i_0] [i_0]))))))), ((-((var_1 ? var_2 : 1)))));
+                var_17 += (min(656669156, (((arr_8 [i_2 + 1] [i_2 - 1] [i_2] [i_2]) ? var_10 : (arr_8 [i_2 - 1] [i_2 + 3] [i_2] [i_2])))));
+            }
+            for (int i_4 = 2; i_4 < 18;i_4 += 1) /* same iter space */
+            {
+                arr_16 [i_4] [i_1] = (((var_2 ? 0 : (arr_6 [i_4 + 3] [i_4 + 1] [i_4 + 1] [i_4]))));
+                var_18 = (!5);
+                arr_17 [i_4] [i_1] = arr_1 [i_4] [i_0];
+            }
+            for (int i_5 = 2; i_5 < 18;i_5 += 1) /* same iter space */
+            {
+                arr_20 [i_0] [i_5] [i_0] = (arr_4 [i_5] [i_1]);
+                var_19 = (!1);
+            }
+            /* vectorizable */
+            for (int i_6 = 2; i_6 < 18;i_6 += 1) /* same iter space */
+            {
+                var_20 += ((((((arr_22 [i_1] [i_1] [i_0]) ? var_10 : var_1))) ? 4294967279 : (arr_14 [i_6] [i_6 + 1] [i_6 - 1] [i_6 - 1])));
+                arr_23 [i_6] = (((arr_22 [i_6] [i_1] [i_0]) && var_8));
+                var_21 = (max(var_21, ((((0 ? 14831189848082497638 : 1))))));
+                arr_24 [i_0] [i_6] [i_0] = var_7;
+                var_22 = ((5317539511908155251 ? (arr_4 [i_0] [i_0]) : (!18272)));
+            }
+            arr_25 [i_1] [i_1] [i_0] = ((var_11 && ((((arr_9 [i_0] [i_0] [i_0] [i_0]) ? (((arr_18 [i_0] [i_0]) ? var_2 : (arr_18 [i_1] [i_0]))) : 40557)))));
+        }
+        arr_26 [i_0] [i_0] = (((((arr_2 [i_0] [i_0]) > (!3924))) ? 1 : (((-1090494835 >= (var_4 < var_3))))));
+        var_23 |= (1 ? (((var_11 ? 1225193330 : ((var_12 << (28412 - 28402)))))) : (((((min(1, 34734)))) | ((var_11 ? (arr_15 [i_0] [i_0] [i_0]) : (arr_10 [i_0] [i_0] [i_0] [i_0]))))));
+        arr_27 [i_0] = (((((((((arr_9 [i_0] [i_0] [i_0] [i_0]) ? 7055280349763051008 : -18272))) ? (18271 * var_0) : (arr_13 [i_0] [i_0] [i_0])))) ? (!1) : var_3));
+    }
+
+    for (int i_7 = 1; i_7 < 21;i_7 += 1)
+    {
+        arr_32 [i_7] [i_7] = (arr_31 [i_7]);
+        var_24 = (((((arr_31 [i_7]) ? (((arr_30 [i_7] [i_7]) ? 1344 : 1)) : var_10)) << (115 - 113)));
+    }
+    for (int i_8 = 0; i_8 < 25;i_8 += 1)
+    {
+        arr_37 [i_8] = 28397;
+        arr_38 [i_8] = ((((max(-24979, 1))) ? (((-22593 ? (!1) : var_5))) : (arr_35 [i_8])));
+        var_25 = (arr_36 [i_8]);
+        arr_39 [i_8] = 72;
+        arr_40 [i_8] [i_8] = (min((max(2124749623, (arr_36 [i_8]))), (arr_36 [i_8])));
+    }
+    var_26 = ((var_10 ? var_1 : ((53899 ? var_1 : var_8))));
+    var_27 = ((-var_7 | (((max(var_12, var_3))))));
+    #pragma endscop
+}

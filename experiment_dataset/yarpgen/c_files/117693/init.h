@@ -1,0 +1,16 @@
+extern int var_1;
+extern short var_2;
+extern int var_4;
+extern int var_5;
+extern int var_7;
+extern int var_8;
+extern int var_9;
+extern int var_11;
+extern int zero;
+extern short var_13;
+extern int var_14;
+extern int var_15;
+extern short arr_1 [21] ;
+extern short arr_3 [21] [21] [21] ;
+extern short arr_4 [21] [21] ;
+extern short arr_5 [21] [21] [21] ;

@@ -1,0 +1,19 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 35691
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=35691 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/35691
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    var_11 = ((/* implicit */unsigned short) max((var_11), (((/* implicit */unsigned short) ((((/* implicit */_Bool) ((((/* implicit */_Bool) ((var_2) ? (((/* implicit */long long int) ((/* implicit */int) var_0))) : (-6175531745211198449LL)))) ? (((/* implicit */unsigned int) ((((/* implicit */_Bool) var_8)) ? (((/* implicit */int) (unsigned short)31352)) : (((/* implicit */int) (short)31183))))) : (((((/* implicit */_Bool) var_6)) ? (0U) : (((/* implicit */unsigned int) ((/* implicit */int) var_9)))))))) ? ((((_Bool)1) ? (((((/* implicit */_Bool) (unsigned short)44409)) ? (((/* implicit */unsigned long long int) ((/* implicit */int) (_Bool)1))) : (8830210609967030638ULL))) : (((/* implicit */unsigned long long int) 1214794877)))) : (((((/* implicit */_Bool) (((_Bool)1) ? (((/* implicit */int) var_4)) : (((/* implicit */int) var_9))))) ? (((/* implicit */unsigned long long int) ((((/* implicit */_Bool) (short)0)) ? (-3887751928246308441LL) : (((/* implicit */long long int) 488475849U))))) : (((((/* implicit */_Bool) var_10)) ? (8037567562167906517ULL) : (((/* implicit */unsigned long long int) ((/* implicit */int) (signed char)9))))))))))));
+    var_12 = ((/* implicit */unsigned char) ((((/* implicit */_Bool) ((((/* implicit */_Bool) ((((/* implicit */_Bool) (unsigned short)16383)) ? (((/* implicit */unsigned long long int) ((/* implicit */int) var_2))) : (var_6)))) ? (((/* implicit */unsigned int) ((var_5) ? (((/* implicit */int) var_4)) : (((/* implicit */int) (_Bool)1))))) : (((((/* implicit */_Bool) var_10)) ? (922211136U) : (((/* implicit */unsigned int) ((/* implicit */int) (unsigned short)21150)))))))) ? (((((/* implicit */_Bool) ((((/* implicit */_Bool) var_8)) ? (((/* implicit */int) (unsigned short)49153)) : (((/* implicit */int) var_5))))) ? (((/* implicit */long long int) (((_Bool)1) ? (((/* implicit */int) var_1)) : (((/* implicit */int) var_5))))) : (((((/* implicit */_Bool) var_9)) ? (91807398289564218LL) : (((/* implicit */long long int) ((/* implicit */int) var_1))))))) : (((/* implicit */long long int) ((((/* implicit */_Bool) ((var_5) ? (((/* implicit */int) var_0)) : (((/* implicit */int) (short)-32759))))) ? ((((_Bool)1) ? (((/* implicit */unsigned int) ((/* implicit */int) (short)3259))) : (2238243588U))) : (((/* implicit */unsigned int) ((((/* implicit */_Bool) var_9)) ? (((/* implicit */int) var_3)) : (((/* implicit */int) var_9))))))))));
+    var_13 = ((/* implicit */short) ((((/* implicit */_Bool) ((((/* implicit */_Bool) 9223372036854775807LL)) ? (((/* implicit */int) (unsigned short)49152)) : (((/* implicit */int) (signed char)24))))) ? (((((/* implicit */_Bool) ((((/* implicit */_Bool) var_6)) ? (((/* implicit */int) (unsigned short)53553)) : (((/* implicit */int) var_2))))) ? (((((/* implicit */_Bool) var_7)) ? (((/* implicit */unsigned int) ((/* implicit */int) var_0))) : (1525543057U))) : (((/* implicit */unsigned int) ((((/* implicit */_Bool) 2238243588U)) ? (((/* implicit */int) var_1)) : (((/* implicit */int) var_2))))))) : (((((/* implicit */_Bool) ((((/* implicit */_Bool) var_8)) ? (((/* implicit */int) var_0)) : (((/* implicit */int) var_1))))) ? ((((_Bool)1) ? (var_10) : (((/* implicit */unsigned int) ((/* implicit */int) (unsigned short)16399))))) : (((/* implicit */unsigned int) ((var_4) ? (((/* implicit */int) var_9)) : (((/* implicit */int) var_9)))))))));
+}

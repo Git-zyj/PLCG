@@ -1,0 +1,23 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 238763
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=238763 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/238763
+*/
+#include "init.h"
+#define max(x,y)    ((x) > (y)? (x) : (y))
+#define min(x,y)    ((x) < (y)? (x) : (y))
+void test() {
+    #pragma scop
+    var_11 = var_3;
+    var_12 *= (((((-1157919747 | -2047180708) ? ((-1157919740 ? 1157919739 : 4215995334)) : 1963945369)) > ((min(1157919761, var_6)))));
+
+    /* vectorizable */
+    for (int i_0 = 1; i_0 < 18;i_0 += 1)
+    {
+        var_13 = var_10;
+        arr_4 [i_0] [i_0] = (((((-3423293232548875026 ? 1 : var_0))) ? (arr_0 [i_0]) : -1157919775));
+        arr_5 [i_0] [i_0] = (4722 ? (((arr_3 [i_0]) ? 1157919761 : (arr_2 [i_0]))) : ((13055 / (arr_2 [i_0]))));
+    }
+    var_14 = (max((((~1157919740) & 2941932967)), var_8));
+    #pragma endscop
+}

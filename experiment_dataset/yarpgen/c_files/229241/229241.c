@@ -1,0 +1,28 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 229241
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=229241 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/229241
+*/
+#include "init.h"
+#define max(x,y)    ((x) > (y)? (x) : (y))
+#define min(x,y)    ((x) < (y)? (x) : (y))
+void test() {
+    #pragma scop
+    var_15 = (min(((var_2 ? var_9 : 21960), var_5)));
+    /* LoopNest 2 */
+    for (int i_0 = 1; i_0 < 21;i_0 += 1)
+    {
+        for (int i_1 = 2; i_1 < 20;i_1 += 1)
+        {
+            {
+                arr_4 [i_0] [i_0] [i_0] = var_12;
+                var_16 ^= (((((((arr_2 [i_0 - 1] [i_1 + 1]) >= var_11)))) - (((arr_3 [i_0 - 1] [i_0 - 1] [i_1 + 2]) ? 735905501071608806 : 1226934601))));
+                var_17 = (var_3 & var_14);
+            }
+        }
+    }
+    var_18 = (var_1 ? (0 ^ -8611659403124821507) : 3409504237954813200);
+    var_19 = (min(var_19, (((var_11 ? ((((0 << 0) ? ((var_1 << (140737487306752 - 140737487306746))) : var_2))) : var_6)))));
+    var_20 = var_12;
+    #pragma endscop
+}

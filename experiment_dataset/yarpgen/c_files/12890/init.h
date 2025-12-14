@@ -1,0 +1,9 @@
+extern short var_3;
+extern short var_5;
+extern short var_7;
+extern _Bool var_9;
+extern short var_11;
+extern short var_12;
+extern int zero;
+extern short var_17;
+extern short var_18;

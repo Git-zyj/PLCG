@@ -1,0 +1,19 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 168380
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=168380 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/168380
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    var_19 -= ((/* implicit */unsigned int) min((max((((/* implicit */unsigned char) (signed char)62)), (var_10))), (((/* implicit */unsigned char) max((max((var_16), (var_0))), (((/* implicit */signed char) (!(((/* implicit */_Bool) 4226257141U))))))))));
+    var_20 = ((/* implicit */unsigned char) min((((/* implicit */long long int) var_17)), (((long long int) 1390563796))));
+    var_21 = max((((/* implicit */signed char) ((((/* implicit */_Bool) min((((/* implicit */unsigned int) var_16)), (var_3)))) || (((/* implicit */_Bool) min((6105683124415626866ULL), (((/* implicit */unsigned long long int) (unsigned short)34503)))))))), (var_4));
+}

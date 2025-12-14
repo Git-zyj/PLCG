@@ -1,0 +1,75 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 114845
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=114845 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/114845
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    /* LoopNest 2 */
+    for (int i_0 = 0; i_0 < 24; i_0 += 2) 
+    {
+        for (int i_1 = 0; i_1 < 24; i_1 += 1) 
+        {
+            {
+                /* LoopSeq 1 */
+                for (int i_2 = 1; i_2 < 22; i_2 += 1) 
+                {
+                    /* LoopNest 2 */
+                    for (int i_3 = 0; i_3 < 24; i_3 += 1) 
+                    {
+                        for (int i_4 = 3; i_4 < 22; i_4 += 2) 
+                        {
+                            {
+                                arr_15 [8] [i_2] [i_4] = max((((int) ((int) arr_1 [i_0]))), (max((arr_8 [20] [i_2] [i_4]), (arr_3 [i_4] [i_4 - 2]))));
+                                arr_16 [i_2] [i_1] = ((((/* implicit */_Bool) ((((/* implicit */_Bool) ((((/* implicit */_Bool) arr_5 [i_0] [i_0] [i_0] [i_0])) ? (arr_13 [i_0] [i_0] [i_0] [i_0] [i_0] [i_2] [i_0]) : (arr_10 [i_3] [i_2] [i_1] [i_0])))) ? (((((/* implicit */_Bool) arr_9 [i_0] [i_2] [5] [5])) ? (arr_9 [i_4 + 1] [i_2] [i_2] [23]) : (arr_11 [i_0] [i_1] [i_2 + 1] [i_2 + 1] [i_4]))) : (((((/* implicit */_Bool) arr_1 [i_0])) ? (arr_6 [i_0]) : (arr_5 [0] [i_3] [12] [i_1])))))) ? (((((((/* implicit */_Bool) arr_12 [i_0] [i_2])) ? (arr_9 [i_0] [i_2] [2] [9]) : (arr_12 [i_0] [i_2]))) % (((int) arr_12 [i_2] [i_2])))) : (((((/* implicit */_Bool) ((((/* implicit */_Bool) 1075936012)) ? (2147483647) : (-1276830192)))) ? (arr_9 [i_4 - 1] [i_2] [i_4 - 2] [i_4 + 1]) : (((((/* implicit */_Bool) arr_0 [i_0] [i_0])) ? (arr_0 [i_1] [i_2]) : (arr_10 [i_0] [i_0] [i_2] [i_0]))))));
+                            }
+                        } 
+                    } 
+                    arr_17 [i_0] [i_0] [i_2] [i_0] = arr_7 [i_0] [i_0] [i_2] [i_2];
+                    var_14 ^= ((((/* implicit */_Bool) min((arr_7 [i_2 + 2] [21] [i_2 - 1] [i_2 + 2]), (arr_9 [i_1] [i_0] [8] [i_1])))) ? (((((/* implicit */_Bool) arr_7 [i_2 + 2] [i_2 - 1] [i_2 + 1] [i_2 + 2])) ? (arr_10 [i_2 - 1] [i_2 + 1] [i_2 + 1] [i_2 + 1]) : (arr_9 [14] [i_0] [14] [i_2]))) : (((arr_7 [i_2 + 2] [i_2 + 1] [i_2 - 1] [i_2 + 1]) | (arr_10 [i_2 + 1] [i_2 - 1] [i_2 - 1] [i_2 - 1]))));
+                    var_15 ^= ((int) max((max((arr_9 [6] [i_0] [i_1] [i_2 - 1]), (arr_3 [i_2 - 1] [i_0]))), (arr_1 [i_2 + 1])));
+                }
+                /* LoopNest 3 */
+                for (int i_5 = 1; i_5 < 23; i_5 += 2) 
+                {
+                    for (int i_6 = 3; i_6 < 23; i_6 += 2) 
+                    {
+                        for (int i_7 = 3; i_7 < 20; i_7 += 2) 
+                        {
+                            {
+                                arr_28 [9] [20] [i_5] [i_1] [i_0] = ((arr_26 [i_7] [i_6] [11] [i_1] [14] [i_0] [8]) | (((int) ((int) arr_2 [15] [i_1]))));
+                                arr_29 [i_0] [i_0] [i_0] [i_0] [19] = min((((((/* implicit */_Bool) ((((/* implicit */_Bool) arr_4 [i_0] [i_0])) ? (arr_3 [i_0] [i_5]) : (arr_8 [i_1] [i_0] [i_6])))) ? (arr_2 [i_7 + 4] [i_6 + 1]) : (((((arr_13 [i_7] [i_0] [i_6] [i_5] [i_5 - 1] [i_0] [12]) + (2147483647))) >> (((arr_13 [i_7] [i_0] [i_6] [i_1] [i_1] [i_0] [i_0]) + (2055091559))))))), (((((/* implicit */_Bool) ((int) arr_5 [i_0] [i_0] [i_0] [i_0]))) ? (arr_18 [13] [i_6] [i_0] [i_0]) : (((((/* implicit */_Bool) -688272306)) ? (-1704794604) : (-1436253868))))));
+                                var_16 = ((/* implicit */int) max((var_16), ((~(((int) ((arr_23 [i_0] [i_0] [i_0] [i_0] [i_0]) & (arr_25 [i_7] [i_7 - 2] [i_7] [i_7] [i_7]))))))));
+                            }
+                        } 
+                    } 
+                } 
+                /* LoopNest 3 */
+                for (int i_8 = 0; i_8 < 24; i_8 += 2) 
+                {
+                    for (int i_9 = 0; i_9 < 24; i_9 += 1) 
+                    {
+                        for (int i_10 = 1; i_10 < 21; i_10 += 2) 
+                        {
+                            {
+                                var_17 = arr_24 [i_1] [i_8] [i_9] [i_10];
+                                var_18 ^= max((((((/* implicit */_Bool) ((arr_32 [i_0] [16] [i_0] [i_0]) & (arr_21 [i_0] [13] [i_0])))) ? (((((/* implicit */_Bool) -1075936031)) ? (-1704794604) : (1260458513))) : (arr_25 [i_9] [i_9] [i_9] [0] [i_9]))), (max((min((arr_18 [i_0] [i_0] [i_0] [i_0]), (arr_30 [i_1]))), (((int) arr_12 [10] [i_8])))));
+                            }
+                        } 
+                    } 
+                } 
+                var_19 = ((/* implicit */int) max((var_19), (((/* implicit */int) ((max((((int) arr_5 [i_1] [i_1] [4] [i_0])), (((int) arr_9 [i_1] [i_0] [i_0] [18])))) != (((((int) arr_6 [i_1])) ^ (((((/* implicit */_Bool) arr_9 [i_1] [i_0] [i_0] [i_0])) ? (arr_5 [6] [i_1] [0] [i_0]) : (arr_2 [12] [12]))))))))));
+            }
+        } 
+    } 
+    var_20 = min((var_1), (((((var_13) + (var_5))) >> ((((+(var_4))) + (1903914950))))));
+    var_21 ^= var_8;
+}

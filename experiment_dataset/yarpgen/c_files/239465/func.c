@@ -1,0 +1,100 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 239465
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=239465 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/239465
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    /* LoopNest 2 */
+    for (_Bool i_0 = 0; i_0 < 1; i_0 += 1) 
+    {
+        for (unsigned int i_1 = 0; i_1 < 18; i_1 += 2) 
+        {
+            {
+                var_10 = ((/* implicit */unsigned int) ((((/* implicit */_Bool) max((((((/* implicit */_Bool) arr_1 [i_0])) ? (arr_1 [i_1]) : (((/* implicit */unsigned long long int) ((/* implicit */int) arr_3 [i_0] [i_1]))))), (((/* implicit */unsigned long long int) arr_3 [i_1] [i_0]))))) ? (min((((/* implicit */unsigned long long int) ((((/* implicit */_Bool) var_8)) ? (((/* implicit */long long int) ((/* implicit */int) var_2))) : (2207523771713603134LL)))), (((((/* implicit */unsigned long long int) ((/* implicit */int) arr_3 [i_1] [(_Bool)1]))) + (arr_1 [i_0]))))) : (((/* implicit */unsigned long long int) max((var_9), (1524233540))))));
+                var_11 = ((/* implicit */int) ((short) 2872540992173633760LL));
+                var_12 = ((/* implicit */_Bool) max((var_12), (((((/* implicit */_Bool) (-(((/* implicit */int) (_Bool)1))))) && (((/* implicit */_Bool) max((((/* implicit */long long int) ((((/* implicit */int) arr_0 [i_0])) << (((((/* implicit */int) var_1)) - (124)))))), (((((/* implicit */_Bool) var_0)) ? (-2872540992173633760LL) : (((/* implicit */long long int) ((/* implicit */int) arr_2 [i_0] [i_1] [i_1]))))))))))));
+                var_13 = ((/* implicit */int) ((var_5) != (((/* implicit */long long int) min((((/* implicit */int) arr_2 [i_0] [i_1] [i_1])), ((-(((/* implicit */int) arr_2 [i_0] [i_0] [i_1])))))))));
+                var_14 = ((/* implicit */unsigned char) max((var_14), (((/* implicit */unsigned char) min((((/* implicit */unsigned long long int) (!(((/* implicit */_Bool) arr_1 [i_1]))))), (((arr_1 [i_0]) & (arr_1 [i_0]))))))));
+            }
+        } 
+    } 
+    /* LoopNest 2 */
+    for (short i_2 = 1; i_2 < 12; i_2 += 4) 
+    {
+        for (unsigned char i_3 = 3; i_3 < 13; i_3 += 1) 
+        {
+            {
+                arr_8 [i_2] [i_2] = ((/* implicit */int) ((((/* implicit */_Bool) max((arr_2 [i_3] [i_3 - 1] [i_3]), (arr_2 [i_3] [i_3 - 1] [i_2 + 1])))) ? (((/* implicit */unsigned long long int) (~((((_Bool)1) ? (2872540992173633747LL) : (((/* implicit */long long int) ((/* implicit */int) arr_3 [i_3 + 1] [i_2 + 2])))))))) : (((((/* implicit */_Bool) ((unsigned char) 2872540992173633738LL))) ? (((/* implicit */unsigned long long int) ((/* implicit */int) arr_2 [i_3] [i_2] [i_2 - 1]))) : (((var_6) | (arr_1 [(_Bool)0])))))));
+                var_15 = ((/* implicit */unsigned long long int) max((var_15), (((((/* implicit */_Bool) max((var_4), (var_4)))) ? (((unsigned long long int) 2147483646)) : (((/* implicit */unsigned long long int) min((((/* implicit */unsigned int) arr_6 [i_2 + 2] [i_2 + 1] [i_3 - 3])), (3794829546U))))))));
+                /* LoopSeq 2 */
+                for (_Bool i_4 = 0; i_4 < 1; i_4 += 1) /* same iter space */
+                {
+                    arr_13 [i_2] [i_3] [i_4] [i_2] = min((((((/* implicit */long long int) 500137749U)) & (arr_11 [i_2] [i_2 + 2] [i_3 - 1]))), (min((-2872540992173633760LL), (((/* implicit */long long int) 2147483645)))));
+                    var_16 = ((/* implicit */long long int) max((var_16), (((arr_6 [i_2 + 2] [(unsigned char)2] [i_4]) ? (((/* implicit */long long int) (+((+(var_9)))))) : (min((((/* implicit */long long int) (unsigned char)84)), (2385561819077793008LL)))))));
+                    var_17 = max((max((((/* implicit */int) arr_6 [(short)12] [i_2 + 2] [i_4])), (((((/* implicit */int) arr_9 [i_2 + 1] [i_3] [i_3 - 1])) | (((/* implicit */int) var_2)))))), (((((/* implicit */_Bool) (~(((/* implicit */int) (_Bool)1))))) ? ((~(((/* implicit */int) arr_0 [i_2])))) : (((/* implicit */int) (unsigned char)86)))));
+                }
+                /* vectorizable */
+                for (_Bool i_5 = 0; i_5 < 1; i_5 += 1) /* same iter space */
+                {
+                    var_18 *= ((/* implicit */unsigned long long int) ((int) arr_2 [i_2 - 1] [i_3 + 1] [i_5]));
+                    var_19 = ((/* implicit */_Bool) (~(((/* implicit */int) arr_9 [i_3 - 2] [i_2 + 1] [i_2]))));
+                    var_20 -= ((/* implicit */_Bool) ((arr_11 [i_2 + 2] [i_3 - 2] [i_3]) | (arr_15 [i_3 + 1])));
+                    var_21 = ((/* implicit */unsigned long long int) ((((/* implicit */int) arr_3 [i_2 + 2] [i_2 - 1])) * (((/* implicit */int) arr_3 [i_2 + 2] [i_2 - 1]))));
+                }
+                var_22 = ((/* implicit */unsigned char) min((((((/* implicit */_Bool) (+(((/* implicit */int) (unsigned short)30717))))) ? (((/* implicit */unsigned long long int) ((/* implicit */int) arr_2 [i_2] [i_3] [(unsigned char)17]))) : (((((/* implicit */_Bool) arr_15 [i_3])) ? (((/* implicit */unsigned long long int) ((/* implicit */int) (unsigned short)28787))) : (arr_1 [i_3]))))), (((/* implicit */unsigned long long int) ((((-95796896) & ((-2147483647 - 1)))) >= (((/* implicit */int) (!((_Bool)1)))))))));
+                /* LoopNest 3 */
+                for (unsigned char i_6 = 1; i_6 < 12; i_6 += 3) 
+                {
+                    for (unsigned char i_7 = 0; i_7 < 14; i_7 += 4) 
+                    {
+                        for (_Bool i_8 = 0; i_8 < 1; i_8 += 1) 
+                        {
+                            {
+                                var_23 = ((/* implicit */unsigned long long int) max((var_23), (((/* implicit */unsigned long long int) ((((/* implicit */int) (!(((/* implicit */_Bool) max((((/* implicit */unsigned long long int) var_5)), (arr_4 [i_7]))))))) >= ((+(((((/* implicit */int) var_1)) ^ (((/* implicit */int) (_Bool)1)))))))))));
+                                var_24 = ((/* implicit */int) var_7);
+                                var_25 &= ((/* implicit */unsigned long long int) min(((!((!(((/* implicit */_Bool) arr_0 [i_2])))))), ((!(((/* implicit */_Bool) ((((/* implicit */_Bool) var_7)) ? (((/* implicit */unsigned long long int) ((/* implicit */int) (_Bool)1))) : (arr_22 [i_2] [i_2] [i_2] [1ULL] [i_2 - 1] [12]))))))));
+                            }
+                        } 
+                    } 
+                } 
+            }
+        } 
+    } 
+    /* LoopSeq 2 */
+    /* vectorizable */
+    for (unsigned char i_9 = 1; i_9 < 8; i_9 += 1) 
+    {
+        /* LoopNest 2 */
+        for (unsigned long long int i_10 = 0; i_10 < 12; i_10 += 3) 
+        {
+            for (unsigned int i_11 = 4; i_11 < 10; i_11 += 1) 
+            {
+                {
+                    var_26 |= ((/* implicit */unsigned char) (+(-5541297429531061376LL)));
+                    arr_32 [i_11 - 4] [i_9] [i_9] = ((/* implicit */unsigned long long int) ((((/* implicit */int) (_Bool)1)) - (((/* implicit */int) (unsigned short)53067))));
+                    var_27 = ((/* implicit */unsigned char) max((var_27), (((/* implicit */unsigned char) arr_23 [i_11] [1ULL] [i_10] [i_9 - 1] [i_9] [i_9]))));
+                }
+            } 
+        } 
+        var_28 = ((/* implicit */_Bool) max((var_28), (((/* implicit */_Bool) (-(((/* implicit */int) (_Bool)0)))))));
+        var_29 = ((/* implicit */unsigned char) max((var_29), ((unsigned char)212)));
+        var_30 = ((/* implicit */int) (+(arr_11 [i_9 - 1] [i_9] [i_9])));
+    }
+    /* vectorizable */
+    for (_Bool i_12 = 1; i_12 < 1; i_12 += 1) 
+    {
+        var_31 = ((/* implicit */int) max((var_31), (((/* implicit */int) (unsigned char)14))));
+        var_32 = (+(0));
+        var_33 = ((/* implicit */long long int) max((var_33), (((/* implicit */long long int) (~(((/* implicit */int) arr_3 [i_12] [i_12 - 1])))))));
+        var_34 = ((/* implicit */short) max((var_34), (((/* implicit */short) (+(((/* implicit */int) (_Bool)1)))))));
+    }
+}

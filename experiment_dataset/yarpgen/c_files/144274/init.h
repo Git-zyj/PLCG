@@ -1,0 +1,10 @@
+extern _Bool var_0;
+extern short var_6;
+extern short var_7;
+extern signed char var_8;
+extern _Bool var_11;
+extern unsigned short var_12;
+extern int zero;
+extern signed char var_17;
+extern short var_18;
+extern _Bool var_19;

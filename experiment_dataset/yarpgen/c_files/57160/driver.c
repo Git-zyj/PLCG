@@ -1,0 +1,48 @@
+#include <stdio.h>
+
+unsigned long long int seed = 0;
+void hash(unsigned long long int *seed, unsigned long long int const v) {
+    *seed ^= v + 0x9e3779b9 + ((*seed)<<6) + ((*seed)>>2);
+}
+
+unsigned char var_0 = (unsigned char)137;
+long long int var_1 = -6282708758576460621LL;
+short var_2 = (short)7555;
+unsigned int var_3 = 220111511U;
+unsigned char var_4 = (unsigned char)88;
+unsigned int var_5 = 1309353112U;
+unsigned char var_10 = (unsigned char)77;
+short var_11 = (short)-1267;
+unsigned long long int var_16 = 18171836128142893891ULL;
+int zero = 0;
+_Bool var_18 = (_Bool)1;
+unsigned int var_19 = 2227798333U;
+unsigned int var_20 = 976317622U;
+unsigned int var_21 = 2591419112U;
+unsigned int var_22 = 2783087976U;
+unsigned long long int var_23 = 5616146947228837634ULL;
+unsigned int arr_1 [13] ;
+unsigned short arr_2 [13] ;
+void init() {
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        arr_1 [i_0] = (i_0 % 2 == 0) ? 1059426143U : 4004931062U;
+    for (size_t i_0 = 0; i_0 < 13; ++i_0) 
+        arr_2 [i_0] = (unsigned short)31315;
+}
+
+void checksum() {
+    hash(&seed, var_18);
+    hash(&seed, var_19);
+    hash(&seed, var_20);
+    hash(&seed, var_21);
+    hash(&seed, var_22);
+    hash(&seed, var_23);
+}
+void test();
+
+int main() {
+    init();
+    test();
+    checksum();
+    printf("%llu\n", seed);
+}

@@ -1,0 +1,261 @@
+{
+    "params": {
+        "PB_M": 9,
+        "PB_L": 10,
+        "PB_P": 10,
+        "PB_Q": 10
+    },
+    "max_degree": 1,
+    "special_loop_bounds": {},
+    "arrays": [
+        "A[PB_M,PB_L,PB_P]",
+        "E[PB_M,PB_L,PB_P,PB_Q]",
+        "F[PB_L,PB_Q]",
+        "G[PB_M,PB_M,PB_L]"
+    ],
+    "instructions": [
+        {
+            "schedule": [
+                0,
+                "i_0",
+                0,
+                "i_1",
+                0,
+                "i_2",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        0,
+                        0
+                    ],
+                    "array_name": "A",
+                    "array_type": "write",
+                    "array_access_function": [
+                        [
+                            1,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            2,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            0,
+                            0
+                        ]
+                    ]
+                }
+            ],
+            "dependency": [
+                {
+                    "array_id": [
+                        0,
+                        1
+                    ],
+                    "category": "read",
+                    "distance": [
+                        1,
+                        2
+                    ],
+                    "mapping": {
+                        "0": 0,
+                        "1": 1
+                    },
+                    "parent_stmt_id": 0
+                }
+            ]
+        },
+        {
+            "schedule": [
+                1,
+                "i_3",
+                0,
+                "i_4",
+                0,
+                "i_5",
+                0,
+                "i_6",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        1,
+                        1
+                    ],
+                    "array_name": "E",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            1,
+                            0,
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            2,
+                            0,
+                            1,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0,
+                            0
+                        ],
+                        [
+                            -1,
+                            0,
+                            0,
+                            1,
+                            0
+                        ]
+                    ]
+                }
+            ],
+            "dependency": [
+                {
+                    "array_id": [
+                        1,
+                        0
+                    ],
+                    "category": "write",
+                    "distance": [
+                        0,
+                        0
+                    ],
+                    "mapping": {
+                        "0": 1,
+                        "1": 2
+                    },
+                    "parent_stmt_id": 0
+                }
+            ]
+        },
+        {
+            "schedule": [
+                1,
+                "i_3",
+                1,
+                "i_7",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        2,
+                        1
+                    ],
+                    "array_name": "F",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            1
+                        ],
+                        [
+                            -1,
+                            1,
+                            0
+                        ]
+                    ]
+                }
+            ],
+            "dependency": [
+                {
+                    "array_id": [
+                        2,
+                        0
+                    ],
+                    "category": "write",
+                    "distance": [
+                        -2,
+                        -2
+                    ],
+                    "mapping": {
+                        "0": 1,
+                        "1": 0
+                    },
+                    "parent_stmt_id": 0
+                }
+            ]
+        },
+        {
+            "schedule": [
+                1,
+                "i_3",
+                2,
+                "i_8",
+                0,
+                "i_9",
+                0,
+                "j_0",
+                0
+            ],
+            "additional_computation": [
+                {
+                    "array_id": [
+                        3,
+                        1
+                    ],
+                    "array_name": "G",
+                    "array_type": "read",
+                    "array_access_function": [
+                        [
+                            0,
+                            0,
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0,
+                            0,
+                            0
+                        ]
+                    ]
+                }
+            ],
+            "dependency": [
+                {
+                    "array_id": [
+                        3,
+                        0
+                    ],
+                    "category": "write",
+                    "distance": [
+                        1,
+                        -1
+                    ],
+                    "mapping": {
+                        "0": 1,
+                        "1": 2
+                    },
+                    "parent_stmt_id": 0
+                }
+            ]
+        }
+    ]
+}

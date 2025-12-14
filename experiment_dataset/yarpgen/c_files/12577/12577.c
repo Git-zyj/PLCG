@@ -1,0 +1,65 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 12577
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=12577 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/12577
+*/
+#include "init.h"
+#define max(x,y)    ((x) > (y)? (x) : (y))
+#define min(x,y)    ((x) < (y)? (x) : (y))
+void test() {
+    #pragma scop
+    var_18 |= (((-577065598 ? var_4 : 18446744073709551615)) << (577065615 / var_10));
+    var_19 ^= 1;
+
+    for (int i_0 = 0; i_0 < 18;i_0 += 1) /* same iter space */
+    {
+        arr_2 [i_0] = (((50331648 << 0) == 939524096));
+
+        for (int i_1 = 1; i_1 < 17;i_1 += 1)
+        {
+            var_20 = 3355443199;
+            var_21 |= (((767377196 >= 767377179) / ((-577065598 / (arr_3 [i_0])))));
+        }
+    }
+    for (int i_2 = 0; i_2 < 18;i_2 += 1) /* same iter space */
+    {
+        var_22 *= ((((18 / (32757 % -1168817997849335516))) < ((((0 <= (arr_0 [i_2])))))));
+        var_23 ^= 577065597;
+        arr_7 [i_2] [i_2] = 18446744073709551600;
+
+        /* vectorizable */
+        for (int i_3 = 0; i_3 < 18;i_3 += 1) /* same iter space */
+        {
+            var_24 -= ((127 < (577065620 > 32751)));
+            var_25 = ((-1168817997849335503 < ((2223047288 ? 8 : 29))));
+        }
+        /* vectorizable */
+        for (int i_4 = 0; i_4 < 18;i_4 += 1) /* same iter space */
+        {
+            var_26 ^= ((518038266 ? -122 : (-118 >= 577065608)));
+            arr_12 [i_2] [i_2] [i_2] = (((arr_10 [i_2] [i_4]) * (arr_10 [i_2] [i_2])));
+            var_27 = (-6890652669054984447 ? -1 : -11042);
+            var_28 = (((arr_6 [i_2]) % (arr_3 [i_2])));
+            var_29 ^= ((103 ? 2354359332 : 20688));
+        }
+        var_30 = -11063;
+    }
+    for (int i_5 = 1; i_5 < 13;i_5 += 1)
+    {
+        var_31 = (((56 > 0) == (5683209223719977922 || 40)));
+        /* LoopNest 2 */
+        for (int i_6 = 0; i_6 < 15;i_6 += 1)
+        {
+            for (int i_7 = 1; i_7 < 1;i_7 += 1)
+            {
+                {
+                    arr_21 [i_7] [i_6] = ((1 << (8521 - 8502)));
+                    arr_22 [i_5] [i_6] [i_7] [i_7 - 1] = ((11041 >= (arr_8 [i_7 - 1] [5] [i_5])));
+                    arr_23 [i_5] [i_5 - 1] [6] [i_5 - 1] = (84 / -5377);
+                    var_32 = (23767 >= -577065619);
+                }
+            }
+        }
+    }
+    #pragma endscop
+}

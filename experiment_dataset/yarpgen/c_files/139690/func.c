@@ -1,0 +1,20 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 139690
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=139690 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/139690
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    var_13 = ((/* implicit */unsigned short) ((((/* implicit */_Bool) ((((((/* implicit */int) (_Bool)1)) == (((/* implicit */int) (short)(-32767 - 1))))) ? (((var_7) ? (var_2) : (((/* implicit */long long int) var_0)))) : (((/* implicit */long long int) max((1262647139U), (((/* implicit */unsigned int) (_Bool)1)))))))) ? (((/* implicit */unsigned long long int) ((((/* implicit */_Bool) ((((/* implicit */int) (unsigned short)32564)) - (((/* implicit */int) (short)23454))))) ? (((((/* implicit */_Bool) var_8)) ? (((/* implicit */long long int) ((/* implicit */int) var_12))) : (var_5))) : ((((_Bool)1) ? (((/* implicit */long long int) 22U)) : (var_10)))))) : (((((/* implicit */_Bool) ((((/* implicit */_Bool) var_2)) ? (((/* implicit */long long int) ((/* implicit */int) var_12))) : (var_5)))) ? (((var_8) - (((/* implicit */unsigned long long int) 2763750627U)))) : (max((((/* implicit */unsigned long long int) (_Bool)1)), (17579862944274525629ULL)))))));
+    var_14 = ((/* implicit */short) ((((/* implicit */_Bool) ((((((/* implicit */int) (unsigned short)31676)) < (((/* implicit */int) var_1)))) ? (((/* implicit */int) ((((/* implicit */long long int) ((/* implicit */int) var_7))) <= (var_5)))) : ((((_Bool)1) ? (((/* implicit */int) var_4)) : (((/* implicit */int) (_Bool)1))))))) ? (((/* implicit */unsigned long long int) ((((var_2) % (((/* implicit */long long int) 1913847848)))) >> (((((((/* implicit */_Bool) var_0)) ? (var_9) : (((/* implicit */unsigned long long int) ((/* implicit */int) (short)(-32767 - 1)))))) - (6711659727256608960ULL)))))) : (((((((/* implicit */_Bool) 4190950856012148501ULL)) ? (((/* implicit */unsigned long long int) -700983872)) : (9152291112043047645ULL))) % (((((/* implicit */unsigned long long int) ((/* implicit */int) var_1))) ^ (var_9)))))));
+    var_15 = ((/* implicit */unsigned int) ((((/* implicit */_Bool) ((max((((/* implicit */long long int) var_0)), (8514610175764535021LL))) / (((/* implicit */long long int) (((_Bool)1) ? (3032320144U) : (((/* implicit */unsigned int) ((/* implicit */int) (_Bool)1))))))))) ? (((/* implicit */long long int) ((((/* implicit */_Bool) max((var_12), ((short)-18948)))) ? (((((/* implicit */_Bool) 1108927434U)) ? (var_0) : (var_0))) : (((/* implicit */unsigned int) ((((/* implicit */_Bool) var_4)) ? (((/* implicit */int) (_Bool)1)) : (((/* implicit */int) var_4)))))))) : (((((/* implicit */_Bool) (((_Bool)1) ? (((/* implicit */int) (_Bool)1)) : (((/* implicit */int) (_Bool)1))))) ? ((((_Bool)1) ? (((/* implicit */long long int) ((/* implicit */int) (unsigned short)4792))) : (9223372036854775807LL))) : (((/* implicit */long long int) ((((/* implicit */_Bool) (short)32767)) ? (((/* implicit */int) (_Bool)1)) : (((/* implicit */int) (unsigned short)63984)))))))));
+    var_16 = ((/* implicit */_Bool) min((var_16), (((/* implicit */_Bool) ((((/* implicit */_Bool) ((((/* implicit */_Bool) ((((/* implicit */int) (unsigned short)36922)) >> (((/* implicit */int) (_Bool)1))))) ? (((((/* implicit */_Bool) var_5)) ? (var_11) : (var_11))) : (((/* implicit */unsigned long long int) (((_Bool)1) ? (((/* implicit */long long int) ((/* implicit */int) (_Bool)1))) : (var_10))))))) ? (((/* implicit */long long int) ((/* implicit */int) ((2551759725U) < (((/* implicit */unsigned int) (-2147483647 - 1))))))) : (max((((/* implicit */long long int) ((((/* implicit */int) (short)-18948)) >= (((/* implicit */int) var_12))))), (((var_7) ? (-1LL) : (((/* implicit */long long int) ((/* implicit */int) var_1))))))))))));
+}

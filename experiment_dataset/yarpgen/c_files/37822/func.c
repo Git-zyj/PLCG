@@ -1,0 +1,30 @@
+/*
+yarpgen version 2.0 (build e0f63b6 on 2025:11:04)
+Seed: 37822
+Invocation: /data/zyj/loop_generator/./baselines/mytest/../yarpgen/scripts/yarpgen --std=c --emit-align-attr=none --inp-as-args=none --emit-pragmas=none --expl-loop-param=true --seed=37822 -o /data2/zyj/Dataset_ISPASS/yarpgen/c_files/37822
+*/
+#include "init.h"
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a < _b ? _a : _b; })
+void test() {
+    var_13 = ((/* implicit */unsigned short) max((var_13), (((/* implicit */unsigned short) (+((-((-(((/* implicit */int) var_7)))))))))));
+    var_14 = ((/* implicit */unsigned short) ((((/* implicit */int) var_2)) << (((var_12) - (11115143194898971149ULL)))));
+    var_15 = ((/* implicit */unsigned int) (!((!(((/* implicit */_Bool) ((((/* implicit */_Bool) var_3)) ? (((/* implicit */int) var_9)) : (((/* implicit */int) var_2)))))))));
+    /* LoopSeq 2 */
+    for (unsigned char i_0 = 0; i_0 < 16; i_0 += 1) 
+    {
+        var_16 ^= ((/* implicit */_Bool) (-((~(((/* implicit */int) arr_1 [i_0] [i_0]))))));
+        arr_4 [i_0] = ((/* implicit */_Bool) ((signed char) (+(((((/* implicit */_Bool) arr_2 [i_0] [i_0])) ? (((/* implicit */int) var_10)) : (((/* implicit */int) var_3)))))));
+    }
+    for (unsigned char i_1 = 0; i_1 < 15; i_1 += 2) 
+    {
+        var_17 = ((/* implicit */signed char) max((var_17), (((/* implicit */signed char) min((((int) (~(((/* implicit */int) var_11))))), (((/* implicit */int) min((((/* implicit */unsigned short) ((signed char) arr_5 [i_1]))), (min((((/* implicit */unsigned short) var_2)), (var_5)))))))))));
+        var_18 = ((/* implicit */unsigned short) ((((/* implicit */_Bool) (~(((/* implicit */int) min((var_5), (((/* implicit */unsigned short) arr_7 [i_1])))))))) ? (((((/* implicit */_Bool) (-(((/* implicit */int) var_10))))) ? (min((-34909727), (((/* implicit */int) (signed char)17)))) : (((/* implicit */int) arr_1 [i_1] [i_1])))) : (((/* implicit */int) (!(((/* implicit */_Bool) arr_1 [i_1] [i_1])))))));
+    }
+}
