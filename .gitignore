@@ -162,13 +162,13 @@ yarn.lock
 # ============================================
 
 # User-specific backup and temporary files
-*backup/
-*tmp_files/
+backup/
+tmp_files/
 time*.txt
 *.zip
-*baselines/anghabench
-*baselines/yarpgen
-*Compilers/pluto_DA
-*loop_transformation_classifier/
+baselines/
+Compilers/
+loop_transformation_classifier/
 *.ipynb
-ISPASS_results/
+ISPASS*/
+Dataset_ISPASS

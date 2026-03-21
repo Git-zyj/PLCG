@@ -62,8 +62,8 @@ def parse_arguments():
     
     parser = ap.ArgumentParser(description=parser_description)
     parser.add_argument("--option", dest="option", 
-                       help="generation option (0: single, 1: sequential 32, 2: parallel 2048, 3: parallel 34992, 4: parallel 349920, 5: parallel 129600)", 
-                       type=int, choices=[0, 1, 2, 3, 4, 5], default=2)
+                       help="generation option (0: single, 1: sequential 32, 2: parallel 2048, 3: parallel 34992, 4: parallel 349920, 5: parallel 129600, 6: specific 10206)", 
+                       type=int, choices=[0, 1, 2, 3, 4, 5, 6], default=2)
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
                        type=int, default=min(mp.cpu_count(), 16))
@@ -253,16 +253,17 @@ class Random_Generator:
         """
         根据选项获取参数范围
         
-        (*)arg_depth默认为2,表示循环维度范围为(1,2)\n
-        (*)arg_nstmts默认为3,表示语句数量为3\n
-        (*)arg_bounds_index默认为2,表示调度序号范围为(0,1,2),影响语句的疏密程度\n
-        arg_prob_bounds_exist默认为4,表示循环边界被指定的几率为40%\n
-        (*)arg_narrays_per_dim默认为2,表示每种数组维度下待选数组数量为2,影响数组的疏密程度\n
-        arg_avg_narrays_read_per_stmt:每条语句平均读数组数量，默认为1，表示指定生成的读数组数量（additional_computation类的）应当为1*arg_nstmts\n
-        arg_bounds_coef默认为2,表示数组下标常量系数范围为(-2,-1,0,1,2)\n
-        arg_avg_ndeps_read_per_stmt:每条语句平均读依赖数量，默认为2，表示指定生成的读依赖数量（validate之前）应当为2*arg_nstmts\n
-        arg_bounds_distance默认为2,表示依赖距离范围为(-2,-1,0,1,2)\n
-        (*)arg_dep_write_exist默认为4,表示每条语句写依赖存在概率为40%
+        arg_depth: 循环维度范围，暂定为2，表示循环维度范围为(1,2)
+        arg_nstmts: 语句数量，暂定为3，表示语句数量为3
+        arg_bounds_index: 调度序号范围，暂定为2，表示调度序号范围为(0,1,2)，影响语句的疏密程度
+        arg_prob_bounds_exist: 循环边界被指定的几率，暂定为4，表示40%
+        arg_narrays_per_dim: 每种数组维度下待选数组数量，暂定为2，影响数组的疏密程度
+        arg_avg_narrays_read_per_stmt: 每条语句平均读数组数量，暂定为1，表示指定生成的读数组数量（additional_computation类的）应当为1*arg_nstmts
+        arg_bounds_coef: 数组下标常量系数范围，暂定为1，表示范围为(-1,0,1)
+        arg_avg_ndeps_read_per_stmt: 每条语句平均读依赖数量，暂定为2，表示指定生成的读依赖数量（validate之前）应当为2*arg_nstmts
+        arg_bounds_distance: 依赖距离范围，暂定为1，表示范围为(-1,0,1)
+        arg_prob_dep_write_exist: 每条语句写依赖存在概率，暂定为3，表示30%，表示30%(实际上为1-(1-30%)*(1-30%)=51%)
+        id: 文件标识符，用于生成唯一文件名
         
         """
         if option == 1:
@@ -339,6 +340,21 @@ class Random_Generator:
                 range(2, 3),      # arg_bounds_distance
                 range(4, 9, 2),   # arg_prob_dep_write_exist
                 range(100)        # id
+            ]
+        elif option == 6:
+            # 毕设用数据集 - 10206 tasks
+            return [
+                range(2, 5),      # arg_depth
+                range(1, 4),      # arg_nstmts  
+                range(1, 4),      # arg_bounds_index
+                range(2, 9, 3),   # arg_prob_bounds_exist
+                range(1, 2),      # arg_narrays_per_dim
+                [1],              # arg_avg_narrays_read_per_stmt
+                [1],              # arg_bounds_coef
+                range(1, 4),      # arg_avg_ndeps_read_per_stmt
+                [1],              # arg_bounds_distance
+                range(1, 6, 2),   # arg_prob_dep_write_exist
+                range(7)          # id
             ]
         else:
             raise ValueError(f"Unsupported option: {option}")

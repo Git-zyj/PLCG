@@ -27,8 +27,8 @@ enable_if_branch = False # 是否启用if分支
 
 # 非线性项相关
 max_degree = 1 # 最高次数（1=线性，2=二次）
-enable_multi_terms = True # 是否允许多基项
+enable_multi_terms = False # 是否允许多基项
 more_terms_factor = 1/8
 max_terms_per_func = 3 # 每个函数最多基项数（若启用多基项）
-enable_reverse_dim = True
+enable_reverse_dim = False
 prob_has_reverse_dim = 2/10 # 反向循环维度的概率
