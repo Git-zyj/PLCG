@@ -179,6 +179,107 @@ static double rtclock() {
   return (Tp.tv_sec + Tp.tv_usec * 1.0e-6);
 }
 
+// plcg
+#include <cstring>
+#include <cstdlib>
+#include <cstdio>
+#include <unordered_map>
+#include <string>
+
+/* 类型声明应与项目一致，此处仅为示意 */
+struct osl_scop;
+typedef osl_scop * osl_scop_p;
+struct osl_strings;
+typedef osl_strings * osl_strings_p;
+struct osl_vector;
+typedef osl_vector * osl_vector_p;
+
+osl_scop_p get_params_info(FILE *header_fp, osl_scop_p scop) {
+    char line[100];
+    char *saveptr;
+    char *token;
+    char *param_name;
+    char *param_val;
+
+    osl_strings_p params_name = (osl_strings_p)scop->parameters->data;
+    int nb_params = scop->context->nb_parameters;
+    int nb_cols = scop->context->nb_columns;
+    int precision = scop->context->precision;
+
+    /* 构建参数名 → 索引的哈希表 */
+    std::unordered_map<std::string, int> name_to_idx;
+    for (int i = 0; i < nb_params; ++i) {
+        name_to_idx[params_name->string[i]] = i;
+    }
+
+    osl_vector_p params_cst = osl_vector_pmalloc(precision, nb_cols);
+
+    bool format_ok = false;
+    while (fgets(line, sizeof(line), header_fp)) {
+        if (strcmp(line, "/* params start */\n") == 0) {
+            format_ok = true;
+            while (fgets(line, sizeof(line), header_fp)) {
+                if (strcmp(line, "/* params end */\n") == 0)
+                    break;
+
+                if (line[0] == '\n') continue;
+
+                token = strtok_r(line, " ()\t\n", &saveptr);
+                if (!token) continue;
+
+                if (strcmp(token, "#") == 0) {
+                    token = strtok_r(NULL, " ()\t\n", &saveptr);
+                    if (!token || strcmp(token, "define") != 0) continue;
+                } else if (strcmp(token, "#define") != 0) {
+                    continue;
+                }
+
+                param_name = strtok_r(NULL, " ()\t\n", &saveptr);
+                if (!param_name) continue;
+
+                param_val = NULL;
+                while ((token = strtok_r(NULL, " ()\t\n", &saveptr)) != NULL) {
+                    param_val = token;
+                }
+                if (!param_val) continue;
+
+                auto it = name_to_idx.find(param_name);
+                if (it == name_to_idx.end()) {
+                    continue;   // 未在模型参数中，忽略
+                }
+                int idx = it->second;
+                int lb = atoi(param_val);
+
+                // 清空临时向量
+                for (int j = 0; j < nb_cols; ++j) {
+                    osl_int_set_si(precision, &params_cst->v[j], 0);
+                }
+
+                osl_int_set_si(precision, &params_cst->v[0], 1);
+                osl_int_set_si(precision, &params_cst->v[idx + 1], 1);
+                osl_int_set_si(precision, &params_cst->v[nb_cols - 1], -lb);
+
+                // fprintf(stdout, "param: %s\n", param_name);
+                // fprintf(stdout, "precision: %d\n", precision);
+                // fprintf(stdout, "size: %d\n", params_cst->size);
+                // for (int i = 0; i < params_cst->size; i++)
+                //     fprintf(stdout, "val: %d\n", params_cst->v[i]);
+
+                osl_relation_insert_vector(scop->context, params_cst, -1);
+            }
+            break;
+        }
+    }
+
+    if (!format_ok) {
+        fprintf(stderr, "format for params in .h file is wrong. customize context failed.\n");
+        exit(11);
+    }
+
+    osl_vector_free(params_cst);
+    return scop;
+}
+
 int main(int argc, char *argv[]) {
   if (argc <= 1) {
     usage_message();
@@ -272,6 +373,7 @@ int main(int argc, char *argv[]) {
     {"islsolve", no_argument, &options->islsolve, 1},
     {"time", no_argument, &options->time, 1},
     {"plcg-info", no_argument, &options->plcg_info, 1},
+    {"custom-context", no_argument, &options->custom_context, 1},
     {0, 0, 0, 0}
   };
 
@@ -622,6 +724,58 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
       }
 
       clan_options_free(clanOptions);
+    }
+
+    // plcg
+    if(options->custom_context){
+      char *headerFileName;
+      /* Get basename, remove .c extension and append .h */
+      char *basec;
+      basec = strdup(srcFileName);
+
+      /* max size when tiled.* */
+      // 修正点：C++ 要求 void* 显式转换为 char*
+      headerFileName = (char*)alloca(strlen(basec)+strlen(".h")+1);
+
+      if (strlen(basec) >= 2 && !strcmp(basec+strlen(basec)-2, ".c")) {
+          strncpy(headerFileName, basec, strlen(basec)-2);
+          headerFileName[strlen(basec)-2] = '\0';
+      }else{
+          strcpy(headerFileName, basec);
+      }
+      strcat(headerFileName, ".h");
+      free(basec);
+      
+      // fprintf(stdout, "type: %d\n", scop->context->type);
+      // fprintf(stdout, "precision: %d\n", scop->context->precision);
+      // fprintf(stdout, "nb_rows: %d\n", scop->context->nb_rows);
+      // fprintf(stdout, "nb_columns: %d\n", scop->context->nb_columns);
+      // fprintf(stdout, "nb_output_dims: %d\n", scop->context->nb_output_dims);
+      // fprintf(stdout, "nb_input_dims: %d\n", scop->context->nb_input_dims);
+      // fprintf(stdout, "nb_local_dims: %d\n", scop->context->nb_local_dims);
+      // fprintf(stdout, "nb_parameters: %d\n", scop->context->nb_parameters);
+
+      // for (int i = 0; i < scop->context->nb_rows; i++) {
+      //     for (int j = 0; j < scop->context->nb_columns; j++) {
+      //         fprintf(stdout, "%s", scop->context->m[i][j]);
+      //     }
+      //     fprintf(stdout, "\n");
+      // }
+
+      // osl_relation_print(stdout, scop->context);
+
+      FILE *header_fp = fopen(headerFileName, "r");
+      if (!header_fp)   {
+          fprintf(stderr, "pluto: error opening header file: '%s'\n", headerFileName);
+          pluto_options_free(options);
+          return 7;
+      }      
+      // printf("%s\n",headerFileName);
+      scop = get_params_info(header_fp, scop);
+
+      // osl_relation_print(stdout, scop->context);
+
+      fclose(header_fp);
     }
 
     /* Convert clan scop to Pluto program */

@@ -1,4 +1,5 @@
-from h11 import Data
+import random
+
 import pandas as pd
 import os
 import json
@@ -18,6 +19,8 @@ from path_settings import DATASET_PATH
 from extraction_tools import extraction_tools
 
 today = datetime.datetime.now().strftime('%Y%m%d')
+
+random_seed = 0 # 用于随机选择文件时的随机种子，确保结果可复现
 
 def setup_logging(log_dir):
     """配置日志系统"""
@@ -66,8 +69,11 @@ def parse_arguments():
                        help="name of generator", 
                        choices=["looprag", "plcg", "colagen", "yarpgen"], 
                        default="plcg")
-    parser.add_argument("--threshold", dest="threshold", 
-                       help="threshold of diversity selection for dataset PLCG and LOOPRAG", 
+    parser.add_argument("-nt", "--num_threshold", dest="num_threshold", 
+                       help="threshold of number selection for dataset",
+                       type=int, default=None)
+    parser.add_argument("-bt", "--batch_threshold", dest="batch_threshold", 
+                       help="threshold of batch selection for diversity on dataset PLCG and LOOPRAG", 
                        type=int, default=3)
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
@@ -97,7 +103,9 @@ class RAG_Preprocessor:
         self.num_processes = args.num_processes
         self.batch_size = args.batch_size
         self.dataset = args.dataset
-        self.threshold = args.threshold
+        self.num_threshold = args.num_threshold
+        self.batch_threshold = args.batch_threshold
+        self.final_threshold = None
         
         # 设置路径
         if args.output_path is None:
@@ -279,18 +287,50 @@ class RAG_Preprocessor:
         
         return batch_contents, batch_errors, batch_success, batch_fail
     
-    def select_plcg_files(self, valuable_df, all_contents, threshold=3):
-        """为PLCG，LOOPRAG数据集选择生成代码（每个使用相同参数的生成代码选择3个变体，即id），34992*3->~100000"""
-        valuable_with_content = valuable_df[valuable_df['file_name'].isin(all_contents.keys())]
+    def dataset_filtering(self, valuable_contents):
+        """为PLCG，LOOPRAG数据集选择生成代码，batch:每个使用相同参数的生成代码选择3个变体（id），即349920=34992*10->34992*3->~100000, num_threshold优先于batch_threshold，直接随机选择num_threshold个文件"""
         
-        self.logger.info(f"Selecting PLCG files with diversity from {len(valuable_with_content)} available valuable files")
-        
+        if self.num_threshold is not None:
+            self.logger.info(f"Selecting files with diversity from {len(valuable_contents)} available valuable files")
+            
+            if self.num_threshold < len(valuable_contents):
+                
+                self.final_threshold = self.num_threshold
+                
+                return valuable_contents['file_name'].sample(n=self.num_threshold, random_state=random_seed).tolist()
+            else:
+                if self.batch_threshold is not None:
+                    
+                    if "plcg" in self.dataset or "looprag" in self.dataset:
+                        
+                        self.logger.info(f"num_threshold {self.num_threshold} is greater than available files {len(valuable_contents)}, trying batch selection instead")
+                        
+                        return self.batch_selection(valuable_contents)
+                    else:
+                        self.logger.warning(f"num_threshold {self.num_threshold} is greater than available files {len(valuable_contents)}, but batch selection is not applicable for dataset {self.dataset}, using all available files")
+
+                    
+                else:
+                    self.logger.warning(f"num_threshold {self.num_threshold} is greater than available files {len(valuable_contents)}, but batch_threshold is not set, cannot perform batch selection, using all available files")
+                    
+        elif self.batch_threshold is not None:
+            if "plcg" in self.dataset or "looprag" in self.dataset:
+                
+                self.logger.info(f"Selecting files with batch selection for diversity from {len(valuable_contents)} available valuable files")
+                
+                return self.batch_selection(valuable_contents)
+            else:
+                self.logger.warning(f"batch_threshold is set to {self.batch_threshold}, but batch selection is not applicable for dataset {self.dataset}, using all available files")
+                    
+        return valuable_contents['file_name'].tolist()
+    
+    def batch_selection(self, valuable_contents):
         # 分层选择：每个相同参数的生成代码选择3个不同的变体
         # 为每个文件在其分组内添加轮次编号
-        valuable_with_content['round_num'] = valuable_with_content.groupby('orig_file').cumcount()
+        valuable_contents['round_num'] = valuable_contents.groupby('orig_file').cumcount()
 
         # 选择前3轮的文件
-        selected_files_df = valuable_with_content[valuable_with_content['round_num'] < threshold]
+        selected_files_df = valuable_contents[valuable_contents['round_num'] < self.batch_threshold]
         selected_files = selected_files_df['file_name'].tolist()
 
         # 统计每轮选择的文件数量
@@ -298,8 +338,9 @@ class RAG_Preprocessor:
         for round_num, count in round_counts.items():
             self.logger.info(f"Selection round {round_num+1}: {count} files selected")
         
-        self.logger.info(f"Total selected files for PLCG: {len(selected_files)}")
-        return {key: all_contents[key] for key in selected_files}
+        self.final_threshold = self.batch_threshold
+        
+        return selected_files
     
     def run_preprocess(self):
         """运行数据集选择流程"""
@@ -349,9 +390,11 @@ class RAG_Preprocessor:
             # 强制垃圾回收
             gc.collect()
         
-        # 根据数据集类型选择最终文件
-        if "plcg" in self.dataset or "looprag" in self.dataset:
-            final_contents = self.select_plcg_files(valuable_df, all_contents, threshold=self.threshold)      
+        # filtering
+        if self.num_threshold or self.batch_threshold:
+            selected_files = self.dataset_filtering(valuable_df[valuable_df['file_name'].isin(all_contents.keys())])
+            final_contents = {key: all_contents[key] for key in selected_files}
+            self.logger.info(f"Number of files for {self.dataset} after filtering: {len(final_contents)}")
         else:
             final_contents = all_contents
         
@@ -382,42 +425,33 @@ class RAG_Preprocessor:
         #             f.write(f"{file}\t{error}\n")
         #     self.logger.info(f"Error log saved to: {error_log_path}")
     
-    def _generate_summary_report(self, total_time, total_files, final_files, json_path):
-        """生成总结报告"""
-        if "plcg" in self.dataset or "looprag" in self.dataset:       
-            report = [
-                "=" * 60,
-                "RAG PREPROCESS SUMMARY REPORT",
-                "=" * 60,
-                f"Command: {'python ' + ' '.join(sys.argv)}", 
-                f"Dataset: {self.dataset}",
-                f"Processing time: {total_time:.2f} seconds",
-                f"Total files processed: {total_files}",
-                f"Successfully extracted: {self.success_count} ({self.success_count/total_files*100:.1f}%)",
-                f"Failed: {self.fail_count} ({self.fail_count/total_files*100:.1f}%)",
-                f"Threshold for diversity selection: {self.threshold}",
-                f"Final selected files: {final_files}",
-                f"Output JSON: {json_path}",
-                f"Dataset path: {self.dataset_path}",
-                f"Output path: {self.output_path}",
-                "=" * 60
-            ]
-        else:
-            report = [
-                "=" * 60,
-                "RAG PREPROCESS SUMMARY REPORT",
-                "=" * 60,
-                f"Command: {'python ' + ' '.join(sys.argv)}", 
-                f"Dataset: {self.dataset}",
-                f"Processing time: {total_time:.2f} seconds",
-                f"Total files processed: {total_files}",
-                f"Successfully extracted: {self.success_count} ({self.success_count/total_files*100:.1f}%)",
-                f"Failed: {self.fail_count} ({self.fail_count/total_files*100:.1f}%)",
-                f"Output JSON: {json_path}",
-                f"Dataset path: {self.dataset_path}",
-                f"Output path: {self.output_path}",
-                "=" * 60
-            ]
+    def _generate_summary_report(self, total_time, total_num_files, final_num_files, json_path):
+        """生成总结报告"""     
+        report = [
+            "=" * 60,
+            "RAG PREPROCESS SUMMARY REPORT",
+            "=" * 60,
+            f"Command: {'python ' + ' '.join(sys.argv)}", 
+            f"Dataset: {self.dataset}",
+            f"Processing time: {total_time:.2f} seconds",
+            f"Total files processed: {total_num_files}",
+            f"Successfully extracted: {self.success_count} ({self.success_count/total_num_files*100:.1f}%)",
+            f"Failed: {self.fail_count} ({self.fail_count/total_num_files*100:.1f}%)"
+        ]
+        
+        if self.final_threshold == self.num_threshold:
+            report += [f"Final selected files under number threshold: {self.num_threshold}"]
+        elif self.final_threshold == self.batch_threshold:
+             report += [
+            f"Threshold for batch selection: {self.batch_threshold}",
+            f"Final selected files: {final_num_files}",
+             ]
+             
+        report += [f"Output JSON: {json_path}",
+            f"Dataset path: {self.dataset_path}",
+            f"Output path: {self.output_path}",
+            "=" * 60
+        ]
         
         return "\n".join(report)
 

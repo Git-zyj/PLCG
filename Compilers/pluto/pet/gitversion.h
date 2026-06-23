@@ -1,1 +1,1 @@
-#define GIT_HEAD_ID "2320f24"
+#define GIT_HEAD_ID ""

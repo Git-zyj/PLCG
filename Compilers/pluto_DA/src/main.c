@@ -187,97 +187,93 @@ void customScheduling(PlutoProg *prog){
     printf("//----------------- Edit ----------------//\n");
 }
 
-osl_scop_p get_params_info(FILE *header_fp, osl_scop_p scop){
+osl_scop_p get_params_info(FILE *header_fp, osl_scop_p scop) {
     char line[100];
-    char *define_start;
+    char *saveptr;              /* 用于 strtok_r 的上下文 */
+    char *token;
     char *param_name;
     char *param_val;
-    char *define_end;
 
-    osl_strings_p params_name = NULL;
-    params_name = (osl_strings_p)scop->parameters->data;
-    int params_precision = scop->context->precision;
-    osl_vector_p params_cst;
-    params_cst = osl_vector_pmalloc(params_precision, scop->context->nb_columns);
-    int lb;
-    // int ub;
+    osl_strings_p params_name = (osl_strings_p)scop->parameters->data;
+    int nb_params = scop->context->nb_parameters;
+    int nb_cols = scop->context->nb_columns;
+    int precision = scop->context->precision;
 
-    int format_checkpoint = 1;
+    /* 临时向量，复用分配 */
+    osl_vector_p params_cst = osl_vector_pmalloc(precision, nb_cols);
+
+    int format_ok = 0;  /* 是否找到正确的 params 块 */
+
     while (fgets(line, sizeof(line), header_fp)) {
-        // Check if the line is 'start'
         if (strcmp(line, "/* params start */\n") == 0) {
-            // Extract lines until 'end' is found
+            format_ok = 1;
             while (fgets(line, sizeof(line), header_fp)) {
-                if (strcmp(line, "/* params end */\n") == 0) {
-                    break; // Stop extracting lines if 'end' is found
+                if (strcmp(line, "/* params end */\n") == 0)
+                    break;
+
+                /* 跳过空行 */
+                if (line[0] == '\n') continue;
+
+                /* 切割第一个 token，判断是 "#define" 还是 "# define" */
+                token = strtok_r(line, " ()\t\n", &saveptr);
+                if (!token) continue;
+
+                if (strcmp(token, "#") == 0) {
+                    token = strtok_r(NULL, " ()\t\n", &saveptr);
+                    if (!token || strcmp(token, "define") != 0) continue;
+                } else if (strcmp(token, "#define") != 0) {
+                    continue;  /* 不是 #define 行，跳过 */
                 }
 
-                // Extract parameter name and value
-                define_start = strtok(line, " ");
-                param_name = strtok(NULL, " ");
+                /* 参数名 */
+                param_name = strtok_r(NULL, " ()\t\n", &saveptr);
+                if (!param_name) continue;
 
-                if (strcmp(define_start, "#define")) {
-                    if (strcmp(define_start, "#") || strcmp(param_name, "define")) {
-                        // continue;
-                    }
-                    else {
-                        param_name = strtok(NULL, " ");
-                    }
+                /* 取最后一个 token 作为值（忽略类型转换等） */
+                param_val = NULL;
+                while ((token = strtok_r(NULL, " ()\t\n", &saveptr)) != NULL) {
+                    param_val = token;
                 }
+                if (!param_val) continue;
 
-                define_end = strtok(NULL, " ()");
-                while(define_end) {
-                    param_val = alloca(strlen(define_end)+1);
-                    strcpy(param_val, define_end);
-                    define_end = strtok(NULL, " ()");
-                }
-                
-                format_checkpoint = 0;
-
-                fprintf(stdout, "param_name: %s\n", param_name);
-                fprintf(stdout, "param_val: %s\n", param_val);
-
-                for (int i = 0; i < scop->context->nb_parameters; i++) {
-                    //# define PB_N (long long)1000
-
+                /* 在参数列表中查找 param_name */
+                int idx = -1;
+                for (int i = 0; i < nb_params; i++) {
                     if (strcmp(param_name, params_name->string[i]) == 0) {
-                        // low bound
-                        lb = atoi(param_val);
-                        for (int i = 0; i < scop->context->nb_columns; i++)
-                            osl_int_set_si(params_precision, &params_cst->v[i], 0);
-                        osl_int_set_si(params_precision, &params_cst->v[0], 1);
-                        osl_int_set_si(params_precision, &params_cst->v[i + 1], 1);
-                        osl_int_set_si(params_precision, &params_cst->v[scop->context->nb_columns - 1], -lb);
-                        // fprintf(stdout, "precision: %d\n", params_cst->precision);
-                        // fprintf(stdout, "size: %d\n", params_cst->size);
-                        // for (int i = 0; i < params_cst->size; i++)
-                        //     fprintf(stdout, "val: %d\n", params_cst->v[i]);
-                        osl_relation_insert_vector(scop->context, params_cst, -1);
-
-                        // upper bound. spend too much time after adding ub.
-                        // ub = lb + 1;
-                        // for (int i = 0; i < scop->context->nb_columns; i++)
-                        //     osl_int_set_si(params_precision, &params_cst->v[i], 0);
-                        // osl_int_set_si(params_precision, &params_cst->v[0], 1);
-                        // osl_int_set_si(params_precision, &params_cst->v[i + 1], -1);
-                        // osl_int_set_si(params_precision, &params_cst->v[scop->context->nb_columns - 1], ub);
-
-                        // osl_relation_insert_vector(scop->context, params_cst, -1);
+                        idx = i;
+                        break;
                     }
                 }
+                if (idx == -1) {
+                    /* 头文件定义了未使用的参数，可选择忽略或报错，此处忽略 */
+                    continue;
+                }
+
+                int lb = atoi(param_val);
+
+                /* 清空临时向量 */
+                for (int j = 0; j < nb_cols; j++) {
+                    osl_int_set_si(precision, &params_cst->v[j], 0);
+                }
+
+                /* 构建不等式：1 * param + 1 >= 0 → param >= -lb */
+                osl_int_set_si(precision, &params_cst->v[0], 1);              /* 常数项系数 */
+                osl_int_set_si(precision, &params_cst->v[idx + 1], 1);        /* 参数系数 */
+                osl_int_set_si(precision, &params_cst->v[nb_cols - 1], -lb);  /* 常数下界 */
+
+                osl_relation_insert_vector(scop->context, params_cst, -1);
             }
-            if (format_checkpoint) {
-                printf("format for params in .h file is wrong. customize context failed.\n");
-                exit(11);
-            }
-            break; // Stop reading lines after extraction
+            break;  /* 只处理第一个 params 块 */
         }
     }
-    if (format_checkpoint) {
-        printf("format for params in .h file is wrong. customize context failed.\n");
+
+    if (!format_ok) {
+        fprintf(stderr, "format for params in .h file is wrong. customize context failed.\n");
         exit(11);
     }
-    // osl_relation_print(stdout, scop->context);
+
+    /* 假设 osl_vector_free 存在，否则自行替换为 free */
+    osl_vector_free(params_cst);
     return scop;
 }
 
@@ -366,7 +362,7 @@ int main(int argc, char *argv[])
         {"islsolve", no_argument, &options->islsolve, 1},
         {"time", no_argument, &options->time, 1},
         {"custom-schedule", no_argument, &options->customSchedule, 1},
-        {"custom-context", no_argument, &options->customcontext, 1},
+        {"custom-context", no_argument, &options->customcontext, 1}, // zyj-debug
         {0, 0, 0, 0}
     };
 

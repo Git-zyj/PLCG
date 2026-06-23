@@ -1,7 +1,7 @@
 #!/bin/sh
 
 EXEEXT=
-srcdir=/data/zyj/loop_generator/Compilers/pluto/isl
+srcdir=/home/zyj/Data0/loop_generator/Compilers/pluto/isl
 
 for i in $srcdir/test_inputs/codegen/*.st \
 		$srcdir/test_inputs/codegen/cloog/*.st; do

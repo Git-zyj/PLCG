@@ -171,4 +171,6 @@ Compilers/
 loop_transformation_classifier/
 *.ipynb
 ISPASS*/
-Dataset_ISPASS
+Dataset_*
+Compilers/
+Generation_*.py

@@ -1,3 +1,4 @@
+from operator import ge
 import re
 import numpy as np
 
@@ -7,7 +8,7 @@ class extraction_tools:
     
     def get_info(self, stdout_path):
         try :
-            iterators, stmts, deps, schedules, csts, _ = self.extract_stdout_from_file(stdout_path)
+            iterators, stmts, deps, schedules, _, loop_types = self.extract_stdout_from_file(stdout_path) # 目前尚未用到cst信息，先不提取
         except ValueError as e:
             raise e
 
@@ -201,6 +202,18 @@ class extraction_tools:
         if not lines:
             raise ValueError("Stdout内容为空！")
 
+        return self.extract_stdout(lines)
+
+    def extract_stdout_from_file(self, stdout_path):
+        with open(stdout_path, 'r') as file:
+            lines = file.readlines()
+
+        if not lines:
+            raise ValueError("The stdout file in empty!") 
+        
+        return self.extract_stdout(lines)
+
+    def extract_stdout(self, lines):
         text_schedules = '\n'
         text_stmts = []
         text_deps = []
@@ -210,22 +223,43 @@ class extraction_tools:
         nlines = len(lines)
         i = 0
         while i < nlines:
-            if lines[i][:3] == 'T(S' or lines[i][:11] == '[plcg-info]' or lines[i][:11] == '[zyj-debug]' or lines[i][:10] == 'loop types':
+            if lines[i][:3] == 'T(S' or lines[i][:10] == 'loop types':
                 text_schedules += lines[i] + '\n'
-            elif re.match(r'S\d+ \".*\"\n', lines[i]):
+            elif lines[i][:11] == '[plcg-info]':
+                text_schedules += lines[i] + '\n'
+                generator_id = "plcg"
+            elif lines[i][:11] == '[zyj-debug]':
+                text_schedules += lines[i] + '\n'
+                generator_id = "looprag"
+            elif re.match(r'S\d+ \".*\"\n', lines[i]): # 获取语句调度约束矩阵（plcg为数字，looprag为字符串）
                 text_stmts.append(lines[i].replace(' ', ''))
-                if i + 4 >= nlines:
-                    raise ValueError("pluto优化失败！")
-                output = re.search(r'iterators: (.+)\n', lines[i + 2])
-                if output:
-                    iterators += output[1].split(', ')
+                if generator_id == "plcg":
+                    indent_cst = 4
+                elif generator_id == "looprag":
+                    indent_cst = 5
+                else:
+                    raise ValueError("Unknown generator id!")
+                
+                if i + indent_cst >= nlines:
+                    raise ValueError("语句信息不完整，如有必要，请手动确认pluto优化结果")
+                
+                iterators_info = re.search(r'iterators: (.+)\n', lines[i + 2])
+                if iterators_info:
+                    iterators += iterators_info[1].split(', ')
+                    
                 if lines[i + 3] == 'Index set\n':
-                    csts = lines[i + 5: i + int(lines[i + 4][0])]
-                    csts_stmts.append(np.array([x.split() for x in csts], dtype=int))
-                i += 4 + int(lines[i + 4][0])
+                    if "No constraints" not in lines[i + indent_cst]: # 提取存在约束的情况
+                        csts = lines[i + indent_cst + 1: i + int(lines[i + indent_cst][indent_cst - 4])] # TODO: plcg获取第0个字符为行数，looprag获取第1个字符为行数， 此处取巧采用indent_cst-4
+                        # csts_stmts.append(np.array([x.split() for x in csts], dtype=int)) # 目前尚未用到cst信息，先不提取
+                        i += indent_cst + int(lines[i + indent_cst][indent_cst - 4]) # 同上，取巧获取cst行数
+                    else: #无约束情况，跳过
+                        i += indent_cst # TODO: looprag展示为Universal polyhedron -- No constraints (1 dims)!，plcg尚未确认
+                else:
+                    raise ValueError("语句调度约束信息不完整，如有必要，请手动确认pluto优化结果")
+                
             elif lines[i][:8] == '--- Dep ':
                 if i + 1 >= nlines:
-                    raise ValueError("pluto优化失败！")
+                    raise ValueError("依赖信息不完整，如有必要，请手动确认pluto优化结果")
                 text_deps.append([lines[i], lines[i + 1]])
                 i += 1
             i += 1
@@ -241,7 +275,7 @@ class extraction_tools:
             scops.append(info_before[0])
             scops.append(info_after[0])
         else:
-            raise ValueError("pluto优化失败！")
+            raise ValueError("优化前后调度信息不完整，如有必要，请手动确认pluto优化结果")
 
         schedules = []
         loop_types = []
@@ -251,81 +285,8 @@ class extraction_tools:
             types_stmts = re.findall(r'loop types\s\((.*?)\)', scops[i])
             loop_types.append([types_stmt.split(', ') for types_stmt in types_stmts])
 
-        return iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types
-
-    def extract_stdout_from_file(self, stdout_path):
-        with open(stdout_path, 'r') as file:
-            lines = file.readlines()
-
-        if not lines:
-            raise ValueError("The stdout file in empty!") 
-
-        text_schedules = '\n'
-        text_stmts = []
-        text_deps = []
-        csts_stmts = []
-        iterators = []
-        
-        nlines = len(lines)
-        i = 0
-        while i < nlines:
-            # print(lines[i])
-            if lines[i][:3] == 'T(S' or lines[i][:11] == '[plcg-info]' or lines[i][:11] == '[zyj-debug]' or lines[i][:10] == 'loop types':
-                text_schedules += lines[i]
-            elif re.match(r'S\d+ \".*\"\n', lines[i]):
-                text_stmts.append(lines[i].replace(' ', ''))
-                if i + 4 >= nlines:
-                    raise ValueError("pluto optimization fail!")
-                elif i + int(lines[i + 4][0]) >= nlines:
-                    raise ValueError("pluto optimization fail!")
-                
-                output = re.search(r'iterators: (.+)\n', lines[i + 2])
-                if output:
-                    iterators += output[1].split(', ')
-                
-                if lines[i + 3] == 'Index set\n':
-                    csts = lines[i + 5: i + int(lines[i + 4][0])]
-                    csts_stmts.append(np.array([x.split() for x in csts], dtype=int))
-                
-                i += 4 + int(lines[i + 4][0])
-            elif lines[i][:8] == '--- Dep ':
-                if i + 1 >= nlines:
-                    raise ValueError("pluto optimization fail!")
-                
-                text_deps.append([lines[i], lines[i + 1]])
-                i += 1
-            
-            i += 1
-
-        iterators_set = list(set(iterators))
-        iterators_set.sort(key=iterators.index)
-        iterators = iterators_set
-
-        # print(text_schedules)
-        
-        scops = []
-        info_before = re.findall(r'\[(?:plcg-info|zyj-debug)\] Before affine transformations\n(.*)(?=\[(?:plcg-info|zyj-debug)\] After affine transformations\n)', text_schedules, re.DOTALL)
-        info_after = re.findall(r'\[(?:plcg-info|zyj-debug)\] After affine transformations\n(.*)', text_schedules, re.DOTALL)
-        if info_before and info_after:
-            scops.append(info_before)
-            scops.append(info_after)
-        else:
-            raise ValueError("pluto optimization fail!")
-
-        # print(scops)
-
-        schedules = []
-        loop_types = []
-        
-        for i in range(2):
-            stmts = re.findall(r'T\(S\d+\):\s\(((?:[^()]|\([^()]*\))*)\)', str(scops[i]))
-            schedules.append([stmt.split(', ') for stmt in stmts])
-            
-            types_stmts = re.findall(r'loop types\s\((.*?)\)', str(scops[i]))
-            loop_types.append([types_stmt.split(', ') for types_stmt in types_stmts])
-
-        # print(schedules)
-        return iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types
+        # return iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types
+        return iterators, text_stmts, text_deps, schedules, None, loop_types # 目前尚未用到cst信息，先不提取
     
     def extract_codelet_from_file(self, code_path, compare_option = 0):
         '''

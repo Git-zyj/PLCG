@@ -342,19 +342,19 @@ class Random_Generator:
                 range(100)        # id
             ]
         elif option == 6:
-            # 毕设用数据集 - 10206 tasks
+            # 毕设用数据集 - 38880 tasks
             return [
                 range(2, 5),      # arg_depth
-                range(1, 4),      # arg_nstmts  
+                range(1, 5),      # arg_nstmts  
                 range(1, 4),      # arg_bounds_index
                 range(2, 9, 3),   # arg_prob_bounds_exist
-                range(1, 2),      # arg_narrays_per_dim
+                range(1, 3),      # arg_narrays_per_dim
                 [1],              # arg_avg_narrays_read_per_stmt
                 [1],              # arg_bounds_coef
                 range(1, 4),      # arg_avg_ndeps_read_per_stmt
                 [1],              # arg_bounds_distance
                 range(1, 6, 2),   # arg_prob_dep_write_exist
-                range(7)          # id
+                range(20)          # id
             ]
         else:
             raise ValueError(f"Unsupported option: {option}")
@@ -482,7 +482,7 @@ class Random_Generator:
                 self.run_single_generation(self.seed)
             elif self.option == 1:
                 self.run_sequential_generation()
-            elif self.option in [2, 3, 4, 5]:
+            elif self.option in [2, 3, 4, 5, 6]:
                 self.run_parallel_generation(self.option)
             else:
                 raise ValueError(f"Unsupported option: {self.option}")

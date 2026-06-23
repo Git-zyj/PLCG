@@ -243,6 +243,9 @@ struct plutoOptions {
   /* get info for PLCG*/
   int plcg_info;
 
+  /* provide value of params */
+  int custom_context;
+
   /* fast linear independence check */
   int flic;
 };

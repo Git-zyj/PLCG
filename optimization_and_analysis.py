@@ -45,7 +45,7 @@ def parse_arguments():
     """解析命令行参数"""
     parser = ap.ArgumentParser(
         description='Pluto code optimization with batch processing and detailed logging',
-        epilog='Example: python optimization_and_analysis.py -d ./poly_code -p ./pluto'
+        epilog='Example: python optimization_and_analysis.py -d ./poly_code -p ./pluto/polycc'
     )
     parser.add_argument("-i", "--input-path", dest="dataset_path", 
                        help="path of the folder containing kernel_list file", 
@@ -55,7 +55,7 @@ def parse_arguments():
                        type=str, default=None)
     parser.add_argument("-p", "--pluto-path", dest="pluto_path", 
                        help="path to pluto binaries", 
-                       type=str, default=os.path.join(PROJECT_PATH, "Compilers/pluto"))
+                       type=str, default=os.path.join(PROJECT_PATH, "Compilers/pluto/polycc_parallel"))
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
                        type=int, default=min(mp.cpu_count(), 16))
@@ -79,7 +79,6 @@ class PlutoBatchOptimizer:
     def __init__(self, args):
         self.args = args
         self.setup_paths()
-        self.setup_environment()
         self.create_directories()
         
         # 先初始化logger
@@ -110,11 +109,6 @@ class PlutoBatchOptimizer:
         self.pluto_code_path = os.path.join(self.output_path, 'pluto_code')
         self.stdout_path = os.path.join(self.output_path, 'stdout')  
         self.tmp_path = os.path.join(self.output_path, 'tmp_files')
-        
-    def setup_environment(self):
-        """设置环境变量"""
-        if self.pluto_path not in os.environ.get('PATH', ''):
-            os.environ['PATH'] = f"{os.environ.get('PATH', '')}:{self.pluto_path}"
             
     def create_directories(self):
         """创建必要的目录"""
@@ -172,7 +166,7 @@ class PlutoBatchOptimizer:
         else:
             command_options = []
         
-        command = ['polycc_parallel', source_file] + command_options + ['-o', target_file]
+        command = [self.pluto_path, source_file] + command_options + ['-o', target_file]
         
         try:
             with open(stdout_file, 'w') as f:

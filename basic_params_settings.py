@@ -11,7 +11,7 @@ params_multiplier = [1e3, 10, 10, 1]
 # 固定参数 （TODO: 后续考虑部分调整为可变参数）
 depth_min = 1 # 最小循环深度
 
-bound_exist_decay_factor = 1/2
+bound_exist_decay_factor = 1/2 # 循环嵌套每深一维变量边界出现概率
 
 prob_array_depth = [4, 16, 1] # 维数为循环维度-1的数组生成概率:维数为循环维度的数组生成概率:循环维度+1的数组生成概率为4:16:1
 prob_dep_region = [4, 1] # 强相关（共享循环变量）依赖生成概率:全局依赖生成概率为4:1

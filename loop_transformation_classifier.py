@@ -99,39 +99,87 @@ class Loop_Transformation_Classifier:
         self.coefs = np.zeros([self.nstmts, self.max_loop_depth, self.max_loop_depth], dtype=int) # self.nstmts * var dim in dst * var dim in src
         self.var_neg = np.zeros([self.nstmts, self.max_loop_depth, self.max_loop_depth])
 
-    def check_fusion_distribution(self, i, check_list, flags):
-        """检查循环融合和分布"""
-        if i >= self.consts.shape[2]:
-            return flags
+    def detect_fusion_distribution(self):
+        """
+        检测调度常量维矩阵中发生的 fusion 和 distribution 变换。
 
-        if (set(self.consts[0, check_list, i]) == set(self.consts[1, check_list, i]) == {0}):
-            flags = self.check_fusion_distribution(i + 1, check_list, flags)
-            if flags == [1, 1]:  # fusion + distribution
-                return flags
-        else:
-            co_loop = [[], []]
-            for j in set(self.consts[0, check_list, i]):
-                co_loop[0].append(np.where(self.consts[0, check_list, i] == j)[0].tolist())
-            for j in set(self.consts[1, check_list, i]):
-                co_loop[1].append(np.where(self.consts[1, check_list, i] == j)[0].tolist())
+        参数:
+            before: 形状 (n_statements, n_scalar_dims) 的 numpy 数组，变换前的标量值。
+            after:  形状相同的 numpy 数组，变换后的标量值。
 
-            if len(co_loop[0]) < len(co_loop[1]):
-                flags[1] = 1  # distribution
-            elif len(co_loop[0]) > len(co_loop[1]):
-                flags[0] = 1  # fusion
-            elif (not co_loop[0] == co_loop[1] and 
-                  set([str(x) for x in co_loop[0]]) != set([str(x) for x in co_loop[1]])):
-                return [1, 1]  # fusion + distribution
+        返回:
+            [fusion, distribution]: 两个布尔值。
+        """
+        before, after = self.consts
+        n_stmts, n_dims = before.shape
+        if after.shape != before.shape:
+            raise ValueError("before and after must have the same shape")
 
-            for group_src in co_loop[0]:
-                for group_dst in co_loop[1]:
-                    if len(group_src) > 1 and len(group_dst) > 1:
-                        new_check_list = list(set(group_src) & set(group_dst))
-                        if len(new_check_list) > 1:
-                            flags = self.check_fusion_distribution(i + 1, new_check_list, flags)
-                            if flags == [1, 1]:  # fusion + distribution
-                                return flags
-        return flags
+        fusion = distribution = 0
+
+        # 初始组：所有语句，空前缀
+        groups = {(): list(range(n_stmts))}
+
+        for d in range(n_dims):
+            # print(f"groups til the {d}-th const dim:", groups)
+            new_groups = {}
+            for prefix, stmt_list in groups.items():
+                if len(stmt_list) < 2:
+                    continue
+
+                before_vals = before[stmt_list, d]
+                after_vals = after[stmt_list, d]
+
+                changed = set()   # 存储需要剔除的语句在 stmt_list 中的索引
+
+                # ---- 检测 distribution (before相同 -> after不同) ----
+                before_map = {}
+                for idx, stmt in enumerate(stmt_list):
+                    bv = before_vals[idx]
+                    before_map.setdefault(bv, []).append(idx)
+                for bv, indices in before_map.items():
+                    if len(indices) > 1:
+                        # 取第一个 after 值作为参考
+                        ref_after = after_vals[indices[0]]
+                        for idx in indices:
+                            if after_vals[idx] != ref_after:
+                                distribution = 1
+                                changed.add(idx)
+
+                # ---- 检测 fusion (after相同 -> before不同) ----
+                after_map = {}
+                for idx, stmt in enumerate(stmt_list):
+                    av = after_vals[idx]
+                    after_map.setdefault(av, []).append(idx)
+                for av, indices in after_map.items():
+                    if len(indices) > 1:
+                        ref_before = before_vals[indices[0]]
+                        for idx in indices:
+                            if before_vals[idx] != ref_before:
+                                fusion = 1
+                                changed.add(idx)
+
+                # 未变化的语句继续进入下一维度
+                unchanged = [i for i in range(len(stmt_list)) if i not in changed]
+                if unchanged:
+                    # 按 after_vals 分组，形成新的前缀
+                    after_sub = {}
+                    for i in unchanged:
+                        stmt_global = stmt_list[i]
+                        av = after_vals[i]
+                        new_prefix = prefix + (av,)
+                        after_sub.setdefault(new_prefix, []).append(stmt_global)
+                    for new_prefix, sublist in after_sub.items():
+                        if len(sublist) >= 2:
+                            new_groups[new_prefix] = sublist
+
+            groups = new_groups
+            if not groups:
+                break
+            if fusion and distribution:
+                return [fusion, distribution]
+
+        return [fusion, distribution]
 
     def check_nstmts_after(self):
         """检查赋值表达式数量"""
@@ -157,6 +205,95 @@ class Loop_Transformation_Classifier:
                     self.answer[1] = 1  # tiling
                     return
 
+    def normalize_schedules(self):
+        schedules = self.schedules[1]
+        loop_types = self.loop_types[1]
+        nstmts = self.nstmts
+        max_loop_depth = self.max_loop_depth
+
+        # 分解
+        scalars = []
+        loops = []
+        for stmt in range(nstmts):
+            sch = schedules[stmt]
+            ltypes = loop_types[stmt]
+            blocks = []
+            cur = []
+            loops_stmt = []
+            for val, typ in zip(sch, ltypes):
+                if typ == 'scalar':
+                    cur.append(val)
+                else:
+                    blocks.append(cur)
+                    cur = []
+                    loops_stmt.append(val)
+            blocks.append(cur)
+            scalars.append(blocks)
+            loops.append(loops_stmt)
+
+        # 统一深度
+        for stmt in range(nstmts):
+            while len(loops[stmt]) < max_loop_depth:
+                loops[stmt].append('0')
+            while len(scalars[stmt]) < max_loop_depth + 1:
+                scalars[stmt].append([])
+            for i in range(len(scalars[stmt])):
+                if not scalars[stmt][i]:
+                    scalars[stmt][i] = ['0']
+
+        # 逐层前缀压缩
+        new_scalar_blocks = [[None] * (max_loop_depth + 1) for _ in range(nstmts)]
+        # 初始组：所有语句，空前缀
+        groups = {(): list(range(nstmts))}
+        for depth in range(max_loop_depth + 1):
+            next_groups = {}
+            for prefix, stmt_list in groups.items():
+                # 获取当前深度块
+                blocks = [tuple(scalars[stmt][depth]) for stmt in stmt_list]
+                unique = sorted(set(blocks))
+                rank = {b: str(i) for i, b in enumerate(unique)}
+                for stmt in stmt_list:
+                    new_scalar_blocks[stmt][depth] = [rank[tuple(scalars[stmt][depth])]]
+                # 按当前块分组，形成新前缀
+                sub = {}
+                for stmt in stmt_list:
+                    key = prefix + (tuple(scalars[stmt][depth]),)
+                    sub.setdefault(key, []).append(stmt)
+                # 将大小>1的组加入下一层（如果还有下一层）
+                if depth < max_loop_depth:
+                    for key, sublist in sub.items():
+                        if len(sublist) > 1:
+                            next_groups[key] = sublist
+                        else:
+                            # 单个语句，剩余深度清零
+                            for stmt in sublist:
+                                for nd in range(depth+1, max_loop_depth+1):
+                                    new_scalar_blocks[stmt][nd] = ['0']
+                else:
+                    # 最后一层，无需处理
+                    pass
+            groups = next_groups
+
+        # 组合输出
+        new_schedules = []
+        new_loop_types = []
+        for stmt in range(nstmts):
+            sch = []
+            ltypes = []
+            for d in range(max_loop_depth):
+                sch.append(new_scalar_blocks[stmt][d][0])
+                ltypes.append('scalar')
+                sch.append(loops[stmt][d])
+                ltypes.append('loop')
+            sch.append(new_scalar_blocks[stmt][max_loop_depth][0])
+            ltypes.append('scalar')
+            new_schedules.append(sch)
+            new_loop_types.append(ltypes)
+
+        self.schedules[1] = new_schedules
+        self.loop_types[1] = new_loop_types
+        return new_schedules
+
     def loop_transformation_analysis(self):
         """主分析函数"""
         self.check_tiling()
@@ -170,77 +307,31 @@ class Loop_Transformation_Classifier:
             [s for s in row if all([key not in str(s) for key in tile_keywords])] for row in self.schedules[1]
         ]
 
-        # 统一调度长度   
-        min_len = min(len(row) for row in self.schedules[1])
-        self.schedules[1] = [row[:min_len] for row in self.schedules[1]]
-        self.loop_types[1] = [row[:min_len] for row in self.loop_types[1]]
+        # # 统一调度长度   
+        # min_len = min(len(row) for row in self.schedules[1])
+        # self.schedules[1] = [row[:min_len] for row in self.schedules[1]]
+        # self.loop_types[1] = [row[:min_len] for row in self.loop_types[1]]
 
         # print(self.filename)
+        # print("Original schedules:")
         # print(self.schedules)
 
-        # 处理调度和循环类型
+        self.normalize_schedules()
+                                   
+        # print("Normalized schedules:")
+        # print(self.schedules)
+                                    
+        # 更新系数矩阵
         for i in range(self.max_loop_depth):
             for j in range(self.nstmts):
-                # 添加边界检查
-                if not self.loop_types[1][j][2 * i] == 'scalar':
-                    for stmt in range(self.nstmts):
-                        self.schedules[1][stmt].insert(2 * i, '0')
-                        self.loop_types[1][stmt].insert(2 * i, "scalar")
-
-                # 处理标量情况
-                if 2 * i + 1 < len(self.loop_types[1][j]):
-                    if self.loop_types[1][j][2 * i + 1] == 'scalar':
-                        # 检查所有语句在相同位置是否都是标量
-                        all_scalar = True
-                        for stmt in range(self.nstmts):
-                            if self.loop_types[1][stmt][2 * i + 1] != 'scalar':
-                                all_scalar = False
-                                break
-                        
-                        if all_scalar:  # 需要drop scalar
-                            seq = 1
-                            while 2 * i + 1 + seq < len(self.loop_types[1][j]):
-                                found_loop = False
-                                for stmt in range(self.nstmts):
-                                    if self.loop_types[1][stmt][2 * i + 1 + seq] == 'loop':
-                                        found_loop = True
-                                        break
-                                
-                                if found_loop:
-                                    # 处理标量序列
-                                    tmp_consts = {}
-                                    for stmt in range(self.nstmts):
-                                        tmp_consts[stmt] = tuple(self.schedules[1][stmt][2 * i: 2 * i + 1 + seq])
-                                    
-                                    sorted_consts = sorted(set(tmp_consts.values()))
-                                    for stmt in range(self.nstmts):
-                                        self.schedules[1][stmt][2 * i] = str(sorted_consts.index(tmp_consts[stmt]))
-                                        # 删除标量维度
-                                        for _ in range(seq):
-                                            del self.schedules[1][stmt][2 * i + 1]
-                                            del self.loop_types[1][stmt][2 * i + 1]
-                                    
-                                    # 更新系数矩阵
-                                    for k in range(self.max_loop_depth):
-                                        if (self.schedules[0][j][2 * k + 1] != "0" and 
-                                            self.schedules[0][j][2 * k + 1] in self.schedules[1][j][2 * i + 1]):
-                                            self.coefs[j][i][k] = 1 # TODO: 目前只考虑有无，后续考虑加上系数
-                                        elif (self.schedules[0][j][2 * k + 1][0] == "-" and 
-                                                self.schedules[0][j][2 * k + 1][1:] in self.schedules[1][j][2 * i + 1]): # 当前i--时，pluto会识别调度为-i
-                                            self.coefs[j][i][k] = 1
-                                            self.var_neg[j][i][k] = -1
-                                    break
-                                seq += 1
-                    else:
-                        # 更新系数矩阵
-                        for k in range(self.max_loop_depth):
-                            if (self.schedules[0][j][2 * k + 1] != "0" and 
-                                self.schedules[0][j][2 * k + 1] in self.schedules[1][j][2 * i + 1]):
-                                self.coefs[j][i][k] = 1
-                            elif (self.schedules[0][j][2 * k + 1][0] == "-" and
-                                  self.schedules[0][j][2 * k + 1][1:] in self.schedules[1][j][2 * i + 1]):
-                                self.coefs[j][i][k] = 1
-                                self.var_neg[j][i][k] = -1
+                for k in range(self.max_loop_depth):
+                    if (self.schedules[0][j][2 * k + 1] != "0" and 
+                        self.schedules[0][j][2 * k + 1] in self.schedules[1][j][2 * i + 1]):
+                        self.coefs[j][i][k] = 1 # TODO: 目前只考虑有无，后续考虑加上系数
+                    elif (self.schedules[0][j][2 * k + 1][0] == "-" and 
+                            self.schedules[0][j][2 * k + 1][1:] in self.schedules[1][j][2 * i + 1]): # 当前i--时，pluto会识别调度为-i
+                        self.coefs[j][i][k] = 1
+                        self.var_neg[j][i][k] = -1
 
         # print(self.schedules)
 
@@ -309,9 +400,7 @@ class Loop_Transformation_Classifier:
             if any(re.findall(r'[+-][0-9]+$', str(var)) for var in self.schedules[1][:, 1::2].reshape(-1)):
                 self.answer[7] = 1  # shifting
 
-            flags = [0, 0]
-            check_list = list(range(self.nstmts))
-            self.answer[4:6] = self.check_fusion_distribution(0, check_list, flags)
+            self.answer[4:6] = self.detect_fusion_distribution()
 
         return self.answer
 

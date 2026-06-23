@@ -2,11 +2,11 @@
 prefix="/usr/local"
 exec_prefix="${prefix}"
 bindir="${exec_prefix}/bin"
-libdir="/data/zyj/loop_generator/Compilers/pluto/openscop/.libs"
+libdir="/home/zyj/Data0/loop_generator/Compilers/pluto/openscop/.libs"
 datarootdir="${prefix}/share"
 datadir="${datarootdir}"
 sysconfdir="${prefix}/etc"
-includedir="/data/zyj/loop_generator/Compilers/pluto/openscop/./include"
+includedir="/home/zyj/Data0/loop_generator/Compilers/pluto/openscop/./include"
 package="osl"
 suffix=""
 
