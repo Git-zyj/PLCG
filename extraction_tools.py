@@ -7,12 +7,11 @@ class extraction_tools:
         pass
     
     def get_info(self, stdout_path):
-        try :
-            iterators, stmts, deps, schedules, _, loop_types = self.extract_stdout_from_file(stdout_path) # 目前尚未用到cst信息，先不提取
-        except ValueError as e:
-            raise e
+        iterators, stmts, deps, schedules, _, loop_types, stmt_arrays, _ = self.extract_stdout_from_file(stdout_path)
+        return self._get_info_from_data(iterators, stmts, deps, schedules, stmt_arrays)
 
-        if (not iterators) or (not stmts) or (not schedules):
+    def _get_info_from_data(self, iterators, stmts, deps, schedules, stmt_arrays):
+        if (not iterators) or (not stmts) or (not schedules) or (len(stmt_arrays) != len(stmts)):
             raise ValueError("info extract fails")
 
         nstmts = len(stmts)
@@ -20,36 +19,29 @@ class extraction_tools:
         arrays_write = [[] for _ in range(nstmts)]
         arrays_read = [[] for _ in range(nstmts)]
         for dep in deps:
-            # print(dep)
-            s2t = re.search(r'from S(\d+) to S(\d+);', dep[0], re.DOTALL) # extract source and target stmt for dep
-            if s2t:
-                source_id, target_id = s2t.group(1, 2)
-                # print(source_id, target_id, dep[1][13:-1])
-                dep_type = re.findall(r'Type: ([WR]A[WR])', dep[0], re.DOTALL)[0] # extract dep property
-                
-                if dep_type[-1] == 'W':
-                    arrays_write[int(source_id) - 1].append(dep[1][13:-1]) # on variable: A
-                else:
-                    arrays_read[int(source_id) - 1].append(dep[1][13:-1])
-                    
-                if dep_type[0] == 'W':
-                    arrays_write[int(target_id) - 1].append(dep[1][13:-1]) # on variable: A
-                else:
-                    arrays_read[int(target_id) - 1].append(dep[1][13:-1])
+            source_id = dep['source'][1:]
+            target_id = dep['target'][1:]
+            dep_type = dep['type']
+            array_name = dep['array']
+            
+            if dep_type[-1] == 'W':
+                arrays_write[int(source_id) - 1].append(array_name)
             else:
-                raise ValueError(f"Dependence extraction failed in {dep}") 
+                arrays_read[int(source_id) - 1].append(array_name)
+                
+            if dep_type[0] == 'W':
+                arrays_write[int(target_id) - 1].append(array_name)
+            else:
+                arrays_read[int(target_id) - 1].append(array_name) 
 
         niterators = len(iterators)
         info = []
         max_depth = (len(schedules[0][0]) - 1) // 2 
         for i in range(nstmts):
             
-            # print(stmts[i])
-            # get indexes
-            indexes_write = re.findall(r'\w+(?:\[[^\[\]]+\])+(?=[\+\-\*/]?=)', stmts[i], re.DOTALL) # extract array before = (considering += etc.)
-            indexes_read = re.findall(r'\w+(?:\[[^\[\]]+\])+', stmts[i], re.DOTALL) # extract all arrays
-            if indexes_write and not re.search(r'[\+\-\*/]=', stmts[i], re.DOTALL): # extract read array if exists += etc.
-                indexes_read = indexes_read[1:]
+            # get indexes from stdout Read/Write accesses
+            indexes_write = stmt_arrays[i]['write']
+            indexes_read = stmt_arrays[i]['read']
             
             # print(indexes_write, indexes_read)
             # print(schedules[0][i])
@@ -194,6 +186,139 @@ class extraction_tools:
             
         return indexes_id_dep, coefs_indexes_dep, coefs_indexes_nodep
 
+    def split_top_level(self, text, sep=','):
+        parts = []
+        start = 0
+        depth = 0
+        for i, ch in enumerate(text):
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+            elif ch == sep and depth == 0:
+                parts.append(text[start:i].strip())
+                start = i + 1
+        parts.append(text[start:].strip())
+        return parts
+
+    def is_array_assignment_stmt(self, line):
+        stripped = line.strip().rstrip(';')
+        return bool(re.match(r'^[A-Za-z_]\w*(?:\s*\[[^\]]+\])+\s*(?:[+\-*/%]?=)(?!=)', stripped))
+
+    def count_codelet_array_assignments(self, c_codelet):
+        return sum(1 for line in c_codelet.splitlines() if self.is_array_assignment_stmt(line))
+
+    def parse_for_loop_bound(self, line):
+        match = re.search(
+            r'for\s*\(\s*(?:int\s+)?(?P<var>[A-Za-z_]\w*)\s*=\s*(?P<lower>[^;]+?)\s*;\s*'
+            r'(?P=var)\s*(?P<op><=|<)\s*(?P<upper>[^;]+?)\s*;\s*'
+            r'(?P=var)\s*(?:\+\+|\+=\s*1|=\s*(?P=var)\s*\+\s*1)\s*\)',
+            line
+        )
+        if not match:
+            return None
+
+        lower = ' '.join(match.group('lower').strip().split())
+        upper = ' '.join(match.group('upper').strip().split())
+        var = match.group('var')
+        op = match.group('op')
+        if op == '<':
+            return f'{lower} <= {var} < {upper}'
+        return f'{lower} <= {var} <= {upper}'
+
+    def _wrap_val(self, val):
+        # Don't double-wrap if val already has matching outer parens
+        if val.startswith('(') and val.endswith(')'):
+            depth = 0
+            for i, ch in enumerate(val):
+                if ch == '(':
+                    depth += 1
+                elif ch == ')':
+                    depth -= 1
+                if depth == 0 and i < len(val) - 1:
+                    return f'({val})'
+            return val
+        return f'({val})'
+
+    def _resolve_var_in_expr(self, expr, var_assignments):
+        prev = None
+        result = expr
+        while result != prev:
+            prev = result
+            for var in sorted(var_assignments.keys(), key=lambda k: -len(k)):
+                val = var_assignments[var]
+                result = re.sub(r'\b' + re.escape(var) + r'\b', self._wrap_val(val), result)
+        return result
+
+    def extract_loop_bounds_from_codelet(self, c_codelet):
+        loop_stack = []
+        stmt_loop_bounds = []
+        brace_depth = 0
+        var_assignments = {}
+
+        for line in c_codelet.splitlines():
+            line_no_comment = re.sub(r'//.*', '', line)
+            stripped = line_no_comment.strip()
+
+            if (not stripped.startswith('#')
+                    and not self.is_array_assignment_stmt(stripped)):
+                assign_match = re.match(
+                    r'^([A-Za-z_]\w*)\s*=\s*(.+?)\s*;\s*$', stripped)
+                if assign_match:
+                    var_assignments[assign_match.group(1)] = assign_match.group(2)
+
+            loop_bound = self.parse_for_loop_bound(line_no_comment)
+            if loop_bound:
+                loop_bound = self._resolve_var_in_expr(loop_bound, var_assignments)
+                body_depth = brace_depth + line_no_comment.count('{') - line_no_comment.count('}')
+                if '{' in line_no_comment:
+                    loop_stack.append((body_depth, loop_bound))
+                else:
+                    loop_stack.append((brace_depth + 1, loop_bound))
+
+            if self.is_array_assignment_stmt(line_no_comment):
+                stmt_loop_bounds.append([bound for _, bound in loop_stack])
+
+            brace_depth += line_no_comment.count('{') - line_no_comment.count('}')
+            loop_stack = [(depth, bound) for depth, bound in loop_stack if depth <= brace_depth]
+
+        return stmt_loop_bounds
+
+    def extract_stmt_arrays(self, lines, start_idx):
+        stmt_arrays = {'read': [], 'write': []}
+        nlines = len(lines)
+        i = start_idx
+
+        while i < nlines:
+            line = lines[i].strip()
+            if line == 'Read accesses':
+                i += 1
+                while i < nlines and lines[i].strip() != 'Write accesses':
+                    access = lines[i].strip()
+                    if access:
+                        stmt_arrays['read'].append(access.replace(' ', ''))
+                    i += 1
+            elif line == 'No Read accesses':
+                i += 1
+            elif line == 'Write accesses':
+                i += 1
+                while i < nlines:
+                    access = lines[i].strip()
+                    if (not access or access.startswith('Original loop:') or
+                            re.match(r'S\d+ ".*"', access) or access.startswith('--- Dep ') or
+                            access.startswith('[plcg-info]') or access.startswith('[zyj-debug]')):
+                        break
+                    stmt_arrays['write'].append(access.replace(' ', ''))
+                    i += 1
+                break
+            elif (re.match(r'S\d+ ".*"', line) or line.startswith('--- Dep ') or
+                    line.startswith('[plcg-info]') or line.startswith('[zyj-debug]')):
+                break
+            else:
+                i += 1
+
+        return stmt_arrays
+
     def extract_stdout_from_string(self, stdout_content):
         """
         从字符串中提取stdout信息（类似extract_stdout，但不需要文件）
@@ -218,7 +343,9 @@ class extraction_tools:
         text_stmts = []
         text_deps = []
         csts_stmts = []
+        stmt_arrays = []
         iterators = []
+        global_params = []
 
         nlines = len(lines)
         i = 0
@@ -228,11 +355,18 @@ class extraction_tools:
             elif lines[i][:11] == '[plcg-info]':
                 text_schedules += lines[i] + '\n'
                 generator_id = "plcg"
+                if i + 2 < nlines and lines[i+2].startswith('Parameters:'):
+                    global_params = [p.strip() for p in lines[i+2][11:].strip().split()]
             elif lines[i][:11] == '[zyj-debug]':
                 text_schedules += lines[i] + '\n'
                 generator_id = "looprag"
-            elif re.match(r'S\d+ \".*\"\n', lines[i]): # 获取语句调度约束矩阵（plcg为数字，looprag为字符串）
-                text_stmts.append(lines[i].replace(' ', ''))
+                if i + 2 < nlines and lines[i+2].startswith('Parameters:'):
+                    global_params = [p.strip() for p in lines[i+2][11:].strip().split()]
+            elif re.match(r'S\d+ \".*\"(?:\n)?$', lines[i]): # 获取语句调度约束矩阵（plcg为数字，looprag为字符串）
+                stmt_line = lines[i].replace(' ', '')
+                stmt_match = re.match(r'(S\d+)"(.*)"', stmt_line)
+                if stmt_match:
+                    text_stmts.append(stmt_match.group(2))
                 if generator_id == "plcg":
                     indent_cst = 4
                 elif generator_id == "looprag":
@@ -243,16 +377,19 @@ class extraction_tools:
                 if i + indent_cst >= nlines:
                     raise ValueError("语句信息不完整，如有必要，请手动确认pluto优化结果")
                 
-                iterators_info = re.search(r'iterators: (.+)\n', lines[i + 2])
+                iterators_info = re.search(r'iterators: (.+)', lines[i + 2])
                 if iterators_info:
                     iterators += iterators_info[1].split(', ')
                     
-                if lines[i + 3] == 'Index set\n':
+                if lines[i + 3].strip() == 'Index set':
+                    stmt_arrays.append(self.extract_stmt_arrays(lines, i + indent_cst))
                     if "No constraints" not in lines[i + indent_cst]: # 提取存在约束的情况
-                        csts = lines[i + indent_cst + 1: i + int(lines[i + indent_cst][indent_cst - 4])] # TODO: plcg获取第0个字符为行数，looprag获取第1个字符为行数， 此处取巧采用indent_cst-4
-                        # csts_stmts.append(np.array([x.split() for x in csts], dtype=int)) # 目前尚未用到cst信息，先不提取
-                        i += indent_cst + int(lines[i + indent_cst][indent_cst - 4]) # 同上，取巧获取cst行数
+                        ncsts = int(lines[i + indent_cst].split()[0])
+                        csts = lines[i + indent_cst + 1: i + indent_cst + 1 + ncsts]
+                        csts_stmts.append(np.array([x.split() for x in csts], dtype=int))
+                        i += indent_cst + ncsts
                     else: #无约束情况，跳过
+                        csts_stmts.append(np.array([], dtype=int))
                         i += indent_cst # TODO: looprag展示为Universal polyhedron -- No constraints (1 dims)!，plcg尚未确认
                 else:
                     raise ValueError("语句调度约束信息不完整，如有必要，请手动确认pluto优化结果")
@@ -260,7 +397,12 @@ class extraction_tools:
             elif lines[i][:8] == '--- Dep ':
                 if i + 1 >= nlines:
                     raise ValueError("依赖信息不完整，如有必要，请手动确认pluto优化结果")
-                text_deps.append([lines[i], lines[i + 1]])
+                dep_header = lines[i]
+                dep_var = lines[i + 1] if i + 1 < nlines else ''
+                dm = re.match(r'--- Dep \d+ from (S\d+) to (S\d+);.*Type: ([WR]A[WR])', dep_header)
+                vm = re.match(r'on variable: (\w+)', dep_var)
+                if dm and vm:
+                    text_deps.append({'source': dm.group(1), 'target': dm.group(2), 'type': dm.group(3), 'array': vm.group(1)})
                 i += 1
             i += 1
 
@@ -280,14 +422,66 @@ class extraction_tools:
         schedules = []
         loop_types = []
         for i in range(2):
-            stmts = re.findall(r'T\(S\d+\):\s\((.*?)\)', scops[i])
-            schedules.append([stmt.split(', ') for stmt in stmts])
+            stmts = re.findall(r'T\(S\d+\):\s\((.*)\)', scops[i])
+            schedules.append([self.split_top_level(stmt) for stmt in stmts])
             types_stmts = re.findall(r'loop types\s\((.*?)\)', scops[i])
-            loop_types.append([types_stmt.split(', ') for types_stmt in types_stmts])
+            loop_types.append([self.split_top_level(types_stmt) for types_stmt in types_stmts])
 
-        # return iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types
-        return iterators, text_stmts, text_deps, schedules, None, loop_types # 目前尚未用到cst信息，先不提取
+        return iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params
     
+    def resolve_global_params(self, global_params, h_file_path):
+        result = {}
+        if not global_params:
+            return result
+        try:
+            with open(h_file_path, 'r') as f:
+                h_lines = f.readlines()
+        except Exception:
+            return result
+        in_params = False
+        for line in h_lines:
+            stripped = line.strip()
+            if stripped == '/* params start */':
+                in_params = True
+                continue
+            if in_params and stripped == '/* params end */':
+                break
+            if in_params:
+                m = re.match(r'#\s*define\s+(' + '|'.join(global_params) + r')\s+(\d+)', stripped)
+                if m:
+                    result[m.group(1)] = int(m.group(2))
+        return result
+
+    def get_all_info(self, stdout_path, h_file_path=None, poly_code_path=None, pluto_code_path=None):
+        iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params = self.extract_stdout_from_file(stdout_path)
+        
+        feature_info = self._get_info_from_data(iterators, text_stmts, text_deps, schedules, stmt_arrays)
+        
+        property_info = {
+            'iterators': iterators,
+            'text_stmts': text_stmts,
+            'text_deps': text_deps,
+            'schedules': schedules,
+            csts_stmts: csts_stmts,
+            'loop_types': loop_types,
+            'stmt_arrays': stmt_arrays,
+            'params': global_params,
+            'params_with_value': {},
+            'loop_bounds_before': [],
+            'loop_bounds_after': [],
+        }
+        
+        if h_file_path:
+            property_info['params_with_value'] = self.resolve_global_params(global_params, h_file_path)
+        if poly_code_path:
+            codelet_before = self.extract_codelet_from_file(poly_code_path, 0)
+            property_info['loop_bounds_before'] = self.extract_loop_bounds_from_codelet(codelet_before)
+        if pluto_code_path:
+            codelet_after = self.extract_codelet_from_file(pluto_code_path, 1)
+            property_info['loop_bounds_after'] = self.extract_loop_bounds_from_codelet(codelet_after)
+        
+        return {'feature_info': feature_info, 'property_info': property_info}
+
     def extract_codelet_from_file(self, code_path, compare_option = 0):
         '''
         compare_option:

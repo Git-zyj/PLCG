@@ -233,8 +233,14 @@ class RAG_Preprocessor:
         
         # 提取stdout信息
         try:
-            info = tool.get_info(str(self.stdout_path / f'{filename}.stdout'))
-            content['info'] = info
+            all_info = tool.get_all_info(
+                str(self.stdout_path / f'{filename}.stdout'),
+                str(self.dataset_path / 'poly_code' / f'{filename}.h'),
+                str(file_path),
+                str(self.pluto_path / f'{filename}.pluto.c')
+            )
+            content['feature_info'] = all_info['feature_info']
+            content['property_info'] = all_info['property_info']
         except ValueError as e:
             return False, f'stdout info extraction failed: {str(e)}', filename
         except Exception as e:
