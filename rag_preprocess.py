@@ -15,6 +15,8 @@ from pathlib import Path
 from collections import defaultdict, Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+import numpy as np
+
 from path_settings import DATASET_PATH
 from extraction_tools import extraction_tools
 
@@ -94,6 +96,17 @@ def for_loop_post_process(code):
     pattern = r'(for \()(?!int)'
     replacement = r'\1int '
     return re.sub(pattern, replacement, code)
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, (np.integer,)):
+            return int(obj)
+        if isinstance(obj, (np.floating,)):
+            return float(obj)
+        return super().default(obj)
+
 
 class RAG_Preprocessor:
     def __init__(self, args):
@@ -416,7 +429,7 @@ class RAG_Preprocessor:
         json_path = self.output_path / json_filename
         
         with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(list(contents.values()), f)
+            json.dump(list(contents.values()), f, cls=NumpyEncoder)
         
         # 生成报告
         report = self._generate_summary_report(total_time, total_files, len(contents), json_path)
