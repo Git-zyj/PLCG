@@ -157,6 +157,8 @@ yarn.lock
 .coverage
 .coverage.*
 
+*.bundle
+
 # ============================================
 # Project specific configurations
 # ============================================
