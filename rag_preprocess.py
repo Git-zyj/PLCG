@@ -175,6 +175,7 @@ class RAG_Preprocessor:
         classification['file_name'] = classification['file_name'].astype(str)
         
         classification = classification.merge(df_file_path, on='file_name', how='inner')
+        self.classification_output = classification.copy()
         
         # 根据数据集类型进行筛选
         if "plcg" in self.dataset or "looprag" in self.dataset:
@@ -258,6 +259,26 @@ class RAG_Preprocessor:
             return False, f'stdout info extraction failed: {str(e)}', filename
         except Exception as e:
             return False, f'stdout info extraction error: {str(e)}', filename
+        
+        # transformation_info from classification data
+        if hasattr(self, 'classification_output') and self.classification_output is not None:
+            cls_row = self.classification_output[self.classification_output['file_name'] == filename]
+            if not cls_row.empty:
+                cls_cols = {
+                    'no loop transformation': 'no_transformation',
+                    'loop tiling': 'tiling',
+                    'loop interchange': 'interchange',
+                    'loop skewing': 'skewing',
+                    'loop fusion': 'fusion',
+                    'loop distribution': 'distribution',
+                    'loop reverse': 'reverse',
+                    'loop shifting': 'shifting',
+                    'other loop transformation': 'other',
+                }
+                content['transformation_info'] = {
+                    new_key: int(cls_row[old_key].values[0])
+                    for old_key, new_key in cls_cols.items()
+                }
         
         return True, content, filename
     
