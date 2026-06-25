@@ -108,6 +108,62 @@ class NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+# module-level worker for multiprocessing (avoids pickling self.classification_output per task)
+_classification_cache = None
+
+def _init_worker(cls_cache):
+    global _classification_cache
+    _classification_cache = cls_cache
+
+def _process_single_worker(file_path, pluto_path, stdout_path, dataset_path):
+    tool = extraction_tools()
+    content = defaultdict(list)
+    filename = str(Path(file_path).name.removesuffix('.c'))
+    content['filename'] = filename
+
+    try:
+        original_code = tool.extract_codelet_from_file(str(file_path), 0)
+        if not original_code:
+            return False, "original code extract failed", filename
+        content['code'] = original_code
+    except Exception as e:
+        return False, f"original code extraction error: {str(e)}", filename
+
+    try:
+        opt_codelet = tool.extract_codelet_from_file(str(pluto_path / f'{filename}.pluto.c'), 1)
+        content['opt_code'] = for_loop_post_process(opt_codelet)
+        if 'i' not in content['opt_code']:
+            return False, "opt codelet content is wrong (no 'i' variable)", filename
+    except ValueError as e:
+        if str(e) == "The pluto file is empty!":
+            return False, "pluto file is empty", filename
+        return False, f'opt codelet extract fails: {str(e)}', filename
+    except Exception as e:
+        return False, f'opt codelet extraction error: {str(e)}', filename
+
+    try:
+        all_info = tool.get_all_info(
+            str(stdout_path / f'{filename}.stdout'),
+            str(dataset_path / 'poly_code' / f'{filename}.h'),
+            original_code=original_code,
+            opt_code=opt_codelet
+        )
+        content['feature_info'] = all_info['feature_info']
+        content['property_info'] = all_info['property_info']
+    except ValueError as e:
+        return False, f'stdout info extraction failed: {str(e)}', filename
+    except Exception as e:
+        return False, f'stdout info extraction error: {str(e)}', filename
+
+    global _classification_cache
+    if _classification_cache is not None:
+        ti = _classification_cache.get(filename)
+        if ti is not None:
+            content['transformation_info'] = ti
+
+    return True, content, filename
+
+
 class RAG_Preprocessor:
     def __init__(self, args):
         self.dataset_path = Path(args.dataset_path).resolve()
@@ -175,6 +231,21 @@ class RAG_Preprocessor:
         classification['file_name'] = classification['file_name'].astype(str)
         
         classification = classification.merge(df_file_path, on='file_name', how='inner')
+        cols_map = {
+            'no loop transformation': 'no_transformation',
+            'loop tiling': 'tiling',
+            'loop interchange': 'interchange',
+            'loop skewing': 'skewing',
+            'loop fusion': 'fusion',
+            'loop distribution': 'distribution',
+            'loop reverse': 'reverse',
+            'loop shifting': 'shifting',
+            'other loop transformation': 'other',
+        }
+        self.classification_output = {
+            row['file_name']: {cols_map[col]: int(row[col]) for col in cols_map}
+            for _, row in classification.iterrows()
+        }
         
         # 根据数据集类型进行筛选
         if "plcg" in self.dataset or "looprag" in self.dataset:
@@ -249,8 +320,8 @@ class RAG_Preprocessor:
             all_info = tool.get_all_info(
                 str(self.stdout_path / f'{filename}.stdout'),
                 str(self.dataset_path / 'poly_code' / f'{filename}.h'),
-                str(file_path),
-                str(self.pluto_path / f'{filename}.pluto.c')
+                original_code=original_code,
+                opt_code=opt_codelet
             )
             content['feature_info'] = all_info['feature_info']
             content['property_info'] = all_info['property_info']
@@ -258,6 +329,12 @@ class RAG_Preprocessor:
             return False, f'stdout info extraction failed: {str(e)}', filename
         except Exception as e:
             return False, f'stdout info extraction error: {str(e)}', filename
+        
+        # transformation_info from classification data
+        if hasattr(self, 'classification_output') and self.classification_output is not None:
+            ti = self.classification_output.get(filename)
+            if ti is not None:
+                content['transformation_info'] = ti
         
         return True, content, filename
     

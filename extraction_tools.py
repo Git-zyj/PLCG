@@ -250,7 +250,23 @@ class extraction_tools:
                 result = re.sub(r'\b' + re.escape(var) + r'\b', self._wrap_val(val), result)
         return result
 
-    def extract_loop_bounds_from_codelet(self, c_codelet):
+    def _extract_write_array(self, stmt_line):
+        m = re.match(r'([A-Za-z_]\w*)(?:\s*\[)', stmt_line.strip().rstrip(';').replace(' ', ''))
+        return m.group(1) if m else None
+
+    def _match_cloog_stmts(self, cloog_line, original_stmts):
+        if not original_stmts:
+            return []
+        cloog_arr = self._extract_write_array(cloog_line)
+        if not cloog_arr:
+            return []
+        matched = []
+        for i, orig_stmt in enumerate(original_stmts):
+            if self._extract_write_array(orig_stmt) == cloog_arr:
+                matched.append(f'S{i+1}')
+        return matched
+
+    def extract_loop_bounds_from_codelet(self, c_codelet, original_stmts=None):
         loop_stack = []
         stmt_loop_bounds = []
         brace_depth = 0
@@ -277,11 +293,27 @@ class extraction_tools:
                     loop_stack.append((brace_depth + 1, loop_bound))
 
             if self.is_array_assignment_stmt(line_no_comment):
-                stmt_loop_bounds.append([bound for _, bound in loop_stack])
+                if original_stmts is not None:
+                    matched = self._match_cloog_stmts(line_no_comment, original_stmts)
+                    stmt_loop_bounds.append({
+                        'stmts': matched,
+                        'bounds': [bound for _, bound in loop_stack]
+                    })
+                else:
+                    stmt_loop_bounds.append([bound for _, bound in loop_stack])
 
             brace_depth += line_no_comment.count('{') - line_no_comment.count('}')
             loop_stack = [(depth, bound) for depth, bound in loop_stack if depth <= brace_depth]
 
+        # Merge consecutive entries with identical bounds (fusion case)
+        if stmt_loop_bounds and isinstance(stmt_loop_bounds[0], dict):
+            merged = []
+            for entry in stmt_loop_bounds:
+                if merged and entry['bounds'] == merged[-1]['bounds']:
+                    merged[-1]['stmts'].extend(entry['stmts'])
+                else:
+                    merged.append({'stmts': list(entry['stmts']), 'bounds': list(entry['bounds'])})
+            return merged
         return stmt_loop_bounds
 
     def extract_stmt_arrays(self, lines, start_idx):
@@ -452,7 +484,7 @@ class extraction_tools:
                     result[m.group(1)] = int(m.group(2))
         return result
 
-    def get_all_info(self, stdout_path, h_file_path=None, poly_code_path=None, pluto_code_path=None):
+    def get_all_info(self, stdout_path, h_file_path=None, poly_code_path=None, pluto_code_path=None, original_code=None, opt_code=None):
         iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params = self.extract_stdout_from_file(stdout_path)
         
         feature_info = self._get_info_from_data(iterators, text_stmts, text_deps, schedules, stmt_arrays)
@@ -473,12 +505,16 @@ class extraction_tools:
         
         if h_file_path:
             property_info['params_with_value'] = self.resolve_global_params(global_params, h_file_path)
-        if poly_code_path:
+        if original_code is not None:
+            property_info['loop_bounds_before'] = self.extract_loop_bounds_from_codelet(original_code)
+        elif poly_code_path:
             codelet_before = self.extract_codelet_from_file(poly_code_path, 0)
             property_info['loop_bounds_before'] = self.extract_loop_bounds_from_codelet(codelet_before)
-        if pluto_code_path:
+        if opt_code is not None:
+            property_info['loop_bounds_after'] = self.extract_loop_bounds_from_codelet(opt_code, text_stmts)
+        elif pluto_code_path:
             codelet_after = self.extract_codelet_from_file(pluto_code_path, 1)
-            property_info['loop_bounds_after'] = self.extract_loop_bounds_from_codelet(codelet_after)
+            property_info['loop_bounds_after'] = self.extract_loop_bounds_from_codelet(codelet_after, text_stmts)
         
         return {'feature_info': feature_info, 'property_info': property_info}
 
