@@ -266,11 +266,93 @@ class extraction_tools:
                 matched.append(f'S{i+1}')
         return matched
 
+    def _parse_if_condition(self, line):
+        """Parse if condition, return {var: (op, val)} or None."""
+        m = re.search(r'if\s*\((.+)\)\s*\{?', line)
+        if not m:
+            return None
+        cond_text = m.group(1)
+        constraints = {}
+        parts = re.split(r'\s*&&\s*', cond_text)
+        for part in parts:
+            part = part.strip().strip('()')
+            cm = re.match(r'(\w+)\s*(==|<=|>=|<|>)\s*(-?\w+)', part)
+            if cm:
+                var, op, val = cm.group(1), cm.group(2), cm.group(3)
+                constraints[var] = (op, val)
+        return constraints if constraints else None
+
+    def _apply_if_constraints(self, bounds, if_constraints):
+        """Narrow loop bounds using if-condition constraints."""
+        result = []
+        for bound in bounds:
+            m = re.match(r'(.+?)\s*<=\s*(\w+)\s*(<=|<)\s*(.+)', bound)
+            if m:
+                lower, var, op, upper = m.group(1), m.group(2), m.group(3), m.group(4)
+                if var in if_constraints:
+                    if_op, if_val = if_constraints[var]
+                    if if_op == '==':
+                        result.append(f'{if_val} <= {var} <= {if_val}')
+                    elif if_op == '<=':
+                        result.append(f'{lower} <= {var} <= {if_val}')
+                    elif if_op == '>=':
+                        result.append(f'{if_val} <= {var} <= {upper}')
+                    elif if_op == '<':
+                        result.append(f'{lower} <= {var} <= {if_val}-1')
+                    elif if_op == '>':
+                        result.append(f'{if_val}+1 <= {var} <= {upper}')
+                    else:
+                        result.append(bound)
+                else:
+                    result.append(bound)
+            else:
+                result.append(bound)
+        return result
+
+    def _resolve_peeled_bounds(self, stmt_loop_bounds, peeled_stmts, original_stmts):
+        """Infer bounds for peeled statements by borrowing loop variable names
+        from subsequent fused-loop entries that write to the same array."""
+        for peeled_line, peeled_idx in peeled_stmts:
+            entry = stmt_loop_bounds[peeled_idx]
+            # Extract constant array index: e.g. B[1] -> array B, const 1
+            stripped = peeled_line.strip().rstrip(';').replace(' ', '')
+            arr_match = re.match(r'([A-Za-z_]\w*)\[(\d+)\]', stripped)
+            if not arr_match:
+                continue
+            peeled_arr, const_idx_str = arr_match.group(1), arr_match.group(2)
+            const_idx = int(const_idx_str)
+
+            peeled_s_ids = set(entry['stmts'])
+            # Scan subsequent entries for matching stmts with bounds
+            for later_idx in range(peeled_idx + 1, len(stmt_loop_bounds)):
+                later_entry = stmt_loop_bounds[later_idx]
+                if not later_entry['bounds']:
+                    continue
+                if peeled_s_ids & set(later_entry['stmts']):
+                    # Found a matching loop entry; extract iterator variable
+                    first_bound = later_entry['bounds'][0]
+                    var_match = re.match(r'(.+?)\s*<=\s*(\w+)\s*(<=|<)\s*(.+)', first_bound)
+                    if var_match:
+                        lower_expr, loop_var = var_match.group(1), var_match.group(2)
+                        try:
+                            lower_num = int(lower_expr.strip())
+                            if const_idx < lower_num:
+                                entry['bounds'] = [f'{const_idx} <= {loop_var} <= {const_idx}']
+                                break
+                        except ValueError:
+                            pass
+                        # Fallback: use the loop var anyway
+                        entry['bounds'] = [f'{const_idx} <= {loop_var} <= {const_idx}']
+                        break
+                    break
+
     def extract_loop_bounds_from_codelet(self, c_codelet, original_stmts=None):
-        loop_stack = []
+        loop_stack = []       # [(depth, bound_string)]
+        if_stack = []         # [(depth, {var: (op, val)})]
         stmt_loop_bounds = []
         brace_depth = 0
         var_assignments = {}
+        peeled_stmts = []     # [(stmt_line, idx_in_bounds)]
 
         for line in c_codelet.splitlines():
             line_no_comment = re.sub(r'//.*', '', line)
@@ -292,25 +374,56 @@ class extraction_tools:
                 else:
                     loop_stack.append((brace_depth + 1, loop_bound))
 
+            # Parse if-condition constraints
+            if_constraints = self._parse_if_condition(line_no_comment)
+            if if_constraints:
+                body_depth = brace_depth + line_no_comment.count('{') - line_no_comment.count('}')
+                if '{' in line_no_comment:
+                    if_stack.append((body_depth, if_constraints))
+                else:
+                    if_stack.append((brace_depth + 1, if_constraints))
+
             if self.is_array_assignment_stmt(line_no_comment):
+                # Collect active bounds from loop_stack
+                bounds = [bound for _, bound in loop_stack]
+
+                # Apply active if constraints
+                active_ifs = {}
+                for _if_depth, _if_cons in if_stack:
+                    active_ifs.update(_if_cons)
+                if active_ifs:
+                    bounds = self._apply_if_constraints(bounds, active_ifs)
+
                 if original_stmts is not None:
                     matched = self._match_cloog_stmts(line_no_comment, original_stmts)
+                    idx = len(stmt_loop_bounds)
                     stmt_loop_bounds.append({
                         'stmts': matched,
-                        'bounds': [bound for _, bound in loop_stack]
+                        'bounds': bounds,
                     })
+                    if not bounds:
+                        peeled_stmts.append((line_no_comment, idx))
                 else:
-                    stmt_loop_bounds.append([bound for _, bound in loop_stack])
+                    stmt_loop_bounds.append(bounds)
 
             brace_depth += line_no_comment.count('{') - line_no_comment.count('}')
             loop_stack = [(depth, bound) for depth, bound in loop_stack if depth <= brace_depth]
+            if_stack = [(depth, cons) for depth, cons in if_stack if depth <= brace_depth]
+
+        # Resolve peeled statement bounds
+        if peeled_stmts and original_stmts is not None:
+            self._resolve_peeled_bounds(stmt_loop_bounds, peeled_stmts, original_stmts)
 
         # Merge consecutive entries with identical bounds (fusion case)
         if stmt_loop_bounds and isinstance(stmt_loop_bounds[0], dict):
             merged = []
             for entry in stmt_loop_bounds:
                 if merged and entry['bounds'] == merged[-1]['bounds']:
-                    merged[-1]['stmts'].extend(entry['stmts'])
+                    existing = set(merged[-1]['stmts'])
+                    for s in entry['stmts']:
+                        if s not in existing:
+                            merged[-1]['stmts'].append(s)
+                            existing.add(s)
                 else:
                     merged.append({'stmts': list(entry['stmts']), 'bounds': list(entry['bounds'])})
             return merged
