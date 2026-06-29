@@ -489,33 +489,86 @@ class extraction_tools:
         
         feature_info = self._get_info_from_data(iterators, text_stmts, text_deps, schedules, stmt_arrays)
         
-        property_info = {
-            'iterators': iterators,
-            'text_stmts': text_stmts,
-            'text_deps': text_deps,
-            'schedules': schedules,
-            'csts_stmts': csts_stmts,
-            'loop_types': loop_types,
-            'stmt_arrays': stmt_arrays,
-            'params': global_params,
-            'params_with_value': {},
-            'loop_bounds_before': [],
-            'loop_bounds_after': [],
-        }
-        
+        # before
+        params_with_value = {}
         if h_file_path:
-            property_info['params_with_value'] = self.resolve_global_params(global_params, h_file_path)
+            params_with_value = self.resolve_global_params(global_params, h_file_path)
+        loop_bounds_before = []
         if original_code is not None:
-            property_info['loop_bounds_before'] = self.extract_loop_bounds_from_codelet(original_code)
+            loop_bounds_before = self.extract_loop_bounds_from_codelet(original_code)
         elif poly_code_path:
             codelet_before = self.extract_codelet_from_file(poly_code_path, 0)
-            property_info['loop_bounds_before'] = self.extract_loop_bounds_from_codelet(codelet_before)
+            loop_bounds_before = self.extract_loop_bounds_from_codelet(codelet_before)
+
+        # after
+        loop_bounds_after = []
         if opt_code is not None:
-            property_info['loop_bounds_after'] = self.extract_loop_bounds_from_codelet(opt_code, text_stmts)
+            loop_bounds_after = self.extract_loop_bounds_from_codelet(opt_code, text_stmts)
         elif pluto_code_path:
             codelet_after = self.extract_codelet_from_file(pluto_code_path, 1)
-            property_info['loop_bounds_after'] = self.extract_loop_bounds_from_codelet(codelet_after, text_stmts)
-        
+            loop_bounds_after = self.extract_loop_bounds_from_codelet(codelet_after, text_stmts)
+
+        n_stmts = len(text_stmts)
+
+        # --- build dicts keyed by S-id ---
+        before_schedules = schedules[0] if schedules else []
+
+        before_text_stmts = {}
+        before_schedules_dict = {}
+        before_stmt_arrays_dict = {}
+        before_loop_bounds_dict = {}
+        for i in range(n_stmts):
+            s_id = f'S{i+1}'
+            before_text_stmts[s_id] = text_stmts[i]
+            before_schedules_dict[s_id] = before_schedules[i] if i < len(before_schedules) else []
+            before_stmt_arrays_dict[s_id] = stmt_arrays[i] if i < len(stmt_arrays) else {'read': [], 'write': []}
+            if loop_bounds_before and i < len(loop_bounds_before):
+                before_loop_bounds_dict[s_id] = loop_bounds_before[i]
+            else:
+                before_loop_bounds_dict[s_id] = []
+
+        # --- build after dicts ---
+        after_schedules = schedules[1] if len(schedules) > 1 else []
+
+        after_text_stmts = list(text_stmts)
+        after_schedules_dict = {}
+        for i in range(n_stmts):
+            s_id = f'S{i+1}'
+            after_schedules_dict[s_id] = after_schedules[i] if i < len(after_schedules) else []
+
+        # after loop_bounds: dict keyed by S-id or fusion group (e.g. "S1&S2")
+        after_loop_bounds_dict = {}
+        if loop_bounds_after and isinstance(loop_bounds_after[0], dict):
+            for group in loop_bounds_after:
+                group_key = '&'.join(group['stmts'])
+                if group_key not in after_loop_bounds_dict:
+                    after_loop_bounds_dict[group_key] = []
+                after_loop_bounds_dict[group_key].append(group['bounds'])
+        elif loop_bounds_after:
+            for i, bounds in enumerate(loop_bounds_after):
+                s_id = f'S{i+1}'
+                if s_id not in after_loop_bounds_dict:
+                    after_loop_bounds_dict[s_id] = []
+                after_loop_bounds_dict[s_id].append(bounds)
+
+        property_info = {
+            'before': {
+                'iterators': iterators,
+                'text_stmts': before_text_stmts,
+                'text_deps': text_deps,
+                'schedules': before_schedules_dict,
+                'stmt_arrays': before_stmt_arrays_dict,
+                'params_with_value': params_with_value,
+                'loop_bounds': before_loop_bounds_dict,
+            },
+            'after': {
+                'iterators': iterators,
+                'text_stmts': after_text_stmts,
+                'schedules': after_schedules_dict,
+                'loop_bounds': after_loop_bounds_dict,
+            }
+        }
+
         return {'feature_info': feature_info, 'property_info': property_info}
 
     def extract_codelet_from_file(self, code_path, compare_option = 0):
