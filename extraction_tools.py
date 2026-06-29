@@ -489,33 +489,59 @@ class extraction_tools:
         
         feature_info = self._get_info_from_data(iterators, text_stmts, text_deps, schedules, stmt_arrays)
         
-        property_info = {
-            'iterators': iterators,
-            'text_stmts': text_stmts,
-            'text_deps': text_deps,
-            'schedules': schedules,
-            'csts_stmts': csts_stmts,
-            'loop_types': loop_types,
-            'stmt_arrays': stmt_arrays,
-            'params': global_params,
-            'params_with_value': {},
-            'loop_bounds_before': [],
-            'loop_bounds_after': [],
-        }
-        
+        # before
+        params_with_value = {}
         if h_file_path:
-            property_info['params_with_value'] = self.resolve_global_params(global_params, h_file_path)
+            params_with_value = self.resolve_global_params(global_params, h_file_path)
+        loop_bounds_before = []
         if original_code is not None:
-            property_info['loop_bounds_before'] = self.extract_loop_bounds_from_codelet(original_code)
+            loop_bounds_before = self.extract_loop_bounds_from_codelet(original_code)
         elif poly_code_path:
             codelet_before = self.extract_codelet_from_file(poly_code_path, 0)
-            property_info['loop_bounds_before'] = self.extract_loop_bounds_from_codelet(codelet_before)
+            loop_bounds_before = self.extract_loop_bounds_from_codelet(codelet_before)
+
+        # after
+        loop_bounds_after = []
         if opt_code is not None:
-            property_info['loop_bounds_after'] = self.extract_loop_bounds_from_codelet(opt_code, text_stmts)
+            loop_bounds_after = self.extract_loop_bounds_from_codelet(opt_code, text_stmts)
         elif pluto_code_path:
             codelet_after = self.extract_codelet_from_file(pluto_code_path, 1)
-            property_info['loop_bounds_after'] = self.extract_loop_bounds_from_codelet(codelet_after, text_stmts)
-        
+            loop_bounds_after = self.extract_loop_bounds_from_codelet(codelet_after, text_stmts)
+
+        # convert loop_bounds_after from group-based to per-statement
+        n_stmts = len(text_stmts)
+        per_stmt_loop_bounds_after = [[] for _ in range(n_stmts)]
+        if loop_bounds_after and isinstance(loop_bounds_after[0], dict):
+            for group in loop_bounds_after:
+                for s in group['stmts']:
+                    idx = int(s[1:]) - 1
+                    if 0 <= idx < n_stmts:
+                        per_stmt_loop_bounds_after[idx].append({'bounds': group['bounds']})
+        else:
+            for i, bounds in enumerate(loop_bounds_after):
+                if i < n_stmts:
+                    per_stmt_loop_bounds_after[i].append({'bounds': bounds})
+
+        property_info = {
+            'before': {
+                'iterators': iterators,
+                'text_stmts': text_stmts,
+                'text_deps': text_deps,
+                'schedules': schedules[0] if schedules else [],
+                'loop_types': loop_types[0] if loop_types else [],
+                'stmt_arrays': stmt_arrays,
+                'params_with_value': params_with_value,
+                'loop_bounds': loop_bounds_before,
+            },
+            'after': {
+                'iterators': iterators,
+                'text_stmts': text_stmts,
+                'schedules': schedules[1] if len(schedules) > 1 else [],
+                'loop_types': loop_types[1] if len(loop_types) > 1 else [],
+                'loop_bounds': per_stmt_loop_bounds_after,
+            }
+        }
+
         return {'feature_info': feature_info, 'property_info': property_info}
 
     def extract_codelet_from_file(self, code_path, compare_option = 0):
