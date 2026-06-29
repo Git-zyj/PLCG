@@ -1,4 +1,12 @@
 import random
+# Prevent numpy BLAS thread oversubscription with multiprocessing (Linux fork)
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+
 
 import pandas as pd
 import os
@@ -347,10 +355,15 @@ class RAG_Preprocessor:
         
         self.logger.info(f"Processing batch with {len(batch_files)} files...")
         
-        with ProcessPoolExecutor(max_workers=self.num_processes) as executor:
-            # 提交所有任务
+        # Use module-level worker to avoid pickling 'self' (critical for Windows spawn)
+        cls_cache = getattr(self, 'classification_output', None)
+        with ProcessPoolExecutor(max_workers=self.num_processes,
+                                 initializer=_init_worker,
+                                 initargs=(cls_cache,)) as executor:
+            # submit tasks
             future_to_file = {
-                executor.submit(self.process_single_file, file_path): file_path
+                executor.submit(_process_single_worker, file_path,
+                                self.pluto_path, self.stdout_path, self.dataset_path): file_path
                 for file_path in batch_files
             }
             

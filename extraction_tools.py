@@ -6,6 +6,11 @@ class extraction_tools:
     def __init__(self) -> None:
         pass
     
+
+    @staticmethod
+    def _arr1d_str(arr):
+        '''Fast 1D integer array to comma-separated string: [0,1,0]'''
+        return '[' + ','.join(str(int(x)) for x in arr.flat) + ']'
     def get_info(self, stdout_path):
         iterators, stmts, deps, schedules, _, loop_types, stmt_arrays, _ = self.extract_stdout_from_file(stdout_path)
         return self._get_info_from_data(iterators, stmts, deps, schedules, stmt_arrays)
@@ -61,9 +66,9 @@ class extraction_tools:
                             coefs_schedule[2 * j + 1][k] = 1 # todo: only single iterator and coef 1 now
                             iterators_stmt[iterators[k]] = j
             
-            schedule = np.array2string(coefs_schedule, separator = ',').replace(' ', '')
-            schedule_const = [np.array2string(coefs_schedule[2 * i], separator = ',').replace(' ', '') for i in range(max_depth + 1)]
-            schedule_iterator = [np.array2string(coefs_schedule[2 * i + 1], separator = ',').replace(' ', '') for i in range(max_depth)]
+            schedule = self._arr1d_str(coefs_schedule)
+            schedule_const = [self._arr1d_str(coefs_schedule[2 * i]) for i in range(max_depth + 1)]
+            schedule_iterator = [self._arr1d_str(coefs_schedule[2 * i + 1]) for i in range(max_depth)]
             
             
             # indexes to matrix
@@ -116,20 +121,20 @@ class extraction_tools:
                         
             
             # for json
-            # indexes_read = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_dep_read]
-            indexes_const_dep_read = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_const_dep_read]
-            indexes_nonzero_iterator_dep_read = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_nonzero_iterator_dep_read]
+            # indexes_read = [self._arr1d_str(x) for x in coefs_indexes_dep_read]
+            indexes_const_dep_read = [self._arr1d_str(x) for x in coefs_indexes_const_dep_read]
+            indexes_nonzero_iterator_dep_read = [self._arr1d_str(x) for x in coefs_indexes_nonzero_iterator_dep_read]
             
-            # indexes_const_nodep_read = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_const_nodep_read]
-            indexes_nonzero_iterator_nodep_read = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_nonzero_iterator_nodep_read]
+            # indexes_const_nodep_read = [self._arr1d_str(x) for x in coefs_indexes_const_nodep_read]
+            indexes_nonzero_iterator_nodep_read = [self._arr1d_str(x) for x in coefs_indexes_nonzero_iterator_nodep_read]
             
             
-            # indexes_write = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_dep_write]
-            indexes_const_dep_write = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_const_dep_write]
-            indexes_nonzero_iterator_dep_write = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_nonzero_iterator_dep_write]
+            # indexes_write = [self._arr1d_str(x) for x in coefs_indexes_dep_write]
+            indexes_const_dep_write = [self._arr1d_str(x) for x in coefs_indexes_const_dep_write]
+            indexes_nonzero_iterator_dep_write = [self._arr1d_str(x) for x in coefs_indexes_nonzero_iterator_dep_write]
             
-            # indexes_const_nodep_write = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_const_nodep_write]
-            indexes_nonzero_iterator_nodep_write = [np.array2string(x, separator = ',').replace(' ', '') for x in coefs_indexes_nonzero_iterator_nodep_write]
+            # indexes_const_nodep_write = [self._arr1d_str(x) for x in coefs_indexes_const_nodep_write]
+            indexes_nonzero_iterator_nodep_write = [self._arr1d_str(x) for x in coefs_indexes_nonzero_iterator_nodep_write]
             
             
             
@@ -155,29 +160,38 @@ class extraction_tools:
         coefs_indexes_nodep = []
         indexes_id_dep = []
         niterators_stmt = len(iterators_stmt)
+        
+        # Pre-compute once outside loops
+        name_iterators = list(iterators_stmt.keys())
+        # Pre-compile regexes per iterator name
+        iter_regexes = [re.compile(rf'(\-?(?:\d+\*)?){name}') for name in name_iterators]
+        
+        # Pre-compile static regexes
+        bracket_re = re.compile(r'\[(.*?)\]')
+        const_re = re.compile(r'(\-?\d+)(?![\d\*])')
+        var_re = re.compile(r'(\w+)\[')
+        
         for i in range(len(indexes)):
-            iterators_index = re.findall(r'\[(.*?)\]', indexes[i].replace(' ', ''))
+            clean = indexes[i].replace(' ', '')
+            iterators_index = bracket_re.findall(clean)
             
-            coefs_index = np.zeros([len(iterators_index), niterators_stmt+1], dtype = int)
-            for k in range(len(iterators_index)):
-                const = re.findall(r'(\-?\d+)(?![\d\*])', iterators_index[k])
+            n_idx = len(iterators_index)
+            coefs_index = np.zeros([n_idx, niterators_stmt + 1], dtype=int)
+            for k in range(n_idx):
+                const = const_re.findall(iterators_index[k])
                 if const:
-                    coefs_index[k][niterators_stmt] = int(bool(const[0])) # 暂时只考虑0和非0
+                    coefs_index[k][niterators_stmt] = int(bool(const[0]))
                 for l in range(niterators_stmt):
-                    
-                    name_iterators = list(iterators_stmt.keys())
-                    # print(iterators_index[k], name_iterators[l])
-                    iterator = re.findall(rf'(\-?(?:\d+\*)?){name_iterators[l]}', iterators_index[k])
+                    iterator = iter_regexes[l].findall(iterators_index[k])
                     if iterator:
-                        iterator = iterator[0].replace('*', '')
-                        if not iterator:
-                            iterator = '1'
-                        elif iterator == '-':
-                            iterator = '-1'
-                            
-                        coefs_index[k][l] = int(iterator)
+                        it_val = iterator[0].replace('*', '')
+                        if not it_val:
+                            it_val = '1'
+                        elif it_val == '-':
+                            it_val = '-1'
+                        coefs_index[k][l] = int(it_val)
             
-            var = re.findall(r'(\w+)\[', indexes[i].replace(' ', ''))[0]
+            var = var_re.findall(clean)[0]
             if var in arrays:
                 indexes_id_dep.append(i)
                 coefs_indexes_dep.append(coefs_index)
