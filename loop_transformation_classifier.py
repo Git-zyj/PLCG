@@ -68,7 +68,7 @@ def parse_arguments():
                        type=str, default=DATASET_PATH)
     parser.add_argument("-o", "--output", dest="output",
                        help="output csv file for classification results",
-                       type=str, default="classification_output.csv")
+                       type=str, default=f"classification_output_{TODAY}.csv")
     parser.add_argument("-j", "--processes", dest="num_processes",
                        help="number of parallel processes",
                        type=int, default=min(os.cpu_count(), 16))
@@ -202,7 +202,7 @@ class Loop_Transformation_Classifier:
         nstmts = self.nstmts
         max_loop_depth = self.max_loop_depth
 
-        # 分解
+        # Decompose into scalar blocks and loops
         scalars = []
         loops = []
         for stmt in range(nstmts):
@@ -222,7 +222,7 @@ class Loop_Transformation_Classifier:
             scalars.append(blocks)
             loops.append(loops_stmt)
 
-        # 统一深度
+        # Normalize depth
         for stmt in range(nstmts):
             while len(loops[stmt]) < max_loop_depth:
                 loops[stmt].append('0')
@@ -232,40 +232,45 @@ class Loop_Transformation_Classifier:
                 if not scalars[stmt][i]:
                     scalars[stmt][i] = ['0']
 
-        # 逐层前缀压缩
+        # Prefix compression with loop-aware ranking
         new_scalar_blocks = [[None] * (max_loop_depth + 1) for _ in range(nstmts)]
-        # 初始组：所有语句，空前缀
         groups = {(): list(range(nstmts))}
         for depth in range(max_loop_depth + 1):
             next_groups = {}
             for prefix, stmt_list in groups.items():
-                # 获取当前深度块
-                blocks = [tuple(scalars[stmt][depth]) for stmt in stmt_list]
-                unique = sorted(set(blocks))
-                rank = {b: str(i) for i, b in enumerate(unique)}
+                # Build composite keys: (scalar_block, loop_at_depth)
+                # Real loops (not '0') sort first to get lower rank
+                keys = []
                 for stmt in stmt_list:
-                    new_scalar_blocks[stmt][depth] = [rank[tuple(scalars[stmt][depth])]]
-                # 按当前块分组，形成新前缀
+                    sc = tuple(scalars[stmt][depth])
+                    lp = loops[stmt][depth] if depth < max_loop_depth else None
+                    keys.append((sc, lp))
+                unique = sorted(set(keys), key=lambda k: (k[0], k[1] == '0' if k[1] is not None else False))
+                rank_map = {k: str(i) for i, k in enumerate(unique)}
+                for stmt in stmt_list:
+                    sc = tuple(scalars[stmt][depth])
+                    lp = loops[stmt][depth] if depth < max_loop_depth else None
+                    new_scalar_blocks[stmt][depth] = [rank_map[(sc, lp)]]
+
+                # Group by composite key for next depth
                 sub = {}
                 for stmt in stmt_list:
-                    key = prefix + (tuple(scalars[stmt][depth]),)
+                    sc = tuple(scalars[stmt][depth])
+                    lp = loops[stmt][depth] if depth < max_loop_depth else ()
+                    key = prefix + (sc, lp)
                     sub.setdefault(key, []).append(stmt)
-                # 将大小>1的组加入下一层（如果还有下一层）
+
                 if depth < max_loop_depth:
                     for key, sublist in sub.items():
                         if len(sublist) > 1:
                             next_groups[key] = sublist
                         else:
-                            # 单个语句，剩余深度清零
                             for stmt in sublist:
-                                for nd in range(depth+1, max_loop_depth+1):
+                                for nd in range(depth + 1, max_loop_depth + 1):
                                     new_scalar_blocks[stmt][nd] = ['0']
-                else:
-                    # 最后一层，无需处理
-                    pass
             groups = next_groups
 
-        # 组合输出
+        # Combine output
         new_schedules = []
         new_loop_types = []
         for stmt in range(nstmts):
@@ -284,7 +289,6 @@ class Loop_Transformation_Classifier:
         self.schedules[1] = new_schedules
         self.loop_types[1] = new_loop_types
         return new_schedules
-
     def loop_transformation_analysis(self):
         """主分析函数"""
         self.check_tiling()
