@@ -191,8 +191,8 @@ class extraction_tools:
                             it_val = '-1'
                         coefs_index[k][l] = int(it_val)
             
-            var = var_re.findall(clean)[0]
-            if var in arrays:
+            var_match = var_re.findall(clean)
+            if var_match and var_match[0] in arrays:
                 indexes_id_dep.append(i)
                 coefs_indexes_dep.append(coefs_index)
             else:
@@ -624,14 +624,27 @@ class extraction_tools:
             line = lines[i].strip()
             if line == "Read accesses":
                 i += 1
-                while i < n and lines[i].strip() != "Write accesses":
+                while i < n:
                     acc = lines[i].strip()
+                    if acc == "Write accesses" or "no write access" in acc.lower() or acc.startswith("No Write"):
+                        break
                     if acc and not acc.startswith("[") and not acc.startswith("T("):
                         result['read'].append(acc.replace(' ', ''))
                     i += 1
+                # i now points at "Write accesses" line
+                if i < n and lines[i].strip() == "Write accesses":
+                    i += 1
+                    while i < n:
+                        acc = lines[i].strip()
+                        if not acc or acc.startswith("Original loop:") or re.match(r'S\d+ "', acc):
+                            break
+                        result['write'].append(acc.replace(' ', ''))
+                        i += 1
+                return result
             elif line == "No Read accesses":
                 i += 1
             elif line == "Write accesses":
+                # standalone Write accesses (no preceding Read accesses)
                 i += 1
                 while i < n:
                     acc = lines[i].strip()
@@ -639,6 +652,8 @@ class extraction_tools:
                         break
                     result['write'].append(acc.replace(' ', ''))
                     i += 1
+                return result
+            elif "no write access" in line.lower() or "No Write accesses" in line:
                 return result
             elif re.match(r'S\d+ "', line):
                 return result
