@@ -1,4 +1,9 @@
-"""Extract information from polybench codelets for RAG preprocessing.
+﻿"""Extract information from benchmark codelets for RAG preprocessing.
+
+Supports datasets:
+  - polybench (looprag format): .h files with #ifdef DATASET blocks
+  - tsvc:                       common.h with simple #define values
+  - lore:                       /* start param define */ blocks in .c files
 
 Simplified from rag_preprocess.py -- no classification data loading,
 no dataset filtering. Just extracts feature_info and property_info.
@@ -20,9 +25,12 @@ import numpy as np
 # Add parent dir to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from extraction_tools import extraction_tools
-from resolve_global_params_polybench import ResolveGlobalParamsPolybench
+from resolve_global_params import PolybenchResolver, TsvcResolver, LoreResolver
 
 today = datetime.date.today().strftime("%Y%m%d")
+
+DATASET_SIZES = ["MINI_DATASET", "SMALL_DATASET", "MEDIUM_DATASET",
+                 "LARGE_DATASET", "EXTRALARGE_DATASET"]
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -36,10 +44,10 @@ class NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def setup_logging(output_path: Path):
-    logger = logging.getLogger("info_preprocess")
+def setup_logging(output_path: Path, tag: str):
+    logger = logging.getLogger(f"info_preprocess_{tag}")
     logger.setLevel(logging.INFO)
-    log_file = output_path / f"info_preprocess_{today}.log"
+    log_file = output_path / f"info_preprocess_{tag}_{today}.log"
     fh = logging.FileHandler(log_file, encoding="utf-8")
     fh.setLevel(logging.INFO)
     ch = logging.StreamHandler()
@@ -61,7 +69,7 @@ def _init_worker(params_cache):
     _params_cache = params_cache
 
 
-def _process_single_worker(bench_name, c_path, h_path, stdout_path, pluto_path):
+def _process_single_worker(bench_name, c_path, stdout_path, pluto_path):
     """Process a single benchmark file. Runs in subprocess."""
     global _params_cache
     tool = extraction_tools()
@@ -85,12 +93,12 @@ def _process_single_worker(bench_name, c_path, h_path, stdout_path, pluto_path):
         return False, f"opt codelet extraction error: {e}", bench_name
 
     try:
-        # Use cached params if available, otherwise resolve from .h
+        # Use cached params if available
         params_with_value = {}
         if _params_cache is not None:
             params_with_value = _params_cache.get(bench_name, {})
 
-        all_info = tool.get_all_info_polybench(
+        all_info = tool.get_all_info(
             stdout_path,
             None,  # params resolved externally
             original_code=original_code,
@@ -111,56 +119,124 @@ def _process_single_worker(bench_name, c_path, h_path, stdout_path, pluto_path):
 
 class InfoPreprocessor:
     def __init__(self, args):
+        self.dataset_type = args.dataset_type
         self.benchmark_list_path = Path(args.benchmark_list).resolve()
         self.pluto_code_dir = Path(args.pluto_code_dir).resolve()
         self.raw_data_dir = Path(args.raw_data_dir).resolve()
-        self.dataset = args.dataset
+        self.dataset_size = args.dataset
         self.num_processes = args.num_processes
         self.batch_size = args.batch_size
         self.output_path = Path(args.output).resolve()
         self.output_path.mkdir(parents=True, exist_ok=True)
 
-        self.logger = setup_logging(self.output_path)
+        self.logger = setup_logging(self.output_path, self.dataset_type)
         self.success_count = 0
         self.fail_count = 0
 
-        # Initialize resolver
-        self.resolver = ResolveGlobalParamsPolybench(dataset=self.dataset)
+        # Initialize resolver based on dataset type
+        if self.dataset_type == "polybench":
+            self.resolver = PolybenchResolver(dataset=self.dataset_size)
+        elif self.dataset_type == "tsvc":
+            self.resolver = TsvcResolver()
+        elif self.dataset_type == "lore":
+            self.resolver = LoreResolver()
+        else:
+            raise ValueError(f"Unknown dataset type: {self.dataset_type}")
 
     def load_benchmark_list(self):
-        """Parse benchmark_list to get (name, c_path, h_path) tuples."""
+        """Parse benchmark_list to get (name, c_path, stdout_path, pluto_path) tuples."""
         entries = []
         with open(self.benchmark_list_path, "r") as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                # Line format: ./datamining/correlation/correlation.c
-                rel = line.lstrip("./")
-                c_path = self.raw_data_dir / rel
-                if not c_path.exists():
-                    self.logger.warning(f"Source file not found: {c_path}")
+
+                if self.dataset_type == "polybench":
+                    # Line format: ./datamining/correlation/correlation.c
+                    rel = line.lstrip("./")
+                    c_path = self.raw_data_dir / rel
+                    if not c_path.exists():
+                        self.logger.warning(f"Source file not found: {c_path}")
+                        continue
+                    bench_name = Path(rel).stem
+                    stdout_path = self.pluto_code_dir / "stdout" / f"{bench_name}.stdout"
+                    pluto_path = self.pluto_code_dir / "pluto_code" / f"{bench_name}.pluto.c"
+
+                elif self.dataset_type == "tsvc":
+                    # Line format: s482.c
+                    bench_name = Path(line).stem
+                    c_path = self.raw_data_dir / "cfiles" / line
+                    if not c_path.exists():
+                        self.logger.warning(f"Source file not found: {c_path}")
+                        continue
+                    stdout_path = self.pluto_code_dir / "stdout" / f"{bench_name}.stdout"
+                    pluto_path = self.pluto_code_dir / "pluto_code" / f"{bench_name}.pluto.c"
+
+                elif self.dataset_type == "lore":
+                    # Line format: ALPBench+ASC+Cortexsuite/1_ALPBench_addMatrixEquals.c
+                    rel = line
+                    c_path = self.raw_data_dir / rel
+                    if not c_path.exists():
+                        self.logger.warning(f"Source file not found: {c_path}")
+                        continue
+                    bench_name = Path(rel).stem
+                    stdout_path = self.pluto_code_dir / "stdout" / f"{bench_name}.stdout"
+                    pluto_path = self.pluto_code_dir / "pluto_code" / f"{bench_name}.pluto.c"
+
+                if not stdout_path.exists():
+                    self.logger.warning(f"Stdout file not found: {stdout_path}")
                     continue
-                # .h file is in the same directory
-                h_path = c_path.with_suffix(".h")
-                # Benchmark name is the leaf name (e.g., "correlation")
-                bench_name = c_path.stem
-                # stdout and pluto_code use just the bench name
-                stdout_path = str(self.pluto_code_dir / "stdout" / f"{bench_name}.stdout")
-                pluto_path = str(self.pluto_code_dir / "pluto_code" / f"{bench_name}.pluto.c")
-                entries.append((bench_name, str(c_path), str(h_path), stdout_path, pluto_path))
+                if not pluto_path.exists():
+                    self.logger.warning(f"Pluto file not found: {pluto_path}")
+                    continue
+
+                entries.append((bench_name, str(c_path), str(stdout_path), str(pluto_path)))
+
         return entries
 
     def resolve_all_params(self, entries):
-        """Pre-resolve global params for all benchmarks."""
+        """Pre-resolve all global params for the entries."""
         params_cache = {}
-        for bench_name, _, h_path, _, _ in entries:
+
+        if self.dataset_type == "tsvc":
+            # Single common.h for all tsvc files
+            common_h = self.raw_data_dir / "cfiles" / "common.h"
             try:
-                p = self.resolver.resolve(h_path)
-                if p:
-                    params_cache[bench_name] = p
+                shared_params = self.resolver.resolve(str(common_h))
+                for bench_name, _, _, _ in entries:
+                    if shared_params:
+                        params_cache[bench_name] = shared_params
+                self.logger.info(f"TSVC: resolved shared params from {common_h}: {shared_params}")
             except Exception as e:
-                self.logger.warning(f"Params resolve failed for {bench_name}: {e}")
+                self.logger.warning(f"TSVC params resolve failed: {e}")
+
+        elif self.dataset_type == "lore":
+            # Each .c file has its own param block
+            for bench_name, c_path, _, _ in entries:
+                try:
+                    p = self.resolver.resolve(c_path)
+                    if p:
+                        params_cache[bench_name] = p
+                except Exception as e:
+                    self.logger.warning(f"LORE params resolve failed for {bench_name}: {e}")
+
+        elif self.dataset_type == "polybench":
+            # Each benchmark has its own .h file in raw_data
+            for bench_name, c_path, _, _ in entries:
+                h_path = Path(c_path).with_suffix(".h")
+                if not h_path.exists():
+                    h_path = Path(c_path).parent / f"{Path(c_path).stem}.h"
+                if not h_path.exists():
+                    self.logger.warning(f"Header not found for {bench_name}")
+                    continue
+                try:
+                    p = self.resolver.resolve(str(h_path))
+                    if p:
+                        params_cache[bench_name] = p
+                except Exception as e:
+                    self.logger.warning(f"Params resolve failed for {bench_name}: {e}")
+
         self.logger.info(f"Resolved params for {len(params_cache)}/{len(entries)} benchmarks")
         return params_cache
 
@@ -175,9 +251,9 @@ class InfoPreprocessor:
                                  initializer=_init_worker,
                                  initargs=(self.params_cache,)) as executor:
             future_map = {}
-            for bench_name, c_path, h_path, stdout_path, pluto_path in batch_entries:
+            for bench_name, c_path, stdout_path, pluto_path in batch_entries:
                 fut = executor.submit(_process_single_worker,
-                                      bench_name, c_path, h_path,
+                                      bench_name, c_path,
                                       stdout_path, pluto_path)
                 future_map[fut] = bench_name
 
@@ -199,8 +275,10 @@ class InfoPreprocessor:
 
     def run(self):
         self.logger.info("=" * 60)
-        self.logger.info("Starting info preprocess for polybench")
-        self.logger.info(f"Dataset option: {self.dataset}")
+        self.logger.info(f"Starting info preprocess for {self.dataset_type}")
+        self.logger.info(f"Dataset size option: {self.dataset_size}")
+        self.logger.info(f"Pluto code dir: {self.pluto_code_dir}")
+        self.logger.info(f"Raw data dir: {self.raw_data_dir}")
         self.logger.info("=" * 60)
 
         entries = self.load_benchmark_list()
@@ -231,7 +309,7 @@ class InfoPreprocessor:
         total_time = (datetime.datetime.now() - start_time).total_seconds()
 
         # Save results
-        out_name = f"polybench_{len(all_contents)}_{today}.json"
+        out_name = f"{self.dataset_type}_{len(all_contents)}_{today}.json"
         out_path = self.output_path / out_name
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(list(all_contents.values()), f, cls=NumpyEncoder)
@@ -241,20 +319,25 @@ class InfoPreprocessor:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Extract info from polybench codelets")
+    parser = argparse.ArgumentParser(
+        description="Extract info from benchmark codelets for RAG preprocessing"
+    )
+    parser.add_argument("--dataset-type", required=True,
+                        choices=["polybench", "tsvc", "lore"],
+                        help="Type of benchmark dataset")
     parser.add_argument("--benchmark-list", required=True,
                         help="Path to benchmark_list file")
     parser.add_argument("--pluto-code-dir", required=True,
                         help="Path to pluto_code directory (contains stdout/ and pluto_code/)")
     parser.add_argument("--raw-data-dir", required=True,
-                        help="Path to raw_data/benchmark/polybench")
+                        help="Path to raw benchmark source data")
     parser.add_argument("--dataset", default="LARGE_DATASET",
-                        choices=["MINI_DATASET", "SMALL_DATASET", "MEDIUM_DATASET",
-                                 "LARGE_DATASET", "EXTRALARGE_DATASET"],
-                        help="Dataset size option")
+                        choices=DATASET_SIZES,
+                        help="Dataset size option (for polybench)")
     parser.add_argument("-o", "--output", default="./output",
                         help="Output directory")
-    parser.add_argument("-j", "--num-processes", type=int, default=min(os.cpu_count() or 1, 16),
+    parser.add_argument("-j", "--num-processes", type=int,
+                        default=min(os.cpu_count() or 1, 16),
                         help="Number of parallel processes")
     parser.add_argument("--batch-size", type=int, default=256,
                         help="Batch size for processing")

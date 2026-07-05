@@ -480,7 +480,7 @@ class extraction_tools:
 
 
     def extract_stdout_polybench(self, lines):
-        """Extract info from polybench-format stdout (different from plcg format)."""
+        """Extract info from looprag-format stdout (different from plcg format)."""
         text_schedules = "\n"
         text_stmts = []
         text_deps = []
@@ -616,7 +616,7 @@ class extraction_tools:
         return iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params
 
     def _extract_polybench_accesses(self, lines, start):
-        """Extract Read/Write accesses from polybench stdout format."""
+        """Extract Read/Write accesses from looprag stdout format."""
         result = {'read': [], 'write': []}
         n = len(lines)
         i = start
@@ -662,14 +662,25 @@ class extraction_tools:
             raise ValueError('The stdout file is empty!')
         return self.extract_stdout_polybench(lines)
 
-    def extract_stdout_from_file(self, stdout_path):
+    def extract_stdout_from_file(self, stdout_path, format=None):
         with open(stdout_path, 'r') as file:
             lines = file.readlines()
 
         if not lines:
-            raise ValueError("The stdout file in empty!") 
-        
-        return self.extract_stdout(lines)
+            raise ValueError("The stdout file is empty!")
+
+        # Auto-detect format if not specified
+        if format is None:
+            first_text = "".join(lines[:5])
+            if "param_name:" in first_text or "[zyj-debug]" in first_text:
+                format = "looprag"
+            else:
+                format = "plcg"
+
+        if format == "looprag":
+            return self.extract_stdout_polybench(lines)
+        else:
+            return self.extract_stdout(lines)
 
     def extract_stdout(self, lines):
         text_schedules = '\n'
@@ -875,7 +886,7 @@ class extraction_tools:
     def get_all_info_polybench(self, stdout_path, h_file_path=None,
                                poly_code_path=None, pluto_code_path=None,
                                original_code=None, opt_code=None):
-        """Same as get_all_info but uses polybench stdout parser."""
+        """Same as get_all_info but uses looprag stdout parser."""
         result = self.extract_stdout_from_file_polybench(stdout_path)
         iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params = result
 
