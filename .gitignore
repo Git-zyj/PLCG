@@ -165,7 +165,7 @@ yarn.lock
 
 # User-specific backup and temporary files
 backup/
-tmp_files/
+tmp*
 time*.txt
 *.zip
 baselines/

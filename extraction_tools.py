@@ -478,6 +478,173 @@ class extraction_tools:
 
         return stmt_arrays
 
+
+    def extract_stdout_polybench(self, lines):
+        """Extract info from polybench-format stdout (different from plcg format)."""
+        text_schedules = "\n"
+        text_stmts = []
+        text_deps = []
+        stmt_arrays = []
+        iterators = []
+        global_params = []
+
+        nlines = len(lines)
+        i = 0
+
+        # Phase 1: Extract params from top of file
+        while i < nlines:
+            line = lines[i].strip()
+            if line.startswith("param_name:"):
+                global_params.append(line.split(":")[1].strip())
+            elif line == "CONTEXT":
+                # Skip context section
+                while i < nlines and not lines[i].strip().startswith("[zyj-debug]"):
+                    i += 1
+                break
+            i += 1
+
+        # Phase 2: Find [zyj-debug] Before affine transformations
+        before_start = -1
+        for j in range(i, nlines):
+            if "[zyj-debug] Before affine transformations" in lines[j]:
+                before_start = j + 1
+                break
+
+        if before_start < 0:
+            raise ValueError("Could not find [zyj-debug] Before affine transformations")
+
+        # Phase 3: Parse inline statements + their schedules (before section)
+        i = before_start
+        before_schedules = []
+        before_loop_types = []
+
+        while i < nlines:
+            line = lines[i].strip()
+
+            # Stop at dependencies or after section
+            if line.startswith("--- Dep ") or "[zyj-debug] After affine transformations" in line:
+                break
+
+            stmt_match = re.match(r'(S\d+)\s+"(.*)"', line)
+            if stmt_match:
+                text_stmts.append(stmt_match.group(2))
+
+                # Skip to iterators
+                while i < nlines and "iterators:" not in lines[i]:
+                    i += 1
+                if i < nlines:
+                    iter_match = re.search(r'iterators:\s*(.+)', lines[i])
+                    if iter_match:
+                        for it in iter_match.group(1).split(","):
+                            it = it.strip()
+                            if it and it not in iterators:
+                                iterators.append(it)
+
+                # Find T(S#) line for schedule
+                found_sch = False
+                look_ahead = i + 1
+                while look_ahead < nlines and look_ahead < i + 40:
+                    la_line = lines[look_ahead].strip()
+                    if la_line.startswith("T("):
+                        text_schedules += lines[look_ahead]
+                        sch_match = re.search(r'T\(S\d+\):\s*\((.+)\)', la_line)
+                        if sch_match:
+                            before_schedules.append(self.split_top_level(sch_match.group(1)))
+                        found_sch = True
+                    elif la_line.startswith("loop types"):
+                        text_schedules += lines[look_ahead]
+                        lt_match = re.search(r'\((.*?)\)', la_line)
+                        if lt_match:
+                            before_loop_types.append(self.split_top_level(lt_match.group(1)))
+                        break
+                    look_ahead += 1
+
+                if not found_sch:
+                    before_schedules.append([])
+                    before_loop_types.append([])
+
+                # Extract stmt_arrays
+                stmt_arrays.append(self._extract_polybench_accesses(lines, i))
+
+            i += 1
+
+        iterators = list(dict.fromkeys(iterators))  # dedup preserving order
+
+        # Phase 4: Parse dependencies
+        while i < nlines:
+            line = lines[i].strip()
+            if line.startswith("--- Dep "):
+                if i + 1 < nlines:
+                    dep_header = line
+                    dep_var = lines[i + 1].strip()
+                    dm = re.match(r'--- Dep \d+ from (S\d+) to (S\d+);.*Type: ([WR]A[WR])', dep_header)
+                    vm = re.match(r'on variable: (\w+)', dep_var)
+                    if dm and vm:
+                        text_deps.append({
+                            'source': dm.group(1), 'target': dm.group(2),
+                            'type': dm.group(3), 'array': vm.group(1)
+                        })
+                    i += 1
+            elif "[zyj-debug] After affine transformations" in line:
+                i += 1
+                break
+            i += 1
+
+        # Phase 5: Parse after schedules
+        after_schedules = []
+        after_loop_types = []
+        while i < nlines:
+            line = lines[i].strip()
+            if line.startswith("T("):
+                text_schedules += lines[i]
+                sch_match = re.search(r'T\(S\d+\):\s*\((.+)\)', line)
+                if sch_match:
+                    after_schedules.append(self.split_top_level(sch_match.group(1)))
+            elif line.startswith("loop types"):
+                text_schedules += lines[i]
+                lt_match = re.search(r'\((.*?)\)', line)
+                if lt_match:
+                    after_loop_types.append(self.split_top_level(lt_match.group(1)))
+            elif line.startswith("[zyj-debug]") or line.startswith("CONTEXT"):
+                break
+            i += 1
+
+        schedules = [before_schedules, after_schedules]
+        loop_types = [before_loop_types, after_loop_types]
+        csts_stmts = [np.array([], dtype=int) for _ in text_stmts]
+
+        return iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params
+
+    def _extract_polybench_accesses(self, lines, start):
+        """Extract Read/Write accesses from polybench stdout format."""
+        result = {'read': [], 'write': []}
+        n = len(lines)
+        i = start
+        while i < n:
+            line = lines[i].strip()
+            if line == "Read accesses":
+                i += 1
+                while i < n and lines[i].strip() != "Write accesses":
+                    acc = lines[i].strip()
+                    if acc and not acc.startswith("[") and not acc.startswith("T("):
+                        result['read'].append(acc.replace(' ', ''))
+                    i += 1
+            elif line == "No Read accesses":
+                i += 1
+            elif line == "Write accesses":
+                i += 1
+                while i < n:
+                    acc = lines[i].strip()
+                    if not acc or acc.startswith("Original loop:") or re.match(r'S\d+ "', acc):
+                        break
+                    result['write'].append(acc.replace(' ', ''))
+                    i += 1
+                return result
+            elif re.match(r'S\d+ "', line):
+                return result
+            i += 1
+        return result
+
     def extract_stdout_from_string(self, stdout_content):
         """
         从字符串中提取stdout信息（类似extract_stdout，但不需要文件）
@@ -487,6 +654,13 @@ class extraction_tools:
             raise ValueError("Stdout内容为空！")
 
         return self.extract_stdout(lines)
+
+    def extract_stdout_from_file_polybench(self, stdout_path):
+        with open(stdout_path, 'r') as file:
+            lines = file.readlines()
+        if not lines:
+            raise ValueError('The stdout file is empty!')
+        return self.extract_stdout_polybench(lines)
 
     def extract_stdout_from_file(self, stdout_path):
         with open(stdout_path, 'r') as file:
@@ -698,7 +872,92 @@ class extraction_tools:
 
         return {'feature_info': feature_info, 'property_info': property_info}
 
+    def get_all_info_polybench(self, stdout_path, h_file_path=None,
+                               poly_code_path=None, pluto_code_path=None,
+                               original_code=None, opt_code=None):
+        """Same as get_all_info but uses polybench stdout parser."""
+        result = self.extract_stdout_from_file_polybench(stdout_path)
+        iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params = result
+
+        feature_info = self._get_info_from_data(iterators, text_stmts, text_deps, schedules, stmt_arrays)
+
+        params_with_value = {}
+        if h_file_path:
+            params_with_value = self.resolve_global_params(global_params, h_file_path)
+
+        loop_bounds_before = []
+        if original_code is not None:
+            loop_bounds_before = self.extract_loop_bounds_from_codelet(original_code)
+        elif poly_code_path:
+            codelet_before = self.extract_codelet_from_file(poly_code_path, 0)
+            loop_bounds_before = self.extract_loop_bounds_from_codelet(codelet_before)
+
+        loop_bounds_after = []
+        if opt_code is not None:
+            loop_bounds_after = self.extract_loop_bounds_from_codelet(opt_code, text_stmts)
+        elif pluto_code_path:
+            codelet_after = self.extract_codelet_from_file(pluto_code_path, 1)
+            loop_bounds_after = self.extract_loop_bounds_from_codelet(codelet_after, text_stmts)
+
+        n_stmts = len(text_stmts)
+        before_schedules = schedules[0] if schedules else []
+
+        before_text_stmts = {}
+        before_schedules_dict = {}
+        before_stmt_arrays_dict = {}
+        before_loop_bounds_dict = {}
+        for i in range(n_stmts):
+            s_id = f"S{i+1}"
+            before_text_stmts[s_id] = text_stmts[i]
+            before_schedules_dict[s_id] = before_schedules[i] if i < len(before_schedules) else []
+            before_stmt_arrays_dict[s_id] = stmt_arrays[i] if i < len(stmt_arrays) else {"read": [], "write": []}
+            if loop_bounds_before and i < len(loop_bounds_before):
+                before_loop_bounds_dict[s_id] = loop_bounds_before[i]
+            else:
+                before_loop_bounds_dict[s_id] = []
+
+        after_schedules = schedules[1] if len(schedules) > 1 else []
+        after_text_stmts = list(text_stmts)
+        after_schedules_dict = {}
+        for i in range(n_stmts):
+            s_id = f"S{i+1}"
+            after_schedules_dict[s_id] = after_schedules[i] if i < len(after_schedules) else []
+
+        after_loop_bounds_dict = {}
+        if loop_bounds_after and isinstance(loop_bounds_after[0], dict):
+            for group in loop_bounds_after:
+                group_key = "&".join(group["stmts"])
+                if group_key not in after_loop_bounds_dict:
+                    after_loop_bounds_dict[group_key] = []
+                after_loop_bounds_dict[group_key].append(group["bounds"])
+        elif loop_bounds_after:
+            for i, bounds in enumerate(loop_bounds_after):
+                s_id = f"S{i+1}"
+                if s_id not in after_loop_bounds_dict:
+                    after_loop_bounds_dict[s_id] = []
+                after_loop_bounds_dict[s_id].append(bounds)
+
+        property_info = {
+            "before": {
+                "iterators": iterators,
+                "text_stmts": before_text_stmts,
+                "text_deps": text_deps,
+                "schedules": before_schedules_dict,
+                "stmt_arrays": before_stmt_arrays_dict,
+                "params_with_value": params_with_value,
+                "loop_bounds": before_loop_bounds_dict,
+            },
+            "after": {
+                "iterators": iterators,
+                "text_stmts": after_text_stmts,
+                "schedules": after_schedules_dict,
+                "loop_bounds": after_loop_bounds_dict,
+            }
+        }
+        return {"feature_info": feature_info, "property_info": property_info}
+
     def extract_codelet_from_file(self, code_path, compare_option = 0):
+
         '''
         compare_option:
         0 -> "pragma scop";
