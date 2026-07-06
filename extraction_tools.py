@@ -686,8 +686,10 @@ class extraction_tools:
 
         # Auto-detect format if not specified
         if format is None:
-            first_text = "".join(lines[:5])
-            if "param_name:" in first_text or "[zyj-debug]" in first_text:
+            first_text = "".join(lines[:20])
+            if "param_name:" in first_text:
+                format = "looprag"
+            elif "[zyj-debug]" in first_text and "CONTEXT" in first_text:
                 format = "looprag"
             else:
                 format = "plcg"
@@ -718,7 +720,7 @@ class extraction_tools:
                     global_params = [p.strip() for p in lines[i+2][11:].strip().split()]
             elif lines[i][:11] == '[zyj-debug]':
                 text_schedules += lines[i] + '\n'
-                generator_id = "looprag"
+                generator_id = "plcg"
                 if i + 2 < nlines and lines[i+2].startswith('Parameters:'):
                     global_params = [p.strip() for p in lines[i+2][11:].strip().split()]
             elif re.match(r'S\d+ \".*\"(?:\n)?$', lines[i]): # 获取语句调度约束矩阵（plcg为数字，looprag为字符串）
