@@ -1,0 +1,961 @@
+diff --git a/include/pluto/libpluto.h b/include/pluto/libpluto.h
+index 2457396..acf988c 100644
+--- a/include/pluto/libpluto.h
++++ b/include/pluto/libpluto.h
+@@ -146,6 +146,12 @@ struct plutoOptions{
+ 
+     /* Polyhedral compile time stats */
+     int time;
++
++    /* Read .trans file to use custom scheduling */
++    int customSchedule;
++
++    /* [zyj-debug] Read parameters info from filename.h file in the same folder of file*/
++    int customcontext;
+ };
+ typedef struct plutoOptions PlutoOptions;
+ 
+diff --git a/src/main.c b/src/main.c
+index 44e56c8..1107073 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -114,6 +114,169 @@ static double rtclock()
+     return(Tp.tv_sec + Tp.tv_usec*1.0e-6);
+ }
+ 
++void customScheduling(PlutoProg *prog){
++    Stmt **stmts = prog->stmts;
++    Dep **deps = prog->deps;
++
++    printf("//----------------- Edit ----------------//\n");
++
++    FILE* fp = fopen(".trans", "r");
++    if (fp == NULL) {
++        printf("Cannot find .trans file\n");
++        return;
++    }
++
++    char buffer[255], temp[10], vals[255];
++    memset(vals, 0, sizeof(vals));
++
++    printf("Loading .trans file: \n");
++    int nrows = 0, ncols = 0, tp = 0, vp = 0;
++    while(!feof(fp)){
++
++        
++        memset(buffer, 0, sizeof(buffer));
++        memset(temp, 0, sizeof(temp));
++        fgets(buffer, 255, fp);
++
++        int len = strlen(buffer);
++        if(!len) continue;
++
++        printf("buffer:\n");
++        for(int i = 0; i < len; i++)
++            printf("%c", buffer[i]);
++
++        nrows++;
++        ncols = 0;
++        for(int i = 0; i <= len; i++){
++            if(i == len || (!isdigit(buffer[i]) && buffer[i] != '-')){
++                if(!tp) continue;
++                vals[vp++] = atoi(temp);
++                memset(temp, 0, sizeof(temp));
++                tp = 0;
++                ncols++;
++            }
++            else
++                temp[tp++] = buffer[i];
++        }  
++    }
++
++    // for debug
++    printf("nrows = %d, ncols = %d\n", nrows, ncols);
++    printf("The assigned trans matrix:\n");
++    for(int i = 0; i < nrows; i++){
++        for(int j = 0; j < ncols; j++)
++            printf("%d ", vals[i*ncols+j]);
++        printf("\n");
++    }
++        
++    printf("buffer vals:\n");
++    for(int i = 0; i < vp; i++)
++        printf("%d ", vals[i]);
++    printf("\n");
++    
++    for(int i = 0; i < nrows ; i++) // the upper bound should be divided by 2 if number of stmt is 2
++        for(int j = 0; j < ncols; j++)
++            stmts[0]->trans->val[i][j] = vals[i*ncols+j];
++    
++    // for(int i = nrows / 2; i < nrows; i++)
++    //     for(int j = 0; j < ncols; j++)
++    //         stmts[1]->trans->val[i - nrows / 2][j] = vals[i*ncols+j];
++
++    fclose(fp);
++
++    printf("//----------------- Edit ----------------//\n");
++}
++
++osl_scop_p get_params_info(FILE *header_fp, osl_scop_p scop) {
++    char line[100];
++    char *saveptr;              /* 用于 strtok_r 的上下文 */
++    char *token;
++    char *param_name;
++    char *param_val;
++
++    osl_strings_p params_name = (osl_strings_p)scop->parameters->data;
++    int nb_params = scop->context->nb_parameters;
++    int nb_cols = scop->context->nb_columns;
++    int precision = scop->context->precision;
++
++    /* 临时向量，复用分配 */
++    osl_vector_p params_cst = osl_vector_pmalloc(precision, nb_cols);
++
++    int format_ok = 0;  /* 是否找到正确的 params 块 */
++
++    while (fgets(line, sizeof(line), header_fp)) {
++        if (strcmp(line, "/* params start */\n") == 0) {
++            format_ok = 1;
++            while (fgets(line, sizeof(line), header_fp)) {
++                if (strcmp(line, "/* params end */\n") == 0)
++                    break;
++
++                /* 跳过空行 */
++                if (line[0] == '\n') continue;
++
++                /* 切割第一个 token，判断是 "#define" 还是 "# define" */
++                token = strtok_r(line, " ()\t\n", &saveptr);
++                if (!token) continue;
++
++                if (strcmp(token, "#") == 0) {
++                    token = strtok_r(NULL, " ()\t\n", &saveptr);
++                    if (!token || strcmp(token, "define") != 0) continue;
++                } else if (strcmp(token, "#define") != 0) {
++                    continue;  /* 不是 #define 行，跳过 */
++                }
++
++                /* 参数名 */
++                param_name = strtok_r(NULL, " ()\t\n", &saveptr);
++                if (!param_name) continue;
++
++                /* 取最后一个 token 作为值（忽略类型转换等） */
++                param_val = NULL;
++                while ((token = strtok_r(NULL, " ()\t\n", &saveptr)) != NULL) {
++                    param_val = token;
++                }
++                if (!param_val) continue;
++
++                /* 在参数列表中查找 param_name */
++                int idx = -1;
++                for (int i = 0; i < nb_params; i++) {
++                    if (strcmp(param_name, params_name->string[i]) == 0) {
++                        idx = i;
++                        break;
++                    }
++                }
++                if (idx == -1) {
++                    /* 头文件定义了未使用的参数，可选择忽略或报错，此处忽略 */
++                    continue;
++                }
++
++                int lb = atoi(param_val);
++
++                /* 清空临时向量 */
++                for (int j = 0; j < nb_cols; j++) {
++                    osl_int_set_si(precision, &params_cst->v[j], 0);
++                }
++
++                /* 构建不等式：1 * param + 1 >= 0 → param >= -lb */
++                osl_int_set_si(precision, &params_cst->v[0], 1);              /* 常数项系数 */
++                osl_int_set_si(precision, &params_cst->v[idx + 1], 1);        /* 参数系数 */
++                osl_int_set_si(precision, &params_cst->v[nb_cols - 1], -lb);  /* 常数下界 */
++
++                osl_relation_insert_vector(scop->context, params_cst, -1);
++            }
++            break;  /* 只处理第一个 params 块 */
++        }
++    }
++
++    if (!format_ok) {
++        fprintf(stderr, "format for params in .h file is wrong. customize context failed.\n");
++        exit(11);
++    }
++
++    /* 假设 osl_vector_free 存在，否则自行替换为 free */
++    osl_vector_free(params_cst);
++    return scop;
++}
++
+ int main(int argc, char *argv[])
+ {
+     int i;
+@@ -198,6 +361,8 @@ int main(int argc, char *argv[])
+         {"pipsolve", no_argument, &options->pipsolve, 1},
+         {"islsolve", no_argument, &options->islsolve, 1},
+         {"time", no_argument, &options->time, 1},
++        {"custom-schedule", no_argument, &options->customSchedule, 1},
++        {"custom-context", no_argument, &options->customcontext, 1}, // zyj-debug
+         {0, 0, 0, 0}
+     };
+ 
+@@ -280,7 +445,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+                 return 4;
+         }
+     }
+-
++    
+     if (optind <= argc-1)   {
+         srcFileName = alloca(strlen(argv[optind])+1);
+         strcpy(srcFileName, argv[optind]);
+@@ -383,17 +548,69 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+           pluto_options_free(options);
+           return 8;
+       }
+-      FILE *srcfp = fopen(".srcfilename", "w");
+-      if (srcfp)    {
+-          fprintf(srcfp, "%s\n", srcFileName);
+-          fclose(srcfp);
+-      }
++      // [zyj-debug] since change in polycc, there is no need for .srcfilename
++    //   FILE *srcfp = fopen(".srcfilename", "w");
++    //   if (srcfp)    {
++    //       fprintf(srcfp, "%s\n", srcFileName);
++    //       fclose(srcfp);
++    //   }
+ 
+       clan_options_free(clanOptions);
+ 
+       /* IF_DEBUG(clan_scop_print_dot_scop(stdout, scop, clanOptions)); */
+     }
+ 
++    // [zyj-debug]
++    if(options->customcontext){
++        char *headerFileName;
++        /* Get basename, remove .c extension and append .h */
++        char *basec;
++        basec = strdup(srcFileName);
++  
++        /* max size when tiled.* */
++        headerFileName = alloca(strlen(basec)+strlen(".h")+1);
++  
++        if (strlen(basec) >= 2 && !strcmp(basec+strlen(basec)-2, ".c")) {
++            strncpy(headerFileName, basec, strlen(basec)-2);
++            headerFileName[strlen(basec)-2] = '\0';
++        }else{
++            strcpy(headerFileName, basec);
++        }
++        strcat(headerFileName, ".h");
++        free(basec);
++        
++        // fprintf(stdout, "type: %d\n", scop->context->type);
++        // fprintf(stdout, "precision: %d\n", scop->context->precision);
++        // fprintf(stdout, "nb_rows: %d\n", scop->context->nb_rows);
++        // fprintf(stdout, "nb_columns: %d\n", scop->context->nb_columns);
++        // fprintf(stdout, "nb_output_dims: %d\n", scop->context->nb_output_dims);
++        // fprintf(stdout, "nb_input_dims: %d\n", scop->context->nb_input_dims);
++        // fprintf(stdout, "nb_local_dims: %d\n", scop->context->nb_local_dims);
++        // fprintf(stdout, "nb_parameters: %d\n", scop->context->nb_parameters);
++
++        // for (int i = 0; i < scop->context->nb_rows; i++) {
++        //     for (int j = 0; j < scop->context->nb_columns; j++) {
++        //         fprintf(stdout, "%s", scop->context->m[i][j]);
++        //     }
++        //     fprintf(stdout, "\n");
++        // }
++
++        // osl_relation_print(stdout, scop->context);
++
++        FILE *header_fp = fopen(headerFileName, "r");
++        if (!header_fp)   {
++            fprintf(stderr, "pluto: error opening header file: '%s'\n", headerFileName);
++            pluto_options_free(options);
++            return 7;
++        }      
++        // printf("%s\n",headerFileName);
++        scop = get_params_info(header_fp, scop);
++
++        // osl_relation_print(stdout, scop->context);
++
++        fclose(header_fp);
++    }
++
+     /* Convert clan scop to Pluto program */
+     prog = scop_to_pluto_prog(scop, options);
+ 
+@@ -437,17 +654,41 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+         pluto_iss_dep(prog);
+     }
+ 
++    // zyj-debug
++    if (options->silent) {
++        fprintf(stdout, "[zyj-debug] Before affine transformations\n");
++
++        int i;
++        fprintf(stdout, "nvar = %d, npar = %d\n", prog->nvar, prog->npar);
++        fprintf(stdout, "Parameters: ");
++
++        for (i=0; i<prog->npar; i++) {
++            fprintf(stdout, "%s ", prog->params[i]);
++        }
++        fprintf(stdout, "\n");
++
++        pluto_stmts_print(stdout, prog->stmts, prog->nstmts);
++        pluto_deps_print(stdout, prog);
++        fprintf(stdout, "\n");
++    }
++    
++
+     t_start = rtclock();
+     /* Auto transformation */
+     if (!options->identity) {
+         pluto_auto_transform(prog);
+     }
+     t_t = rtclock() - t_start;
++
++    if(options->customSchedule)
++        customScheduling(prog);
++
+     pluto_detect_transformation_properties(prog);
+ 
+     if (!options->silent)   {
+         fprintf(stdout, "[pluto] Affine transformations [<iter coeff's> <param> <const>]\n\n");
+         /* Print out transformations */
++
+         pluto_transformations_pretty_print(prog);
+         pluto_print_hyperplane_properties(prog);
+     }
+@@ -503,6 +744,13 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+         }
+     }
+ 
++    // zyj-debug
++    if (options->silent) {
++        fprintf(stdout, "[zyj-debug] After affine transformations\n");
++        pluto_transformations_pretty_print(prog);
++        pluto_print_hyperplane_properties(prog);
++    }
++
+     if(!strcmp(srcFileName, "stdin")){  
+         //input stdin == output stdout
+         pluto_populate_scop(scop, prog, options);
+@@ -579,13 +827,15 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+       pluto_multicore_codegen(cloogfp, outfp, prog);
+       t_c = rtclock() - t_start;
+   
+-      FILE *tmpfp = fopen(".outfilename", "w");
+-      if (tmpfp)    {
+-          fprintf(tmpfp, "%s\n", outFileName);
+-          fclose(tmpfp);
+-          PLUTO_MESSAGE(printf( "[Pluto] Output written to %s\n", outFileName););
+-      }
+-  
++        // [zyj-debug] since change in polycc, there is no need for .outfilename
++    //   FILE *tmpfp = fopen(".outfilename", "w");
++    //   if (tmpfp)    {
++    //       fprintf(tmpfp, "%s\n", outFileName);
++    //       fclose(tmpfp);
++    //       PLUTO_MESSAGE(printf( "[Pluto] Output written to %s\n", outFileName););
++    //   }
++      remove(cloogFileName);
++
+       fclose(cloogfp);
+       fclose(outfp);
+ 
+diff --git a/src/pluto_codegen_if.c b/src/pluto_codegen_if.c
+index fd4db34..8bcd52f 100644
+--- a/src/pluto_codegen_if.c
++++ b/src/pluto_codegen_if.c
+@@ -86,6 +86,18 @@ void pluto_gen_cloog_file(FILE *fp, const PlutoProg *prog)
+     /* Context: setting conditions on parameters */
+     PlutoConstraints *ctx = pluto_constraints_dup(prog->context);
+     pluto_constraints_intersect_isl(ctx, prog->codegen_context);
++    
++    // zyj-debug, for custom context
++    int nrows_eq = ctx->nrows;
++    for (int i = 0; i < nrows_eq; i++) {
++        ctx->is_eq[i] = 0;
++        pluto_constraints_add_inequality(ctx);
++        for (int j = 0; j < ctx->ncols - 1; j++)
++            ctx->val[ctx->nrows-1][j] = -ctx->val[i][j];
++        ctx->val[ctx->nrows-1][ctx->ncols-1] = 1 - ctx->val[i][ctx->ncols-1];
++    }
++    // pluto_constraints_print(stdout, ctx);
++
+     pluto_constraints_print_polylib(fp, ctx);
+     pluto_constraints_free(ctx);
+ 
+diff --git a/src/program.c b/src/program.c
+index 68cea53..291d672 100644
+--- a/src/program.c
++++ b/src/program.c
+@@ -1132,7 +1132,8 @@ void pluto_dep_print(FILE *fp, const Dep *dep)
+     }
+ 
+     fprintf(fp, "Dependence polyhedron\n");
+-    pluto_constraints_compact_print(fp, dep->dpolytope);
++    // pluto_constraints_compact_print(fp, dep->dpolytope);[zyj-debug]
++    pluto_constraints_print_polylib(fp, dep->dpolytope);
+     fprintf(fp, "\n");
+ }
+ 
+@@ -1336,8 +1337,20 @@ void pluto_stmt_print(FILE *fp, const Stmt *stmt)
+             stmt->id+1, stmt->text);
+     fprintf(fp, "ndims: %d; orig_depth: %d\n",
+             stmt->dim, stmt->dim_orig);
++
++    // [zyj-debug]
++    fprintf(fp, "iterators: ");
++    for (int j=0; j<stmt->dim; j++) {
++        fprintf(fp, "%s", stmt->iterators[j]);
++        if (j < stmt->dim - 1) {
++            fprintf(fp, ", ");
++        }
++    }
++    fprintf(fp, "\n");
++
+     fprintf(fp, "Index set\n");
+-    pluto_constraints_compact_print(fp, stmt->domain);
++    // pluto_constraints_compact_print(fp, stmt->domain);
++    pluto_constraints_print_polylib(fp, stmt->domain); // [zyj-debug]
+     pluto_stmt_transformation_print(stmt);
+ 
+     if (stmt->nreads==0) {
+@@ -1415,7 +1428,7 @@ void pluto_prog_print(FILE *fp, PlutoProg *prog)
+ 
+     pluto_stmts_print(fp, prog->stmts, prog->nstmts);
+     pluto_deps_print(fp, prog);
+-    pluto_transformations_pretty_print(prog);
++    // pluto_transformations_pretty_print(prog); [zyj-debug]
+ }
+ 
+ 
+@@ -2639,6 +2652,10 @@ PlutoOptions *pluto_options_alloc()
+ 
+     options->time = 0;
+ 
++    options->customSchedule = 0; // used for custom scheduling
++
++    options->customcontext = 0; // used for getting params info [zyj-debug] 
++
+     return options;
+ }
+ 
+diff --git a/src/constraints.c b/src/constraints.c
+index 16a0ded..5f383c4 100644
+--- a/src/constraints.c
++++ b/src/constraints.c
+@@ -239,11 +239,11 @@ PlutoConstraints *farkas_lemma_affine(const PlutoConstraints *dom, const PlutoMa
+     /* Convert everything into inequalities of >= 0 form */
+     PlutoConstraints *idom = pluto_constraints_to_pure_inequalities_single(dom);
+ 
+-    // printf("Initial constraints\n");
+-    // pluto_constraints_pretty_print(stdout, idom);
+-
+-    // printf("phi matrix\n");
+-    // pluto_matrix_print(stdout, phi);
++    // yujixin
++    // IF_DEBUG2(printf("Initial constraints\n"));
++    // IF_DEBUG2(pluto_constraints_pretty_print(stdout, idom));
++    // IF_DEBUG2(printf("phi matrix\n"));
++    // IF_DEBUG2(pluto_matrix_print(stdout, phi));
+     
+     /* Add a trivial row (1 >= 0) for the translation Farkas
+      * multiplier (\lambda_0) so that the non-negative linear
+@@ -286,6 +286,10 @@ PlutoConstraints *farkas_lemma_affine(const PlutoConstraints *dom, const PlutoMa
+         farkas->val[idom->ncols+j][farkas_offset + j] = 1;
+     }
+ 
++    // yujixin 
++    // IF_DEBUG2(printf("\tfarkas constraints:\n"));
++    // IF_DEBUG2(pluto_constraints_print(stdout, farkas));
++
+     for (i=0; i<idom->nrows; i++) {
+         int best_elim = pluto_constraints_best_elim_candidate(farkas, idom->nrows-i);
+         IF_MORE_DEBUG(printf("[farkas_lemma_affine] eliminating multiplier %d (c_%c) from %d constraints\n", i, 'i'+best_elim, farkas->nrows));
+@@ -296,8 +300,9 @@ PlutoConstraints *farkas_lemma_affine(const PlutoConstraints *dom, const PlutoMa
+     }
+     assert(farkas->ncols == phi->ncols);
+     
+-    // printf("After farkas multiplier elimination\n");
+-    // pluto_constraints_pretty_print(stdout, farkas);
++    // yujixin
++    // IF_DEBUG2(printf("After farkas multiplier elimination\n"));
++    // IF_DEBUG2(pluto_constraints_pretty_print(stdout, farkas));
+ 
+     pluto_constraints_free(idom);
+ 
+diff --git a/src/framework.c b/src/framework.c
+index 15fe3fb..0e5d56d 100644
+--- a/src/framework.c
++++ b/src/framework.c
+@@ -110,7 +110,16 @@ static void compute_permutability_constraints_dep(Dep *dep, PlutoProg *prog)
+ 
+     /* Apply Farkas lemma for tiling validity constraints */
+     tiling_valid_cst = farkas_lemma_affine(dpoly, phi);
+-    
++
++/*  //yujixin for debug
++    printf("\tdpoly:\n");
++    pluto_constraints_print(stdout, dpoly);
++    printf("\tphi:\n");
++    pluto_matrix_print(stdout, phi);
++    printf("\ttiling_valid_cst:\n");
++    pluto_constraints_print(stdout, tiling_valid_cst);
++*/
++
+     pluto_matrix_free(phi);
+ 
+     if (src_stmt != dest_stmt) {
+@@ -158,12 +167,22 @@ static void compute_permutability_constraints_dep(Dep *dep, PlutoProg *prog)
+         phi->val[2*nvar+npar][npar] = 1;
+     }
+ 
++
++
+     /* Apply Farkas lemma for bounding function constraints */
+     bounding_func_cst = farkas_lemma_affine(dep->bounding_poly, phi);
+ 
++/*  //yujixin for debug
++    printf("\tbounding_poly:\n");
++    pluto_constraints_print(stdout, dep->bounding_poly);
++    printf("\tphi:\n");
++    pluto_matrix_print(stdout, phi);
++    printf("\tbounding_func_cst:\n");
++    pluto_constraints_print(stdout, bounding_func_cst);
++
+     pluto_matrix_free(phi);
+     pluto_constraints_free(dpoly);
+-
++*/
+     /* Aggregate permutability and bounding function constraints together in
+      * global format; note that tiling_valid_cst and bounding_func_cst are 
+      * local to a  dependence/statements pertaining to it) */
+diff --git a/inscop b/inscop
+index 29b468a..f1c2f91 100644
+--- a/inscop
++++ b/inscop
+@@ -58,4 +58,4 @@ fi
+ 
+ cat .head __tmp > $3
+ 
+-rm -f .head .tail __tmp .includes .body.c
++# rm -f .head .tail __tmp .includes .body.c
+diff --git a/inscop_multiprocessing b/inscop_multiprocessing
+new file mode 100644
+index 0000000..a8c258618b925d87f7c1aeb5599d51adb240aee3
+--- /dev/null
++++ b/inscop_multiprocessing
+@@ -0,0 +1,77 @@
++#!/bin/bash
++
++# arguments
++# inscop <original> <transformed_kernel> <output_file>
++# transformed_kernel and output_file can be the same
++#
++
++# [zyj-debug] get unique .head .tail __tmp .includes .body.c for multiprocessing, with TILE, INTRATILEOPT, MULTIPAR, INNERPAR & FUSE info
++prefix_original=`basename $1 .c`
++prefix=$prefix_original\_$4$5$6$7
++
++body_file=$prefix.body.c
++
++MAXLINES=`wc -l $1 | awk '{print $1}'`
++
++# Get the FIRST scop and return all the lines above it
++# Because we are returning the text preceding the first scop, it's ok to ignore that pragma
++# which is what the grep -v call does
++head=`grep -B $MAXLINES -m 1 "#pragma[[:space:]]\+scop" $1 | grep -v "#pragma[[:space:]]\+scop"`
++# Get the FIRST endscop and return all the lines below it
++# We want to get all the text below the first endscop, but do not want that first endscop line to be returned
++# which is accomplished with the awk call at the end.
++tail=`sed -n '/\#pragma[[:space:]]endscop/,$p' $1 | awk '{if(NR>1)print}'`
++
++include=`echo "$head" | awk '/^#include/ { print }'`
++
++init=`echo "$head" | awk '!/^#include/ { print }'`
++
++# The gcc preprocessor inserts some useless comments like "# 1 "<built-in>"
++# preprocessor doesn't like pragma's in #defines and so it was not put in from pluto
++# when '--bee' was used - instead we will add it here
++
++# Put all the include statements in a  file
++include="${include}
++$(cat $2 | grep '^#include')"
++
++# check and remove if duplicate	
++include=$(echo "$include" | awk '!x[$0]++')
++
++# Put everything that isn't an include into another file
++cat $2 | grep -v "^#include" > $body_file
++
++# Check if we've already inserted the extra includes and defines
++# If we haven't, put them in the head
++if ! [[ ${include} =~ '#include <math.h>' ]]
++    then
++    include=$(echo "$include" | sed '$a #include <math.h>\n')
++fi
++
++if ! echo "$init" | grep -q "#define ceild(n,d)"
++	then
++	include=$(echo "$include" | sed '$a #define ceild(n,d)  ceil(((double)(n))/((double)(d)))\n#define floord(n,d) floor(((double)(n))/((double)(d)))\n')
++fi
++
++if ! echo "$init" | grep -q "#define max(x,y)"
++	then
++	include=$(echo "$include" | sed '$a #define max(x,y) ((x) > (y)? (x) : (y))\n#define min(x,y) ((x) < (y)? (x) : (y))\n')
++fi
++
++body=`gcc -E -P -CC -nostdinc $body_file | grep -v "^# " | sed -e 's/__bee_schedule/#pragma schedule/' | sed -e 's/_NL_DELIMIT_/\n/'`
++
++# Checks to see if the openmp header has already been inserted into the file
++# If not, it inserts it.
++if ! [[ ${include} =~ '#include <omp.h>' ]]
++	then
++	# Remove the existing omp.h include
++	
++	include=$(echo "$include" | sed '$a #include <omp.h>\n')
++fi
++
++
++echo "$include" > $3
++echo "$init" >> $3
++echo "$body" >> $3
++echo "$tail" >> $3
++
++# rm -f $body_file
+
+diff --git a/inscop_multiprocessing_copy b/inscop_multiprocessing_copy
+new file mode 100644
+index 0000000..2b44391045860a26e51b398f2625e6090b3c9435
+--- /dev/null
++++ b/inscop_multiprocessing_copy
+@@ -0,0 +1,75 @@
++#!/bin/bash
++# arguments
++# inscop <original> <transformed_kernel> <output_file>
++# transformed_kernel and output_file can be the same
++#
++
++# [zyj-debug] get unique .head .tail __tmp .includes .body.c for multiprocessing, with TILE, INTRATILEOPT, MULTIPAR, INNERPAR & FUSE info
++prefix=`basename $1 .c`
++
++prefix=$prefix\_$TILE$INTRATILEOPT$MULTIPAR$INNERPAR$FUSE
++
++head_file=$prefix.head
++tail_file=$prefix.tail
++tmp_file=$prefix\__tmp
++includes_file=$prefix.includes
++body_file=$prefix.body.c
++
++MAXLINES=`wc -l $1 | awk '{print $1}'`
++
++# Get the FIRST scop and return all the lines above it
++# Because we are returning the text preceding the first scop, it's ok to ignore that pragma
++# which is what the grep -v call does
++grep -B $MAXLINES -m 1 "#pragma[[:space:]]\+scop" $1 | grep -v "#pragma[[:space:]]\+scop" > $head_file
++# Get the FIRST endscop and return all the lines below it
++# We want to get all the text below the first endscop, but do not want that first endscop line to be returned
++# which is accomplished with the awk call at the end.
++sed -n '/\#pragma[[:space:]]endscop/,$p' $1 | awk '{if(NR>1)print}' > $tail_file
++#grep -A $MAXLINES "#pragma[[:space:]]\+endscop" $1 | grep -v "#pragma[[:space:]]\+endscop" > .tail
++
++cat $head_file > $tmp_file
++
++# The gcc preprocessor inserts some useless comments like "# 1 "<built-in>"
++# preprocessor doesn't like pragma's in #defines and so it was not put in from pluto
++# when '--bee' was used - instead we will add it here
++
++# Put all the include statements in a  file
++cat $2 | grep "^#include" > $includes_file
++
++# Put everything that isn't an include into another file
++cat $2 | grep -v "^#include" > $body_file
++
++# Put those includes we got above into another file
++cat $includes_file > $head_file
++
++# Check if we've already inserted the extra includes and defines
++# If we haven't, put them in the head
++if ! grep -q "#include <math.h>" $tmp_file
++    then
++    echo "#include <math.h>" >> $head_file
++fi
++
++if ! grep -q "#define ceild(n,d)" $tmp_file
++	then
++	echo "#define ceild(n,d)  ceil(((double)(n))/((double)(d)))" >> $head_file
++	echo "#define floord(n,d) floor(((double)(n))/((double)(d)))" >> $head_file
++	# echo "#define max(x,y)    ((x) > (y)? (x) : (y))" >> $head_file
++	# echo -e "#define min(x,y)    ((x) < (y)? (x) : (y))\n" >> $head_file
++fi
++
++gcc -E -P -CC -nostdinc $body_file | grep -v "^# " | sed -e 's/__bee_schedule/#pragma schedule/' |  \
++sed -e 's/_NL_DELIMIT_/\n/' >> $tmp_file
++
++cat $tail_file >> $tmp_file
++
++# Checks to see if the openmp header has already been inserted into the file
++# If not, it inserts it.
++if grep -q "#include <omp.h>" $tmp_file
++	then
++	# Remove the existing omp.h include
++	sed -ie '\/\<omp\.h\>/d'  $tmp_file
++fi
++
++cat $head_file $tmp_file > $3
++
++# rm -f $head_file $tail_file $tmp_file $includes_file $body_file
+
+diff --git a/polycc_multiprocessing b/polycc_multiprocessing
+new file mode 100644
+index 0000000..62ae71234ceed2f81278b0771e19428be26c5461
+--- /dev/null
++++ b/polycc_multiprocessing
+@@ -0,0 +1,164 @@
++#!  /bin/bash
++#!/bin/bash
++#
++# Top-level script that runs all components of the end-to-end
++# system
++#
++# Just run 'polycc <C code>' when the program section to 
++# be parallelized/optimized around special comments as described
++# in the `README'
++# 
++# Copyright (C) 2007-2008 Uday Bondhugula 
++#
++# Available under GNU GPL version 3 or (at your option) any later version
++# 
++
++pluto=/home/zyj/Data0/loop_generator/Compilers/pluto_DA/src/pluto
++plann=/home/zyj/Data0/loop_generator/Compilers/pluto_DA/plann
++plorc=/home/zyj/Data0/loop_generator/Compilers/pluto_DA/plorc
++
++# Some additional setup here to ensure that variables are visible outside of the run function
++SOURCEFILE=""
++OUTFILE=""
++dirname=""
++PLUTOOUT=""
++
++# [zyj-debug] get unique SOURCEFILE & OUTFILE for multiprocessing, with TILE, INTRATILEOPT, INNERPAR & FUSE info
++
++tmp_ARGS=$*
++ARGS=$(getopt -o :o: -l :tile,nointratileopt,innerpar,nofuse,maxfuse  -- "$@")
++
++eval set -- "${ARGS}"
++
++TILE=0
++INTRATILEOPT=1
++MULTIPAR=0
++INNERPAR=0
++FUSE=1
++
++while true; do
++  case $1 in 
++  	-o) OUTFILE=$2; shift 2;;
++    --tile) TILE=1; shift;;
++    --nointratileopt) INTRATILEOPT=0; shift;;
++    --innerpar) INNERPAR=1; shift;;
++    --nofuse) FUSE=0; shift;;
++    --maxfuse) FUSE=2; shift;;
++    --) shift; break;;
++    *) echo "Invalid option: $1" exit 1;;
++  esac
++done
++
++SOURCEFILE=$1
++
++if [ "$OUTFILE" = "" ]; then
++    OUTFILE=$(basename $SOURCEFILE .c)_$TILE$INTRATILEOPT$INNERPAR$FUSE.pluto.c
++    tmp_ARGS=$tmp_ARGS" -o "$OUTFILE
++fi
++
++eval set -- "${tmp_ARGS}"
++
++# check for command-line options
++for arg in $*; do
++    if [ $arg == "--parallel" ]; then
++        PARALLEL=1
++    elif [ $arg == "--parallelize" ]; then
++        PARALLEL=1
++    elif [ $arg == "--unroll" ]; then
++        UNROLL=1
++    elif [ $arg == "--debug" ]; then
++        DEBUG=1
++    elif [ $arg == "--moredebug" ]; then
++        DEBUG=1
++    elif [ $arg == "-i" ]; then
++        INDENT=1
++    elif [ $arg == "--indent" ]; then
++        INDENT=1
++    elif [ $arg == "--silent" ]; then
++        SILENT=1
++    fi
++done
++
++# some special processing for linearized accesses
++#if [ "$SOURCEFILE" != "" ]; then
++#grep __SPECIAL $SOURCEFILE > .nonlinearized
++#grep __SPECIAL $SOURCEFILE | sed -e "s/.*__SPECIAL//" > .linearized
++#fi
++
++run()
++{
++$pluto $* || exit 1
++
++# [zyj-debug] get SOURCEFILE & OUTFILE from above
++# SOURCEFILE=`cat .srcfilename`
++# OUTFILE=`cat .outfilename`
++
++dirname=`dirname  $SOURCEFILE`
++basename=`basename $SOURCEFILE`
++prefix=`basename $SOURCEFILE .c`
++
++CLOOGFILE=`basename $OUTFILE`.pluto.cloog
++PLUTOOUT=$OUTFILE
++
++# generate and insert unrolling annotations, run ancc on it,
++if [ "$UNROLL" == 1 ]; then
++    $plorc $PLUTOOUT /home/zyj/Data0/loop_generator/Compilers/pluto_DA/orio-0.1.0
++fi
++
++#if [ "$UNROLL" == 1 ]; then
++    #$plann $PLUTOOUT /home/zyj/Data0/loop_generator/Compilers/pluto_DA/annotations
++#fi
++
++
++# put the original skeleton around the transformed code
++/home/zyj/Data0/loop_generator/Compilers/pluto_DA/inscop_multiprocessing $SOURCEFILE $OUTFILE $OUTFILE $TILE $INTRATILEOPT $INNERPAR $FUSE
++
++if [ "$INDENT" == 1 ] && [ -x /usr/bin/indent ]; then
++    indent -kr -br -ce -l125 $OUTFILE
++fi
++}
++
++
++run "$*"
++WORK=1
++TEMPFILE=""
++while [ $WORK -eq 1 ]
++do
++	if grep -q "#pragma scop" "$PLUTOOUT"
++		then
++		# Move the original file into a temporary location
++		TEMPFILE="$SOURCEFILE""_temp"
++		mv $SOURCEFILE $TEMPFILE
++
++		# Move the file that still has scope in it into
++		# place of the original source file, so $* will pick the
++		# correct file
++		mv $PLUTOOUT $SOURCEFILE
++
++		# Run pluto again
++		run "$*"
++
++		# Move the original back in place
++		mv $TEMPFILE $SOURCEFILE
++	else
++		# No more scops
++		WORK=0
++	fi
++done
++
++cleanup()
++{
++	# An attempt to move the original file back in place
++	# in the event of an exception
++	if [ -f "$TEMPFILE" ]
++	then
++		mv $TEMPFILE $SOURCEFILE
++	fi
++if [ "$DEBUG" != 1 ]; then
++    rm -rf .unroll .vectorize .pragmas .params .orcc .linearized .nonlinearized\
++    $CLOOGFILE .srcfilename .outfilename .distmem pi.cloog sigma.cloog \
++    *.sysloog .appendfilename
++fi
++}
++
++trap cleanup SIGINT exit
+
+diff --git a/src/test_libpluto.c b/src/test_libpluto.c
+deleted file mode 100644
+index 00845bc57f3d892211dc59dbf3c5adc9bb8e872b..0000000
+--- a/src/test_libpluto.c
++++ /dev/null
+@@ -1,75 +0,0 @@
+-#include "pluto/libpluto.h"
+-#include "isl/union_set.h"
+-#include "isl/union_map.h"
+-
+-PlutoOptions *options;
+-
+-/* 
+- * Each test case should name statements S_0, S_1, ...
+- */
+-int test2() 
+-{
+-    printf("TEST 2\n");
+-    isl_ctx *ctx = isl_ctx_alloc();
+-    isl_union_set *domains = isl_union_set_read_from_str(ctx,
+-            "[p_0, p_1, p_2, p_3, p_4, p_5, p_7] -> { S_1[i0, i1] : i0 >= 0 and i0 <= p_0 and i1 >= 0 and i1 <= p_3 and p_2 >= 0; S_0[i0] : i0 >= 0 and i0 <= p_0}");
+-    isl_union_map *deps = isl_union_map_read_from_str(ctx, "[p_0, p_1, p_2, p_3, p_4, p_5, p_7] -> { S_0[i0] -> S_1[o0, o1] : (exists (e0 = [(p_7)/8]: 8o1 = -p_5 + p_7 + 8192i0 - 8192o0 and 8e0 = p_7 and i0 >= 0 and o0 <= p_0 and 8192o0 >= -8p_3 - p_5 + p_7 + 8192i0 and 8192o0 <= -p_5 + p_7 + 8192i0 and p_2 >= 0 and o0 >= 1 + i0)); S_1[i0, i1] -> S_0[o0] : (exists (e0 = [(p_1)/8], e1 = [(p_4)/8], e2 = [(-p_1 + p_7)/8184]: 8192o0 = p_5 - p_7 + 8192i0 + 8i1 and 8e0 = p_1 and 8e1 = p_4 and 8184e2 = -p_1 + p_7 and i1 >= 0 and 8i1 <= 8192p_0 - p_5 + p_7 - 8192i0 and 8184i1 >= 1024 + 1024p_1 - 1023p_5 - p_7 - 8380416i0 and p_2 >= 0 and p_7 <= -1 + p_5 and 8i1 >= 1 + 8p_3 + p_4 - p_5 - 8192i0 and i1 <= p_3 and i0 >= 0 and 8i1 >= 8192 - p_5 + p_7))}");
+-
+-    isl_union_map *schedule = pluto_schedule(domains, deps, options);
+-
+-    if (schedule) {
+-        isl_printer *printer = isl_printer_to_file(ctx, stdout);
+-        isl_printer_print_union_map(printer, schedule);
+-        printf("\n");
+-        isl_printer_free(printer);
+-
+-        // Check if the schedule can be applied to the domain.
+-        domains = isl_union_set_apply(domains, schedule);
+-    }else{
+-        printf("No schedule\n");
+-    }
+-
+-
+-    isl_union_set_free(domains);
+-    isl_union_map_free(deps);
+-
+-    isl_ctx_free(ctx);
+-}
+-
+-void test1()
+-{
+-    isl_ctx *ctx = isl_ctx_alloc();
+-    isl_union_set *domains = isl_union_set_read_from_str(ctx,
+-            "[n] -> {S_1[i0, i1] : i0 >= 0 and i0 <= 99 and i1 >= 0 and i1 <= 99; S_0[i0] : i0 >= 0 and i0 <= 99; S_2[i0] : i0 >= 0 and i0 <= 99 }");
+-    isl_union_map *deps = isl_union_map_read_from_str(ctx, "[n] -> {S_1[i0, 99] -> S_0[1 + i0] : i0 >= 0 and i0 <= 98; S_1[i0, i1] -> S_1[i0, 1 + i1] : i0 >= 0 and i0 <= 99 and i1 >= 0 and i1 <= 98; S_1[i0, 99] -> S_1[1 + i0, 0] : i0 >= 0 and i0 <= 98; S_0[i0] -> S_1[i0, 0] : i0 >= 0 and i0 <= 99; S_2[i0] -> S_1[1 + i0, 0] : i0 >= 0 and i0 <= 98; S_0[i0] -> S_2[i0] : i0 >= 0 and i0 <= 99; S_1[i0, 99] -> S_2[i0] : i0 >= 0 and i0 <= 99 }");
+-
+-    isl_union_map *schedule = pluto_schedule(domains, deps, options);
+-
+-    isl_printer *printer = isl_printer_to_file(ctx, stdout);
+-    isl_printer_print_union_map(printer, schedule);
+-    printf("\n");
+-    isl_printer_free(printer);
+-
+-    // Check if the schedule can be applied to the domain.
+-    domains = isl_union_set_apply(domains, schedule);
+-
+-    isl_union_set_free(domains);
+-    isl_union_map_free(deps);
+-
+-
+-    isl_ctx_free(ctx);
+-}
+-
+-int main() 
+-{
+-    options = pluto_options_alloc();
+-    options->tile = 0;
+-    options->parallel = 0;
+-    options->debug = 0;
+-    options->islsolve = 1;
+-
+-    test1();
+-    test2();
+-
+-    pluto_options_free(options);
+-}
+

@@ -1,1 +1,0 @@
-/bin/clang-10 -O0 -g3 -Wall -Wextra -std=c99 -pedantic -g  -rdynamic CMakeFiles/test__osl_test.dir/tests/osl_test.c.o  -o test__osl_test  libosl.a -lgmp 

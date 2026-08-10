@@ -1,1 +1,0 @@
-/bin/clang-10 -O0 -g3 -Wall -Wextra -std=c99 -pedantic -g  -rdynamic CMakeFiles/test__osl_relation_set_precision.dir/tests/osl_relation_set_precision.c.o  -o test__osl_relation_set_precision  libosl.a -lgmp 
