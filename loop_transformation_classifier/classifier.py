@@ -1,18 +1,20 @@
 import os
 import datetime
+import argparse
 
 today = today = datetime.datetime.now().strftime('%m%d')
 
-# target_path = '/home/zyj/Data0/loop_transformation/loop_generator/loop_transformation_classifier'
-# target_path = '/home/zyj/Data0/Dataset/loop_generator'
-target_path = '/home/zyj/Data0/Dataset_2'
+parser = argparse.ArgumentParser(description='Detect loop transformations applied by pluto_DA')
+parser.add_argument('--target_path', type=str, default='.',
+                    help='dataset root containing pluto_code/ and stdout/ (default: .)')
+args = parser.parse_args()
 
+target_path = args.target_path
 src_path = target_path
-# src_path = '/home/zyj/Data0/loop_transformation/tsvc1_filter'
 
 pluto_code_path = f'{src_path}/pluto_code'
 stdout_path = f'{src_path}/stdout'
-output_path = f'{target_path}/classification_output_{today}.csv'
+output_path = f'{target_path}/classification_output.csv'
 
 os.system(f'ls -l {stdout_path}| grep "^-" | wc -l')
 os.system(f'ls -l {pluto_code_path}| grep "^-" | wc -l')

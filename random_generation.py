@@ -119,7 +119,9 @@ def main(option = 1):
         f.write(f"Files in {target_path}: {target_count}\n")
         
 if __name__ == "__main__":
-    
-    option = 1 # 2
-    
-    main(option)
+    import argparse as ap
+    ap_parser = ap.ArgumentParser(description='Generate parameter-driven loop examples')
+    ap_parser.add_argument('--option', type=int, default=1, choices=[1, 2, 3],
+                           help='synthesis parameter set: 1 (36), 2 (349920), 3 (129600)')
+    ap_args = ap_parser.parse_args()
+    main(ap_args.option)

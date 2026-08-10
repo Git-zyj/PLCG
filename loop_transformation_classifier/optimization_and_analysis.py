@@ -52,7 +52,7 @@ def pluto_transformation(code_source_file):
     # except:
     #     pass # log error
 
-    os.system(f'timeout 300s polycc_multiprocessing {code_source_path} -q --tile --parallel --custom-context --nocloogbacktrack -o {code_target_path} -> {stdout_target_path}')
+    os.system(f'timeout 300s polycc_multiprocessing {code_source_path} -q --tile --parallel --custom-context --nocloogbacktrack -o {code_target_path} > {stdout_target_path}')
     
     # print(stdout_target_path)
 
