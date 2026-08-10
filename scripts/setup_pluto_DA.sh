@@ -12,8 +12,10 @@
 #      no longer advertised), it falls back to the vendored snapshot in
 #      third_party/pluto_DA_deps.tar.gz;
 #   2. applies patches/pluto_DA.patch (the custom-context / zyj-debug changes);
-#   3. rewrites the hard-coded paths inside the custom wrapper scripts;
-#   4. builds pluto_DA.
+#   3. builds pluto_DA;
+#   4. generates the multiprocessing-safe wrapper scripts
+#      (polycc_multiprocessing / inscop_multiprocessing) from the built
+#      polycc / inscop, so no hard-coded paths are shipped.
 #
 set -euo pipefail
 
@@ -46,19 +48,15 @@ else
     echo "[setup] patch applied"
 fi
 
-# 3) fix hard-coded paths in the custom wrapper scripts ------------------
-for f in polycc_multiprocessing inscop_multiprocessing inscop_multiprocessing_copy inscop; do
-    if [ -f "$PLUTO_DIR/$f" ]; then
-        sed -i "s|/home/zyj/Data0/loop_generator/Compilers/pluto_DA|$PLUTO_DIR|g" "$PLUTO_DIR/$f"
-    fi
-done
-
-# 4) build ---------------------------------------------------------------
+# 3) build ---------------------------------------------------------------
 if [ ! -x configure ]; then
     ./autogen.sh
 fi
 ./configure
 make -j"$(nproc)"
+
+# 4) multiprocessing wrapper scripts -------------------------------------
+python3 "$ROOT/scripts/make_multiprocessing_wrappers.py" "$PLUTO_DIR"
 
 echo "[setup] pluto_DA built: $PLUTO_DIR/src/pluto"
 echo "[setup] add $PLUTO_DIR to PATH (polycc_multiprocessing is used by the corpus pipeline)"

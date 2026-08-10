@@ -16,10 +16,10 @@ index 2457396..acf988c 100644
  typedef struct plutoOptions PlutoOptions;
  
 diff --git a/src/main.c b/src/main.c
-index 44e56c8..1107073 100644
+index 44e56c8..03a2fbd 100644
 --- a/src/main.c
 +++ b/src/main.c
-@@ -114,6 +114,169 @@ static double rtclock()
+@@ -114,6 +114,173 @@ static double rtclock()
      return(Tp.tv_sec + Tp.tv_usec*1.0e-6);
  }
  
@@ -96,109 +96,113 @@ index 44e56c8..1107073 100644
 +    printf("//----------------- Edit ----------------//\n");
 +}
 +
-+osl_scop_p get_params_info(FILE *header_fp, osl_scop_p scop) {
++osl_scop_p get_params_info(FILE *header_fp, osl_scop_p scop){
 +    char line[100];
-+    char *saveptr;              /* 用于 strtok_r 的上下文 */
-+    char *token;
++    char *define_start;
 +    char *param_name;
 +    char *param_val;
++    char *define_end;
 +
-+    osl_strings_p params_name = (osl_strings_p)scop->parameters->data;
-+    int nb_params = scop->context->nb_parameters;
-+    int nb_cols = scop->context->nb_columns;
-+    int precision = scop->context->precision;
++    osl_strings_p params_name = NULL;
++    params_name = (osl_strings_p)scop->parameters->data;
++    int params_precision = scop->context->precision;
++    osl_vector_p params_cst;
++    params_cst = osl_vector_pmalloc(params_precision, scop->context->nb_columns);
++    int lb;
++    // int ub;
 +
-+    /* 临时向量，复用分配 */
-+    osl_vector_p params_cst = osl_vector_pmalloc(precision, nb_cols);
-+
-+    int format_ok = 0;  /* 是否找到正确的 params 块 */
-+
++    int format_checkpoint = 1;
 +    while (fgets(line, sizeof(line), header_fp)) {
++        // Check if the line is 'start'
 +        if (strcmp(line, "/* params start */\n") == 0) {
-+            format_ok = 1;
++            // Extract lines until 'end' is found
 +            while (fgets(line, sizeof(line), header_fp)) {
-+                if (strcmp(line, "/* params end */\n") == 0)
-+                    break;
-+
-+                /* 跳过空行 */
-+                if (line[0] == '\n') continue;
-+
-+                /* 切割第一个 token，判断是 "#define" 还是 "# define" */
-+                token = strtok_r(line, " ()\t\n", &saveptr);
-+                if (!token) continue;
-+
-+                if (strcmp(token, "#") == 0) {
-+                    token = strtok_r(NULL, " ()\t\n", &saveptr);
-+                    if (!token || strcmp(token, "define") != 0) continue;
-+                } else if (strcmp(token, "#define") != 0) {
-+                    continue;  /* 不是 #define 行，跳过 */
++                if (strcmp(line, "/* params end */\n") == 0) {
++                    break; // Stop extracting lines if 'end' is found
 +                }
 +
-+                /* 参数名 */
-+                param_name = strtok_r(NULL, " ()\t\n", &saveptr);
-+                if (!param_name) continue;
++                // Extract parameter name and value
++                define_start = strtok(line, " ");
++                param_name = strtok(NULL, " ");
 +
-+                /* 取最后一个 token 作为值（忽略类型转换等） */
-+                param_val = NULL;
-+                while ((token = strtok_r(NULL, " ()\t\n", &saveptr)) != NULL) {
-+                    param_val = token;
-+                }
-+                if (!param_val) continue;
-+
-+                /* 在参数列表中查找 param_name */
-+                int idx = -1;
-+                for (int i = 0; i < nb_params; i++) {
-+                    if (strcmp(param_name, params_name->string[i]) == 0) {
-+                        idx = i;
-+                        break;
++                if (strcmp(define_start, "#define")) {
++                    if (strcmp(define_start, "#") || strcmp(param_name, "define")) {
++                        // continue;
++                    }
++                    else {
++                        param_name = strtok(NULL, " ");
 +                    }
 +                }
-+                if (idx == -1) {
-+                    /* 头文件定义了未使用的参数，可选择忽略或报错，此处忽略 */
-+                    continue;
++
++                define_end = strtok(NULL, " ()");
++                while(define_end) {
++                    param_val = alloca(strlen(define_end)+1);
++                    strcpy(param_val, define_end);
++                    define_end = strtok(NULL, " ()");
 +                }
++                
++                format_checkpoint = 0;
 +
-+                int lb = atoi(param_val);
++                // fprintf(stdout, "param_name: %s\n", param_name);
++                // fprintf(stdout, "param_val: %s\n", param_val);
 +
-+                /* 清空临时向量 */
-+                for (int j = 0; j < nb_cols; j++) {
-+                    osl_int_set_si(precision, &params_cst->v[j], 0);
++                for (int i = 0; i < scop->context->nb_parameters; i++) {
++                    //# define PB_N (long long)1000
++
++                    if (strcmp(param_name, params_name->string[i]) == 0) {
++                        // low bound
++                        lb = atoi(param_val);
++                        for (int i = 0; i < scop->context->nb_columns; i++)
++                            osl_int_set_si(params_precision, &params_cst->v[i], 0);
++                        osl_int_set_si(params_precision, &params_cst->v[0], 1);
++                        osl_int_set_si(params_precision, &params_cst->v[i + 1], 1);
++                        osl_int_set_si(params_precision, &params_cst->v[scop->context->nb_columns - 1], -lb);
++                        // fprintf(stdout, "precision: %d\n", params_cst->precision);
++                        // fprintf(stdout, "size: %d\n", params_cst->size);
++                        // for (int i = 0; i < params_cst->size; i++)
++                        //     fprintf(stdout, "val: %d\n", params_cst->v[i]);
++                        osl_relation_insert_vector(scop->context, params_cst, -1);
++
++                        // upper bound. spend too much time after adding ub.
++                        // ub = lb + 1;
++                        // for (int i = 0; i < scop->context->nb_columns; i++)
++                        //     osl_int_set_si(params_precision, &params_cst->v[i], 0);
++                        // osl_int_set_si(params_precision, &params_cst->v[0], 1);
++                        // osl_int_set_si(params_precision, &params_cst->v[i + 1], -1);
++                        // osl_int_set_si(params_precision, &params_cst->v[scop->context->nb_columns - 1], ub);
++
++                        // osl_relation_insert_vector(scop->context, params_cst, -1);
++                    }
 +                }
-+
-+                /* 构建不等式：1 * param + 1 >= 0 → param >= -lb */
-+                osl_int_set_si(precision, &params_cst->v[0], 1);              /* 常数项系数 */
-+                osl_int_set_si(precision, &params_cst->v[idx + 1], 1);        /* 参数系数 */
-+                osl_int_set_si(precision, &params_cst->v[nb_cols - 1], -lb);  /* 常数下界 */
-+
-+                osl_relation_insert_vector(scop->context, params_cst, -1);
 +            }
-+            break;  /* 只处理第一个 params 块 */
++            if (format_checkpoint) {
++                printf("format for params in .h file is wrong. customize context failed.\n");
++                exit(11);
++            }
++            break; // Stop reading lines after extraction
 +        }
 +    }
-+
-+    if (!format_ok) {
-+        fprintf(stderr, "format for params in .h file is wrong. customize context failed.\n");
++    if (format_checkpoint) {
++        printf("format for params in .h file is wrong. customize context failed.\n");
 +        exit(11);
 +    }
-+
-+    /* 假设 osl_vector_free 存在，否则自行替换为 free */
-+    osl_vector_free(params_cst);
++    // osl_relation_print(stdout, scop->context);
 +    return scop;
 +}
 +
  int main(int argc, char *argv[])
  {
      int i;
-@@ -198,6 +361,8 @@ int main(int argc, char *argv[])
+@@ -198,6 +365,8 @@ int main(int argc, char *argv[])
          {"pipsolve", no_argument, &options->pipsolve, 1},
          {"islsolve", no_argument, &options->islsolve, 1},
          {"time", no_argument, &options->time, 1},
 +        {"custom-schedule", no_argument, &options->customSchedule, 1},
-+        {"custom-context", no_argument, &options->customcontext, 1}, // zyj-debug
++        {"custom-context", no_argument, &options->customcontext, 1},
          {0, 0, 0, 0}
      };
  
-@@ -280,7 +445,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+@@ -280,7 +449,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
                  return 4;
          }
      }
@@ -207,7 +211,7 @@ index 44e56c8..1107073 100644
      if (optind <= argc-1)   {
          srcFileName = alloca(strlen(argv[optind])+1);
          strcpy(srcFileName, argv[optind]);
-@@ -383,17 +548,69 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+@@ -383,17 +552,69 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
            pluto_options_free(options);
            return 8;
        }
@@ -282,7 +286,7 @@ index 44e56c8..1107073 100644
      /* Convert clan scop to Pluto program */
      prog = scop_to_pluto_prog(scop, options);
  
-@@ -437,17 +654,41 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+@@ -437,17 +658,41 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
          pluto_iss_dep(prog);
      }
  
@@ -324,7 +328,7 @@ index 44e56c8..1107073 100644
          pluto_transformations_pretty_print(prog);
          pluto_print_hyperplane_properties(prog);
      }
-@@ -503,6 +744,13 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+@@ -503,6 +748,13 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
          }
      }
  
@@ -338,7 +342,7 @@ index 44e56c8..1107073 100644
      if(!strcmp(srcFileName, "stdin")){  
          //input stdin == output stdout
          pluto_populate_scop(scop, prog, options);
-@@ -579,13 +827,15 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+@@ -579,13 +831,15 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
        pluto_multicore_codegen(cloogfp, outfp, prog);
        t_c = rtclock() - t_start;
    
@@ -362,7 +366,7 @@ index 44e56c8..1107073 100644
        fclose(outfp);
  
 diff --git a/src/pluto_codegen_if.c b/src/pluto_codegen_if.c
-index fd4db34..8bcd52f 100644
+index fd4db34..87142f9 100644
 --- a/src/pluto_codegen_if.c
 +++ b/src/pluto_codegen_if.c
 @@ -86,6 +86,18 @@ void pluto_gen_cloog_file(FILE *fp, const PlutoProg *prog)
@@ -370,7 +374,7 @@ index fd4db34..8bcd52f 100644
      PlutoConstraints *ctx = pluto_constraints_dup(prog->context);
      pluto_constraints_intersect_isl(ctx, prog->codegen_context);
 +    
-+    // zyj-debug, for custom context
++    // zyj-debug
 +    int nrows_eq = ctx->nrows;
 +    for (int i = 0; i < nrows_eq; i++) {
 +        ctx->is_eq[i] = 0;
@@ -385,7 +389,7 @@ index fd4db34..8bcd52f 100644
      pluto_constraints_free(ctx);
  
 diff --git a/src/program.c b/src/program.c
-index 68cea53..291d672 100644
+index 68cea53..990c6d2 100644
 --- a/src/program.c
 +++ b/src/program.c
 @@ -1132,7 +1132,8 @@ void pluto_dep_print(FILE *fp, const Dep *dep)
@@ -435,7 +439,7 @@ index 68cea53..291d672 100644
  
 +    options->customSchedule = 0; // used for custom scheduling
 +
-+    options->customcontext = 0; // used for getting params info [zyj-debug] 
++    options->customcontext = 0; // used for getting params info 
 +
      return options;
  }
@@ -530,356 +534,9 @@ index 15fe3fb..0e5d56d 100644
      /* Aggregate permutability and bounding function constraints together in
       * global format; note that tiling_valid_cst and bounding_func_cst are 
       * local to a  dependence/statements pertaining to it) */
-diff --git a/inscop b/inscop
-index 29b468a..f1c2f91 100644
---- a/inscop
-+++ b/inscop
-@@ -58,4 +58,4 @@ fi
- 
- cat .head __tmp > $3
- 
--rm -f .head .tail __tmp .includes .body.c
-+# rm -f .head .tail __tmp .includes .body.c
-diff --git a/inscop_multiprocessing b/inscop_multiprocessing
-new file mode 100644
-index 0000000..a8c258618b925d87f7c1aeb5599d51adb240aee3
---- /dev/null
-+++ b/inscop_multiprocessing
-@@ -0,0 +1,77 @@
-+#!/bin/bash
-+
-+# arguments
-+# inscop <original> <transformed_kernel> <output_file>
-+# transformed_kernel and output_file can be the same
-+#
-+
-+# [zyj-debug] get unique .head .tail __tmp .includes .body.c for multiprocessing, with TILE, INTRATILEOPT, MULTIPAR, INNERPAR & FUSE info
-+prefix_original=`basename $1 .c`
-+prefix=$prefix_original\_$4$5$6$7
-+
-+body_file=$prefix.body.c
-+
-+MAXLINES=`wc -l $1 | awk '{print $1}'`
-+
-+# Get the FIRST scop and return all the lines above it
-+# Because we are returning the text preceding the first scop, it's ok to ignore that pragma
-+# which is what the grep -v call does
-+head=`grep -B $MAXLINES -m 1 "#pragma[[:space:]]\+scop" $1 | grep -v "#pragma[[:space:]]\+scop"`
-+# Get the FIRST endscop and return all the lines below it
-+# We want to get all the text below the first endscop, but do not want that first endscop line to be returned
-+# which is accomplished with the awk call at the end.
-+tail=`sed -n '/\#pragma[[:space:]]endscop/,$p' $1 | awk '{if(NR>1)print}'`
-+
-+include=`echo "$head" | awk '/^#include/ { print }'`
-+
-+init=`echo "$head" | awk '!/^#include/ { print }'`
-+
-+# The gcc preprocessor inserts some useless comments like "# 1 "<built-in>"
-+# preprocessor doesn't like pragma's in #defines and so it was not put in from pluto
-+# when '--bee' was used - instead we will add it here
-+
-+# Put all the include statements in a  file
-+include="${include}
-+$(cat $2 | grep '^#include')"
-+
-+# check and remove if duplicate	
-+include=$(echo "$include" | awk '!x[$0]++')
-+
-+# Put everything that isn't an include into another file
-+cat $2 | grep -v "^#include" > $body_file
-+
-+# Check if we've already inserted the extra includes and defines
-+# If we haven't, put them in the head
-+if ! [[ ${include} =~ '#include <math.h>' ]]
-+    then
-+    include=$(echo "$include" | sed '$a #include <math.h>\n')
-+fi
-+
-+if ! echo "$init" | grep -q "#define ceild(n,d)"
-+	then
-+	include=$(echo "$include" | sed '$a #define ceild(n,d)  ceil(((double)(n))/((double)(d)))\n#define floord(n,d) floor(((double)(n))/((double)(d)))\n')
-+fi
-+
-+if ! echo "$init" | grep -q "#define max(x,y)"
-+	then
-+	include=$(echo "$include" | sed '$a #define max(x,y) ((x) > (y)? (x) : (y))\n#define min(x,y) ((x) < (y)? (x) : (y))\n')
-+fi
-+
-+body=`gcc -E -P -CC -nostdinc $body_file | grep -v "^# " | sed -e 's/__bee_schedule/#pragma schedule/' | sed -e 's/_NL_DELIMIT_/\n/'`
-+
-+# Checks to see if the openmp header has already been inserted into the file
-+# If not, it inserts it.
-+if ! [[ ${include} =~ '#include <omp.h>' ]]
-+	then
-+	# Remove the existing omp.h include
-+	
-+	include=$(echo "$include" | sed '$a #include <omp.h>\n')
-+fi
-+
-+
-+echo "$include" > $3
-+echo "$init" >> $3
-+echo "$body" >> $3
-+echo "$tail" >> $3
-+
-+# rm -f $body_file
-
-diff --git a/inscop_multiprocessing_copy b/inscop_multiprocessing_copy
-new file mode 100644
-index 0000000..2b44391045860a26e51b398f2625e6090b3c9435
---- /dev/null
-+++ b/inscop_multiprocessing_copy
-@@ -0,0 +1,75 @@
-+#!/bin/bash
-+# arguments
-+# inscop <original> <transformed_kernel> <output_file>
-+# transformed_kernel and output_file can be the same
-+#
-+
-+# [zyj-debug] get unique .head .tail __tmp .includes .body.c for multiprocessing, with TILE, INTRATILEOPT, MULTIPAR, INNERPAR & FUSE info
-+prefix=`basename $1 .c`
-+
-+prefix=$prefix\_$TILE$INTRATILEOPT$MULTIPAR$INNERPAR$FUSE
-+
-+head_file=$prefix.head
-+tail_file=$prefix.tail
-+tmp_file=$prefix\__tmp
-+includes_file=$prefix.includes
-+body_file=$prefix.body.c
-+
-+MAXLINES=`wc -l $1 | awk '{print $1}'`
-+
-+# Get the FIRST scop and return all the lines above it
-+# Because we are returning the text preceding the first scop, it's ok to ignore that pragma
-+# which is what the grep -v call does
-+grep -B $MAXLINES -m 1 "#pragma[[:space:]]\+scop" $1 | grep -v "#pragma[[:space:]]\+scop" > $head_file
-+# Get the FIRST endscop and return all the lines below it
-+# We want to get all the text below the first endscop, but do not want that first endscop line to be returned
-+# which is accomplished with the awk call at the end.
-+sed -n '/\#pragma[[:space:]]endscop/,$p' $1 | awk '{if(NR>1)print}' > $tail_file
-+#grep -A $MAXLINES "#pragma[[:space:]]\+endscop" $1 | grep -v "#pragma[[:space:]]\+endscop" > .tail
-+
-+cat $head_file > $tmp_file
-+
-+# The gcc preprocessor inserts some useless comments like "# 1 "<built-in>"
-+# preprocessor doesn't like pragma's in #defines and so it was not put in from pluto
-+# when '--bee' was used - instead we will add it here
-+
-+# Put all the include statements in a  file
-+cat $2 | grep "^#include" > $includes_file
-+
-+# Put everything that isn't an include into another file
-+cat $2 | grep -v "^#include" > $body_file
-+
-+# Put those includes we got above into another file
-+cat $includes_file > $head_file
-+
-+# Check if we've already inserted the extra includes and defines
-+# If we haven't, put them in the head
-+if ! grep -q "#include <math.h>" $tmp_file
-+    then
-+    echo "#include <math.h>" >> $head_file
-+fi
-+
-+if ! grep -q "#define ceild(n,d)" $tmp_file
-+	then
-+	echo "#define ceild(n,d)  ceil(((double)(n))/((double)(d)))" >> $head_file
-+	echo "#define floord(n,d) floor(((double)(n))/((double)(d)))" >> $head_file
-+	# echo "#define max(x,y)    ((x) > (y)? (x) : (y))" >> $head_file
-+	# echo -e "#define min(x,y)    ((x) < (y)? (x) : (y))\n" >> $head_file
-+fi
-+
-+gcc -E -P -CC -nostdinc $body_file | grep -v "^# " | sed -e 's/__bee_schedule/#pragma schedule/' |  \
-+sed -e 's/_NL_DELIMIT_/\n/' >> $tmp_file
-+
-+cat $tail_file >> $tmp_file
-+
-+# Checks to see if the openmp header has already been inserted into the file
-+# If not, it inserts it.
-+if grep -q "#include <omp.h>" $tmp_file
-+	then
-+	# Remove the existing omp.h include
-+	sed -ie '\/\<omp\.h\>/d'  $tmp_file
-+fi
-+
-+cat $head_file $tmp_file > $3
-+
-+# rm -f $head_file $tail_file $tmp_file $includes_file $body_file
-
-diff --git a/polycc_multiprocessing b/polycc_multiprocessing
-new file mode 100644
-index 0000000..62ae71234ceed2f81278b0771e19428be26c5461
---- /dev/null
-+++ b/polycc_multiprocessing
-@@ -0,0 +1,164 @@
-+#!  /bin/bash
-+#!/bin/bash
-+#
-+# Top-level script that runs all components of the end-to-end
-+# system
-+#
-+# Just run 'polycc <C code>' when the program section to 
-+# be parallelized/optimized around special comments as described
-+# in the `README'
-+# 
-+# Copyright (C) 2007-2008 Uday Bondhugula 
-+#
-+# Available under GNU GPL version 3 or (at your option) any later version
-+# 
-+
-+pluto=/home/zyj/Data0/loop_generator/Compilers/pluto_DA/src/pluto
-+plann=/home/zyj/Data0/loop_generator/Compilers/pluto_DA/plann
-+plorc=/home/zyj/Data0/loop_generator/Compilers/pluto_DA/plorc
-+
-+# Some additional setup here to ensure that variables are visible outside of the run function
-+SOURCEFILE=""
-+OUTFILE=""
-+dirname=""
-+PLUTOOUT=""
-+
-+# [zyj-debug] get unique SOURCEFILE & OUTFILE for multiprocessing, with TILE, INTRATILEOPT, INNERPAR & FUSE info
-+
-+tmp_ARGS=$*
-+ARGS=$(getopt -o :o: -l :tile,nointratileopt,innerpar,nofuse,maxfuse  -- "$@")
-+
-+eval set -- "${ARGS}"
-+
-+TILE=0
-+INTRATILEOPT=1
-+MULTIPAR=0
-+INNERPAR=0
-+FUSE=1
-+
-+while true; do
-+  case $1 in 
-+  	-o) OUTFILE=$2; shift 2;;
-+    --tile) TILE=1; shift;;
-+    --nointratileopt) INTRATILEOPT=0; shift;;
-+    --innerpar) INNERPAR=1; shift;;
-+    --nofuse) FUSE=0; shift;;
-+    --maxfuse) FUSE=2; shift;;
-+    --) shift; break;;
-+    *) echo "Invalid option: $1" exit 1;;
-+  esac
-+done
-+
-+SOURCEFILE=$1
-+
-+if [ "$OUTFILE" = "" ]; then
-+    OUTFILE=$(basename $SOURCEFILE .c)_$TILE$INTRATILEOPT$INNERPAR$FUSE.pluto.c
-+    tmp_ARGS=$tmp_ARGS" -o "$OUTFILE
-+fi
-+
-+eval set -- "${tmp_ARGS}"
-+
-+# check for command-line options
-+for arg in $*; do
-+    if [ $arg == "--parallel" ]; then
-+        PARALLEL=1
-+    elif [ $arg == "--parallelize" ]; then
-+        PARALLEL=1
-+    elif [ $arg == "--unroll" ]; then
-+        UNROLL=1
-+    elif [ $arg == "--debug" ]; then
-+        DEBUG=1
-+    elif [ $arg == "--moredebug" ]; then
-+        DEBUG=1
-+    elif [ $arg == "-i" ]; then
-+        INDENT=1
-+    elif [ $arg == "--indent" ]; then
-+        INDENT=1
-+    elif [ $arg == "--silent" ]; then
-+        SILENT=1
-+    fi
-+done
-+
-+# some special processing for linearized accesses
-+#if [ "$SOURCEFILE" != "" ]; then
-+#grep __SPECIAL $SOURCEFILE > .nonlinearized
-+#grep __SPECIAL $SOURCEFILE | sed -e "s/.*__SPECIAL//" > .linearized
-+#fi
-+
-+run()
-+{
-+$pluto $* || exit 1
-+
-+# [zyj-debug] get SOURCEFILE & OUTFILE from above
-+# SOURCEFILE=`cat .srcfilename`
-+# OUTFILE=`cat .outfilename`
-+
-+dirname=`dirname  $SOURCEFILE`
-+basename=`basename $SOURCEFILE`
-+prefix=`basename $SOURCEFILE .c`
-+
-+CLOOGFILE=`basename $OUTFILE`.pluto.cloog
-+PLUTOOUT=$OUTFILE
-+
-+# generate and insert unrolling annotations, run ancc on it,
-+if [ "$UNROLL" == 1 ]; then
-+    $plorc $PLUTOOUT /home/zyj/Data0/loop_generator/Compilers/pluto_DA/orio-0.1.0
-+fi
-+
-+#if [ "$UNROLL" == 1 ]; then
-+    #$plann $PLUTOOUT /home/zyj/Data0/loop_generator/Compilers/pluto_DA/annotations
-+#fi
-+
-+
-+# put the original skeleton around the transformed code
-+/home/zyj/Data0/loop_generator/Compilers/pluto_DA/inscop_multiprocessing $SOURCEFILE $OUTFILE $OUTFILE $TILE $INTRATILEOPT $INNERPAR $FUSE
-+
-+if [ "$INDENT" == 1 ] && [ -x /usr/bin/indent ]; then
-+    indent -kr -br -ce -l125 $OUTFILE
-+fi
-+}
-+
-+
-+run "$*"
-+WORK=1
-+TEMPFILE=""
-+while [ $WORK -eq 1 ]
-+do
-+	if grep -q "#pragma scop" "$PLUTOOUT"
-+		then
-+		# Move the original file into a temporary location
-+		TEMPFILE="$SOURCEFILE""_temp"
-+		mv $SOURCEFILE $TEMPFILE
-+
-+		# Move the file that still has scope in it into
-+		# place of the original source file, so $* will pick the
-+		# correct file
-+		mv $PLUTOOUT $SOURCEFILE
-+
-+		# Run pluto again
-+		run "$*"
-+
-+		# Move the original back in place
-+		mv $TEMPFILE $SOURCEFILE
-+	else
-+		# No more scops
-+		WORK=0
-+	fi
-+done
-+
-+cleanup()
-+{
-+	# An attempt to move the original file back in place
-+	# in the event of an exception
-+	if [ -f "$TEMPFILE" ]
-+	then
-+		mv $TEMPFILE $SOURCEFILE
-+	fi
-+if [ "$DEBUG" != 1 ]; then
-+    rm -rf .unroll .vectorize .pragmas .params .orcc .linearized .nonlinearized\
-+    $CLOOGFILE .srcfilename .outfilename .distmem pi.cloog sigma.cloog \
-+    *.sysloog .appendfilename
-+fi
-+}
-+
-+trap cleanup SIGINT exit
-
 diff --git a/src/test_libpluto.c b/src/test_libpluto.c
 deleted file mode 100644
-index 00845bc57f3d892211dc59dbf3c5adc9bb8e872b..0000000
+index 0000000..0000000
 --- a/src/test_libpluto.c
 +++ /dev/null
 @@ -1,75 +0,0 @@
