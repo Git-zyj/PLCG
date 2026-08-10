@@ -1,55 +1,116 @@
-# Getting Started
+# PLCG — Parameter-driven Loop Code Generator
 
-## Preparation
-1. Path of output files can be modified through variable "DATASET_PATH" and "target_path" in settings.py.
-2. The number of synthesized codes and the corresponding parameters need to be determined manually. In ./random_generation.py, we have added several alternatives for different amounts of synthesized code and values of parameters.
+PLCG synthesizes large numbers of diverse, PolyBench-style C loop kernels (SCoPs) from a
+parameter-driven model of loop properties (loop depth, schedule, array accesses, dependencies),
+then optimizes them with a modified PLuTo and classifies the applied loop transformations. It is
+the corpus generator used by **LOOPRAG** ("Enhancing Loop Transformation Optimization with
+Retrieval-Augmented Large Language Models", ASPLOS 2026).
 
-## Code synthesis
-1. python ./random_generation.py 
-  Create intermidiate json files in ./input, and code and header files in ./poly_code in default.
+## Branches
 
-## Code optimization and analysis after synthesis (optional)
-1. cd ./loop_transformation_classifier
-2. python ./optimization_and_analysis.py 
-  Create code after optimization using PLuTo in ./pluto_code and store the stdout data flow info in./stdout in default.
-3. python ./loop_transformation_classifier.py
-  Summerize types of loop transformations used in optimized version of code, and store the output in loop_transformation_classifier.csv in default.
+| branch / tag | purpose |
+| --- | --- |
+| `ASPLOS26Summer` | LOOPRAG artifact version: corpus-generation code of `v1.0.0` restructured so that the modified PLuTo is a submodule (see below). **Use this for reproducing the LOOPRAG corpus.** |
+| `v1.0.0` | The exact version whose pipeline synthesized `looprag_135364.json`. Kept for reference; it vendors the modified PLuTo as plain tracked files. |
+| `main` | Development branch (newer generation code and ISPASS-related analysis). |
 
-## Compilation command
+## Repository Layout
 
-** To compile a benchmark without any monitoring:
+```text
+Generation.py                         # legacy orchestrator (v1.0.0 style)
+random_generation.py                  # step 1: parameter-driven synthesis (--option 1/2/3)
+code_generator.py / generate_json.py  # parameter model -> PolyBench-style C with SCoP
+polybench_files_generation.py         # PolyBench-style program rendering
+input/  poly_code/                    # generated parameter JSONs and C files
+loop_transformation_classifier/
+    optimization_and_analysis.py      # step 2: pluto_DA optimization + dataflow reports
+    classifier.py                     # step 3: loop-transformation detection
+    rag_preparation.py                # step 4: build the retrieval corpus JSON
+    extraction_tools.py               # loop-feature extraction from pluto stdout
+Compilers/pluto_DA/                   # submodule: upstream pluto 0.11.4 + LOOPRAG patch
+patches/pluto_DA.patch                # the LOOPRAG-specific pluto source modifications
+scripts/
+    setup_pluto_DA.sh                 # patch + deps + build + wrapper generation
+    build_corpus.sh                   # run the four pipeline stages end-to-end
+    make_multiprocessing_wrappers.py  # derive polycc/inscop multiprocessing wrappers
+third_party/pluto_DA_deps.tar.gz      # vendored pluto 0.11.4 dependencies (fallback)
+```
 
-$> gcc poly_code/filename.c polybench/polybench.c -I polybench/ -I poly_code -lm -o execution/filename.out
+## The pluto_DA Submodule
 
-** To compile a benchmark with execution time reporting:
---------------------------------------------------------
+`Compilers/pluto_DA` is a git submodule pinned to upstream
+[bondhugula/pluto](https://github.com/bondhugula/pluto) **0.11.4**
+(commit `182dcaa`). The LOOPRAG-specific modifications are kept as
+`patches/pluto_DA.patch` (C sources only):
 
-$> gcc poly_code/filename.c polybench/polybench.c -I polybench/ -I poly_code -lm -DPOLYBENCH_TIME -o execution/filename.out
+- `include/pluto/libpluto.h` — `customSchedule` / `customcontext` options;
+- `src/main.c` — `customScheduling()` (`.trans` file), `get_params_info()` (parameter bounds from
+  `<file>.h`), `--custom-schedule` / `--custom-context` CLI flags, `[zyj-debug]` diagnostics;
+- `src/pluto_codegen_if.c` — context equalities -> inequalities for the custom context;
+- `src/program.c` — polylib-format dependency/domain output and option initialization;
+- `src/constraints.c`, `src/framework.c` — debug comments only.
 
-** To generate the reference array sum output of a benchmark:
----------------------------------------------------
+The corpus pipeline additionally needs two wrapper scripts that are **generated** at build time
+(never shipped with hard-coded paths):
 
-$> gcc poly_code/filename.c polybench/polybench.c -I polybench/ -I poly_code -lm -DUSE_INIT_SEED -DPOLYBENCH_CHECKSUM_ARRAYS -o execution/filename.out
-$> ./execution/filename.out 0 2>out.log
+- `polycc_multiprocessing` — the built `polycc` plus a multiprocessing delta (unique temp files,
+  `--tile/--innerpar/...` options); paths are inherited from `configure`;
+- `inscop_multiprocessing` — the multiprocessing-safe rewrite of `inscop`.
 
-** To generate the reference array elements output of a benchmark:
----------------------------------------------------
+## Quickstart (Linux)
 
-$> gcc poly_code/filename.c polybench/polybench.c -I polybench/ -I poly_code -lm -DUSE_INIT_SEED -DPOLYBENCH_DUMP_ARRAYS -o execution/filename.out
-$> ./execution/filename.out 0 2>out.log
+```bash
+# 1) initialize submodules (plcg is usually cloned as a submodule of LOOPRAG)
+git submodule update --init --recursive
 
+# 2) build the modified pluto (applies patch, builds deps fallback, generates wrappers)
+./scripts/setup_pluto_DA.sh
 
+# 3) regenerate the corpus (option-2 synthesis -> pluto_DA -> classification -> corpus)
+./scripts/build_corpus.sh
+```
 
-## Filename and parameters
-#### e.g. 2324222224_0.c
-1. (*)arg_depth specifies the maximum loop depth of SCoP. Here is 2, indicating that the loop dimension range is (1, 2).
-2. (*)arg_nstmts specifies the number of statements in SCoP. Here is 3, indicating that the number of statements is 3.
-3. (*)arg_bounds_index specifies the maximum number of loop branches in every level of loop nests, which determines the density of statements in loops. Here is 2, indicating that the scheduling index range is (0, 1, 2).
-4. arg_prob_bounds_exist specifies the probability of iterators being present in loop bounds, which decreases by half at each subsequent level in the loop nest.Here is 4, indicating that the probability of specified loop bounds is 40%.
-5. (*)arg_narrays_per_dim specifies the number of alternative arrays for both write and reads in each statement, which indicates the variety of arrays. Here is 2, indicating that the number of arrays available for selection in each array dimension is 2
-6. arg_narrays_read specifies the maximum number of reads to array per statement. Here is 2, indicating that the number of arrays read by each statement ranges from (0, 1, 2).
-7. arg_bounds_coef specifies the maximum absolute value of the bounds of constant coefficient for array indexes matrix. Here is 2, indicating that the range of constant coefficients for array subscripts is (-2, -1, 0, 1, 2).
-8. arg_ndeps_read specifies the maximum number of WAR and RAWdependence per statement. Here is 2, indicating that the number of read dependencies for each statement ranges from (0, 1, 2).
-9. arg_bounds_distance specifies the maximum absolute value of the bounds in each dimension of the dependence distance vector. Here is 2, indicating that the range of dependency distances is (-2, -1, 0, 1, 2).
-10. (*)arg_dep_write_exist specifies the probability that WAW dependence exists for each statement. Here is 4, indicating that the probability of write dependencies existing for each statement is 40%.
-11. id is 0, indicating that this is the first code generated in this batch using these parameters.
+`build_corpus.sh` runs:
+
+1. `python3 random_generation.py --option 2` — 34,992 parameter combinations x random instances
+   (JSON parameter models in `input/`, C programs in `poly_code/`);
+2. `python3 loop_transformation_classifier/optimization_and_analysis.py -dp ./poly_code -op . -pp ./Compilers/pluto_DA`
+   — PLuTo optimization (`-q --tile --parallel --custom-context --nocloogbacktrack`) and dataflow
+   reports (`pluto_code/`, `stdout/`);
+3. `python3 loop_transformation_classifier/classifier.py --target_path .` — transformation
+   detection (`classification_output.csv`);
+4. `python3 loop_transformation_classifier/rag_preparation.py -dp . -op . -d looprag` — the final
+   corpus JSON `looprag_<N>.json` (copy it into `LOOPRAG/data/raw_data/`).
+
+Generation is randomized (seed 0) and toolchain-dependent, so a re-run reproduces the same
+process and parameterization but not necessarily the byte-identical 135,364-file set.
+
+## Requirements
+
+- Linux with `gcc`, `autotools` (pluto build), `bash`, `python3`;
+- Python packages: `numpy`, `pandas`, `scipy` (scipy is used by `generate_json.py`).
+
+## Filename Encoding of Generated Codes
+
+Generated files are named by their parameter values, e.g. `2324222224_0.c`:
+
+| position | parameter | meaning (example value 2) |
+| --- | --- | --- |
+| 1 | `arg_depth` | maximum loop depth, range (1, 2) |
+| 2 | `arg_nstmts` | number of statements (3) |
+| 3 | `arg_bounds_index` | schedule index range (0..2), statement density |
+| 4 | `arg_prob_bounds_exist` | probability (%)/10 of specified loop bounds (4 = 40%) |
+| 5 | `arg_narrays_per_dim` | array alternatives per dimension (2) |
+| 6 | `arg_narrays_read` | max reads per statement (2) |
+| 7 | `arg_bounds_coef` | constant-coefficient bound for array indexes (2) |
+| 8 | `arg_ndeps_read` | max read dependencies per statement (2) |
+| 9 | `arg_bounds_distance` | dependence-distance bound per dimension (2) |
+| 10 | `arg_dep_write_exist` | probability (%)/10 of WAW dependence (4 = 40%) |
+| id | instance id | nth random instance for this parameter tuple |
+
+## Notes
+
+- `ISPASS_results/` and other analysis artifacts belong to the `main` development branch and are
+  not part of the LOOPRAG corpus pipeline.
+- The `v1.0.0` tag vendors the modified pluto as plain tracked files; the `ASPLOS26Summer`
+  branch replaces that with the submodule + patch setup.
