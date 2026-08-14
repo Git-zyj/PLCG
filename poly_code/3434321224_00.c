@@ -137,7 +137,7 @@ for (int k = 1; k < PB_N-1; k++) {
     for (int l = 0; l < k; l++) {
         B[k+1][l] = 3;
     }
-    for (int m = 0; m < PB_M-1; m++) {
+    for (int m = 0; m < PB_L-1; m++) {
         B[k+1][m+1] = B[k+1][m] + C[m+1][k] * B[m][m] * 3;
     }
     for (int n = 0; n < PB_M; n++) {

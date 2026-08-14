@@ -172,7 +172,7 @@ for (int i = 1; i < PB_L; i++) {
     }
 }
 for (int n = 0; n < PB_L; n++) {
-    for (int o = 2; o < PB_P; o++) {
+    for (int o = 2; o < PB_M; o++) {
         B[o] = A[o][n] * C[n] + 1;
         for (int p = 0; p < PB_L; p++) {
             B[o] = B[o-2] - B[o-1] - E[n][p][o] * 1;

@@ -233,7 +233,7 @@ for (int i = 2; i < PB_M; i++) {
         }
     }
     for (int l = 0; l < PB_L; l++) {
-        for (int m = 0; m < PB_Q; m++) {
+        for (int m = 0; m < PB_M; m++) {
             B[i][l][m] = C[m][l][i-1] * D[i][l] + 2;
         }
     }

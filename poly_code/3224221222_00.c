@@ -141,13 +141,13 @@ void kernel_3224221222_00(int xa,int ya,int za,DATA_TYPE POLYBENCH_3D(A,xA,yA,zA
 polybench_start_instruments;
 #pragma scop
 for (int i = 0; i < PB_L; i++) {
-    for (int j = 2; j < PB_Q; j++) {
+    for (int j = 2; j < PB_M; j++) {
         for (int k = 0; k < j; k++) {
             A[i][j][j] = A[i][j-2][j] + B[j][i][k] * 5;
         }
     }
 }
-for (int l = 0; l < PB_L; l++) {
+for (int l = 0; l < PB_M; l++) {
     for (int m = 1; m < PB_M; m++) {
         C[l] = C[l] - C[m-1] + D[m][l] - 5;
     }

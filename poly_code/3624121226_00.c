@@ -113,7 +113,7 @@ polybench_start_instruments;
 #pragma scop
 for (int i = 0; i < PB_Q-2; i++) {
     for (int j = 0; j < PB_L; j++) {
-        for (int k = 0; k < PB_Q; k++) {
+        for (int k = 0; k < PB_P; k++) {
             A[j][k][k] = 2;
         }
     }

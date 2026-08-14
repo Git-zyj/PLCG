@@ -104,7 +104,7 @@ for (int i = 0; i < PB_L-1; i++) {
         }
     }
 }
-for (int m = 1; m < PB_Q; m++) {
+for (int m = 1; m < PB_L; m++) {
     for (int n = 0; n < PB_L-1; n++) {
         A[n][m] = A[n+1][m] * A[m][n+1] * 4;
     }

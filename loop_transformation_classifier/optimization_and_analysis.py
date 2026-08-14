@@ -23,6 +23,10 @@ args = parser.parse_args()
 
 if args.output_path is None:
     args.output_path = args.dataset_path
+# The script chdir()s into tmp_files later; absolutize the paths so
+# relative -dp/-op values keep working after the chdir.
+args.dataset_path = os.path.abspath(args.dataset_path)
+args.output_path = os.path.abspath(args.output_path)
 
 code_source_files = [x for x in os.listdir(args.dataset_path) if x.endswith('.c')]
 
@@ -91,8 +95,10 @@ if __name__ == "__main__":
     pool.close()
     pool.join()
 
-    print("all:")
-    os.system(f'ls -l {args.dataset_path} | grep "^-" | wc -l')
-    print('optimized (unchecked):')
-    os.system(f'ls -l {pluto_code_path} | grep "^-" | wc -l')
+    n_all = sum(1 for x in os.listdir(args.dataset_path)
+                if os.path.isfile(os.path.join(args.dataset_path, x)))
+    n_opt = sum(1 for x in os.listdir(pluto_code_path)
+                if os.path.isfile(os.path.join(pluto_code_path, x)))
+    print(f"[optimization] generated code files: {n_all}")
+    print(f"[optimization] pluto-optimized codes: {n_opt}")
     # os.system(f'rsync -r --delete {empty_path}/ {tmp_path}/')

@@ -115,7 +115,7 @@ for (int i = 0; i < PB_M; i++) {
     A[i] = 2;
 }
 for (int j = 0; j < PB_P; j++) {
-    for (int k = 0; k < PB_L; k++) {
+    for (int k = 0; k < PB_M; k++) {
         for (int l = 0; l < PB_P; l++) {
             B[k][k][l] = C[l][k] * 4;
         }

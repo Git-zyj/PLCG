@@ -160,7 +160,7 @@ polybench_start_instruments;
 for (int i = 1; i < PB_M-1; i++) {
     A[i-1] = B[i] * B[i+1] - 1;
 }
-for (int j = 0; j < PB_P; j++) {
+for (int j = 0; j < PB_M; j++) {
     A[j] = A[j] + A[j] - B[j] * 6;
     for (int k = 1; k < PB_P; k++) {
         for (int l = 0; l < min(k,PB_L); l++) {

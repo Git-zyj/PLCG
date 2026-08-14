@@ -143,7 +143,7 @@ for (int i = 1; i < PB_P-1; i++) {
         B[k-1][i] = A[k][k] + A[k][i+1] + 5;
     }
 }
-for (int l = 1; l < PB_N; l++) {
+for (int l = 1; l < PB_M; l++) {
     C[l] = C[l] + 3;
     for (int m = 1; m < l; m++) {
         for (int n = 1; n < PB_M; n++) {

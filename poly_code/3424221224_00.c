@@ -172,7 +172,7 @@ for (int i = 0; i < PB_M; i++) {
     }
 }
 for (int l = 0; l < PB_M; l++) {
-    for (int m = 0; m < PB_M-1; m++) {
+    for (int m = 0; m < PB_L-1; m++) {
         for (int n = 2; n < PB_P-1; n++) {
             D[n][m][n] = D[n][m+1][n-2] + D[n][m][n+1] - B[n][n] - E[m+1][m][n] * 2;
         }

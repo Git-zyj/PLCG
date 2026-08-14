@@ -118,7 +118,7 @@ for (int i = 1; i < PB_L; i++) {
     for (int k = 0; k < i; k++) {
         A[i] = 3;
     }
-    for (int l = 3; l < PB_N; l++) {
+    for (int l = 3; l < PB_M; l++) {
         B[l][l-1] = B[l-1][l-1] * B[l][l-3] - B[i-1][l] - 3;
     }
 }

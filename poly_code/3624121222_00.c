@@ -127,7 +127,7 @@ for (int l = 0; l < PB_M; l++) {
     }
     C[l] = C[l] - C[l] + 6;
 }
-for (int o = 1; o < PB_L; o++) {
+for (int o = 1; o < PB_M; o++) {
     for (int p = -1; p < PB_M-1; p++) {
         C[p+1] = A[p+1][o] * A[o][o] * 5;
     }

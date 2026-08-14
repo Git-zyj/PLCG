@@ -27,7 +27,10 @@ DEPS_TARBALL="$ROOT/third_party/pluto_DA_deps.tar.gz"
 cd "$PLUTO_DIR"
 
 # 1) nested dependencies ------------------------------------------------
-if git submodule update --init --recursive 2>/dev/null; then
+if [ -f isl/include/isl/isl.h ] && [ -f clan/include/clan/clan.h ] \
+    && [ -f candl/include/candl/candl.h ] && [ -f openscop/include/osl/osl.h ]; then
+    echo "[setup] nested dependencies already present; skipping fetch"
+elif git submodule update --init --recursive 2>/dev/null; then
     echo "[setup] nested submodules initialized"
 else
     echo "[setup] nested submodules could not be fetched; using vendored snapshot"
@@ -39,6 +42,15 @@ else
         exit 1
     fi
 fi
+
+# 1b) normalize line endings --------------------------------------------
+# The vendored snapshot and Windows checkouts may carry CRLF, which breaks
+# shell scripts (and pluto's strcmp-based .h parsing). Convert text files.
+find . -type f -not -path "./.git/*" | while read -r f; do
+    if file "$f" | grep -qiE "text|script|empty"; then
+        sed -i 's/\r$//' "$f"
+    fi
+done
 
 # 2) apply the pluto_DA modifications -----------------------------------
 if git apply --reverse --check "$PATCH" 2>/dev/null; then

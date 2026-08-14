@@ -178,3 +178,17 @@ Compilers/
 Generation_*.py
 output/
 _fix.py
+
+# LOOPRAG corpus-pipeline outputs (generated, not committed)
+pluto_code/
+stdout/
+tmp_files/
+empty/
+test_smoke/
+looprag_*.json
+colagen_*.json
+classification_output.csv
+
+# Generated synthesis inputs/outputs
+poly_code/
+input/

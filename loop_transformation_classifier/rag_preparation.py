@@ -25,7 +25,7 @@ args = parser.parse_args()
 if args.output_path is None:
     args.output_path = args.dataset_path
 
-print(args.dataset)
+print(f"[rag_preparation] dataset: {args.dataset}")
 
 def for_loop_post_process(code):
     '''
@@ -121,8 +121,8 @@ if __name__ == "__main__":
         else:
             errors.append(res[1:])
 
-    print(len(contents))
-    print(len(errors))
+    print(f"[rag_preparation] examples with code+opt+info: {len(contents)}")
+    print(f"[rag_preparation] skipped examples: {len(errors)}")
     
     if args.dataset == "looprag":
         valuable_new = valuable[valuable['file_name'].isin(contents.keys())]
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         for _ in range(4):
             available.extend(valuable_new.drop_duplicates(subset='orig_file').file_name.to_list())
             valuable_new = valuable_new[valuable_new.duplicated(subset='orig_file')]
-            print(len(valuable_new), len(available))
+            print(f"[rag_preparation] dedup round {_ + 1}: remaining_duplicates={len(valuable_new)}, selected={len(available)}")
             
         available_contents = {key: contents[key] for key in available}
     elif args.dataset == "colagen":
@@ -142,6 +142,13 @@ if __name__ == "__main__":
     # date = datetime.datetime.now().strftime('%m%d')
     # json_name = f'{args.dataset}_{len(available_contents)}_{date}.json'
     json_name = f'{args.dataset}_{len(available_contents)}.json'
-    print(json_name)
+    print(f"[rag_preparation] writing {args.output_path}/{json_name}")
+    # remove stale empty corpus files (e.g. from an earlier run with 0 examples)
+    for old in os.listdir(args.output_path):
+        if old.startswith(f'{args.dataset}_') and old.endswith('.json'):
+            old_path = os.path.join(args.output_path, old)
+            if os.path.getsize(old_path) <= 2:
+                os.remove(old_path)
+
     with open(f'{args.output_path}/{json_name}', 'w') as fp:
         json.dump(list(available_contents.values()), fp)

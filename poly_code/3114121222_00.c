@@ -66,7 +66,7 @@ void kernel_3114121222_00(int xa,int ya,DATA_TYPE POLYBENCH_2D(A,xA,yA,xa,ya)){
 polybench_start_instruments;
 #pragma scop
 for (int i = 0; i < PB_L; i++) {
-    for (int j = 0; j < PB_L; j++) {
+    for (int j = 0; j < PB_M; j++) {
         A[j][j] = 2;
     }
 }

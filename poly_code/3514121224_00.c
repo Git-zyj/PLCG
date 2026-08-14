@@ -118,7 +118,7 @@ for (int i = 0; i < PB_L-2; i++) {
     }
     A[i] = A[i+2] + A[i+1] - A[i] + 6;
 }
-for (int k = 2; k < PB_L; k++) {
+for (int k = 2; k < PB_M; k++) {
     for (int l = 0; l < PB_Q; l++) {
         for (int m = 0; m < PB_M-2; m++) {
             B[m][k] = B[m+2][k] * B[m+2][k-2] * C[k][k+1][k] * C[k][m][l] * 4;

@@ -195,7 +195,7 @@ for (int i = 1; i < PB_L-3; i++) {
         }
     }
 }
-for (int n = 0; n < PB_L; n++) {
+for (int n = 0; n < PB_M; n++) {
     for (int o = 0; o < min(n,PB_N-1); o++) {
         A[o+1][n] = D[n] + B[n][o] * 1;
     }

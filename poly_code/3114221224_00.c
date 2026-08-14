@@ -101,7 +101,7 @@ void kernel_3114221224_00(int xa,int ya,int za,DATA_TYPE POLYBENCH_3D(A,xA,yA,zA
 polybench_start_instruments;
 #pragma scop
 for (int i = 1; i < PB_M; i++) {
-    for (int j = 0; j < PB_P; j++) {
+    for (int j = 0; j < PB_M; j++) {
         for (int k = 0; k < PB_P-1; k++) {
             A[i][j][k] = B[j][i-1][k+1] * B[i][k][j] + 4;
         }

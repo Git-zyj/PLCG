@@ -170,7 +170,7 @@ for (int i = 0; i < PB_L; i++) {
 }
 for (int k = 0; k < PB_P-1; k++) {
     for (int l = 0; l < k; l++) {
-        for (int m = 1; m < PB_P; m++) {
+        for (int m = 1; m < PB_M; m++) {
             C[l][m][k] = C[l+1][m][k] - C[l+2][m][k] * D[m][m-1][l+1] - E[l][k+1] - 2;
         }
     }

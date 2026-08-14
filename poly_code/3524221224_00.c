@@ -161,7 +161,7 @@ for (int j = 0; j < PB_M; j++) {
 }
 for (int l = 1; l < PB_P; l++) {
     for (int m = 1; m < l; m++) {
-        for (int n = 1; n < PB_N; n++) {
+        for (int n = 1; n < PB_M; n++) {
             C[m][n][l-1] = C[m][n-1][l-1] + D[n][m-1] + 6;
         }
     }

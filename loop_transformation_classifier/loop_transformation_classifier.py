@@ -85,13 +85,14 @@ class loop_transformation_classifiers:
         c_query_text = '''
         (assignment_expression [left: (subscript_expression)@1 right: (subscript_expression)@2])
         '''
-        c_query = C_LANGUAGE.query(c_query_text)
+        # modern tree-sitter: Language.query() was removed; use ts.Query
+        c_query = ts.Query(C_LANGUAGE, c_query_text)
 
         c_tree = c_parser.parse(bytes(self.c_codelet, "utf8"))
         c_tree_root = c_tree.root_node
 
-        # c_capture: list[Node, str]
-        c_capture = c_query.captures(c_tree_root)
+        # modern tree-sitter: query.captures() moved to QueryCursor; len == capture count
+        c_capture = list(ts.QueryCursor(c_query).captures(c_tree_root))
         # for node, alias in c_capture:
         #     print(node.type, alias)
         return len(c_capture)

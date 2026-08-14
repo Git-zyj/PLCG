@@ -186,7 +186,7 @@ for (int k = 0; k < PB_M-2; k++) {
 }
 for (int l = 1; l < PB_M-1; l++) {
     for (int m = 1; m < PB_L; m++) {
-        for (int n = 0; n < PB_P; n++) {
+        for (int n = 0; n < PB_M; n++) {
             E[n][m-1][m-1] = E[n][m-1][m-1] + E[n][m][m-1] - F[m-1][l-1][n] + 3;
         }
     }

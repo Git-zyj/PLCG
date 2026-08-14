@@ -207,7 +207,7 @@ for (int i = 1; i < PB_M; i++) {
     for (int j = 0; j < min(i,PB_M-1); j++) {
         A[i] = A[i] + B[i-1][j] - C[j+1][j] + 6;
     }
-    for (int k = 0; k < PB_L; k++) {
+    for (int k = 0; k < PB_M; k++) {
         B[k][k] = B[k][k] * D[i-1] + 1;
     }
 }

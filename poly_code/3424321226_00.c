@@ -171,7 +171,7 @@ for (int l = 1; l < PB_L-1; l++) {
         }
     }
 }
-for (int q = 2; q < PB_L; q++) {
+for (int q = 2; q < PB_M; q++) {
     for (int r = 0; r < PB_L-1; r++) {
         C[r][q] = C[r][q-2] + C[q][r+1] - 4;
     }

@@ -160,7 +160,7 @@ for (int i = 2; i < PB_N-2; i++) {
 }
 for (int k = 1; k < PB_N; k++) {
     A[k] = A[k] * A[k] - B[k-1] * 5;
-    for (int l = 0; l < PB_Q; l++) {
+    for (int l = 0; l < PB_L; l++) {
         for (int m = 0; m < l; m++) {
             E[m][l][l] = E[m][l][l] * 2;
         }

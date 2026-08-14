@@ -179,9 +179,9 @@ for (int i = 1; i < PB_P+1; i++) {
         A[j][i-1] = A[j][i-1] + 6;
     }
 }
-for (int k = 1; k < PB_L; k++) {
+for (int k = 1; k < PB_M; k++) {
     B[k] = C[k-1] + 6;
-    for (int l = 0; l < PB_L; l++) {
+    for (int l = 0; l < PB_M; l++) {
         for (int m = 1; m < PB_P-1; m++) {
             D[l][m-1][k] = E[k-1][m][l] - A[k][m+1] + 3;
         }

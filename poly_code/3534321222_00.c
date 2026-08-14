@@ -237,7 +237,7 @@ for (int i = 0; i < PB_M-1; i++) {
 }
 for (int j = 1; j < PB_L+1; j++) {
     for (int k = 1; k < PB_P; k++) {
-        for (int l = 1; l < PB_N-1; l++) {
+        for (int l = 1; l < PB_M-1; l++) {
             B[l-1][j][k-1] = C[l+1][k][k-1] + D[l+1][j-1][k] + 6;
         }
     }
