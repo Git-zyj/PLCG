@@ -14,8 +14,8 @@
 #   * after switching to a submodule branch: initialises the submodule, restores
 #     a matching cached build, resets tracked sources to the pinned commit and
 #     re-applies the LOOPRAG patch;
-#   * after switching to a vendored branch: drops leftovers that belong to the
-#     submodule build (they are in the cache if you want them back).
+#   * after switching to a vendored branch: drops submodule leftovers so the
+#     tree matches that branch (ignored build outputs are reported, not removed).
 #
 # Usage:  ./scripts/switch_branch.sh <branch>
 #
@@ -115,15 +115,21 @@ if uses_submodule; then
         echo "[switch] run ./scripts/setup_pluto_DA.sh (needs autoconf/automake/libtool)"
     fi
 else
-    # vendored layout: drop leftovers from the submodule build
-    if [ -e "$SUB/.git" ]; then
-        rm -f "$SUB/.git"
-        echo "[switch] removed the leftover submodule .git link"
-    fi
+    # vendored layout: drop leftovers that belong to the submodule layout
+    for leftover in .git .gitmodules; do
+        if [ -e "$SUB/$leftover" ]; then
+            rm -f "$SUB/$leftover"
+            echo "[switch] removed leftover $leftover from the submodule layout"
+        fi
+    done
     if [ -n "$(git clean -nd -- "$SUB" 2>/dev/null)" ]; then
-        echo "[switch] removing build leftovers that are not part of $TARGET:"
+        echo "[switch] removing untracked leftovers that are not part of $TARGET:"
         git clean -nd -- "$SUB" | sed 's/^/    /'
         git clean -fd -- "$SUB" >/dev/null
+    fi
+    if [ -n "$(git status --ignored --short -- "$SUB" 2>/dev/null | grep '^!!')" ]; then
+        echo "[switch] note: ignored build outputs from the other layout remain under $SUB"
+        echo "[switch]       (use 'git clean -fdx -- $SUB' if you want a pristine tree)"
     fi
 fi
 
