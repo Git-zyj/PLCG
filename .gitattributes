@@ -1,0 +1,18 @@
+# Line endings -----------------------------------------------------------------
+# This project is built on Linux/WSL only: pluto's autotools scripts, the shell
+# scripts under scripts/ and patches/*.patch must keep LF endings. Without this
+# Git for Windows (core.autocrlf=true by default) rewrites them to CRLF on
+# checkout, which breaks them with "bad interpreter: /bin/sh^M".
+* text=auto eol=lf
+
+# Binary assets that must never be line-ending converted.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.pdf   binary
+*.eps   binary
+*.gz    binary
+*.tgz   binary
+*.zip   binary
+*.pyc   binary
