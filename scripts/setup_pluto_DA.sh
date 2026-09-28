@@ -11,11 +11,16 @@
 #      if they cannot be fetched (some 0.11.4 pins live on repo.or.cz and are
 #      no longer advertised), it falls back to the vendored snapshot in
 #      third_party/pluto_DA_deps.tar.gz;
-#   2. applies patches/pluto_DA.patch (the custom-context / zyj-debug changes);
-#   3. builds pluto_DA;
-#   4. generates the multiprocessing-safe wrapper scripts
+#   2. normalizes CRLF line endings in the dependency trees (a Windows checkout
+#      or snapshot otherwise breaks autogen.sh with "bad interpreter: /bin/sh^M");
+#   3. applies patches/pluto_DA.patch (the custom-context / zyj-debug changes);
+#   4. regenerates the autotools files and builds pluto_DA;
+#   5. generates the multiprocessing-safe wrapper scripts
 #      (polycc_multiprocessing / inscop_multiprocessing) from the built
 #      polycc / inscop, so no hard-coded paths are shipped.
+#
+# Environment:
+#   PLCG_SKIP_AUTOGEN=1   skip step 4a (autotools regeneration)
 #
 set -euo pipefail
 
@@ -23,8 +28,23 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PLUTO_DIR="$ROOT/Compilers/pluto_DA"
 PATCH="$ROOT/patches/pluto_DA.patch"
 DEPS_TARBALL="$ROOT/third_party/pluto_DA_deps.tar.gz"
+DEPS="clan candl isl cloog-isl openscop piplib polylib"
 
 cd "$PLUTO_DIR"
+
+# pluto 0.11.4 only builds with LF endings: autogen.sh / ylwrap / configure
+# abort with "bad interpreter: /bin/sh^M" when they carry CRLF. The vendored
+# snapshot is packed with LF, but stay defensive in case it is ever regenerated
+# from a Windows checkout.
+normalize_deps_eol() {
+    local d
+    for d in $DEPS; do
+        [ -d "$d" ] || continue
+        find "$d" -type f -size -2M -print0 2>/dev/null \
+            | xargs -0 -r grep -IlZ $'\r' 2>/dev/null \
+            | xargs -0 -r sed -i 's/\r$//' || true
+    done
+}
 
 # 1) nested dependencies ------------------------------------------------
 if [ -f isl/include/isl/isl.h ] && [ -f clan/include/clan/clan.h ] \
@@ -43,14 +63,7 @@ else
     fi
 fi
 
-# 1b) normalize line endings --------------------------------------------
-# The vendored snapshot and Windows checkouts may carry CRLF, which breaks
-# shell scripts (and pluto's strcmp-based .h parsing). Convert text files.
-find . -type f -not -path "./.git/*" | while read -r f; do
-    if file "$f" | grep -qiE "text|script|empty"; then
-        sed -i 's/\r$//' "$f"
-    fi
-done
+normalize_deps_eol
 
 # 2) apply the pluto_DA modifications -----------------------------------
 if git apply --reverse --check "$PATCH" 2>/dev/null; then
@@ -61,9 +74,16 @@ else
 fi
 
 # 3) build ---------------------------------------------------------------
-if [ ! -x configure ]; then
+# Regenerate the autotools files for pluto *and* every dependency. Skipping
+# this when ./configure already exists is not safe: after the submodules (or
+# the vendored snapshot) have been refreshed, a stale aclocal.m4 / configure
+# coming from another machine fails at build time with
+# "libtool: Version mismatch error".
+if [ "${PLCG_SKIP_AUTOGEN:-0}" != "1" ]; then
+    echo "[setup] regenerating autotools files (pluto + dependencies)"
     ./autogen.sh
 fi
+
 ./configure
 make -j"$(nproc)"
 

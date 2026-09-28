@@ -85,6 +85,21 @@ git submodule update --init --recursive
 Generation is randomized (seed 0) and toolchain-dependent, so a re-run reproduces the same
 process and parameterization but not necessarily the byte-identical 135,364-file set.
 
+### Switching between branches
+
+`main` stores the modified PLuTo as plain tracked files, while `ASPLOS26Summer` keeps it as a
+submodule at the same path. A bare `git checkout` between the two therefore deletes the
+submodule checkout together with its build tree. Use the wrapper, which snapshots the built
+tree (keyed by the pinned pluto commit and patch revision) first and restores it afterwards:
+
+```bash
+./scripts/switch_branch.sh main          # or: ASPLOS26Summer
+./scripts/setup_pluto_DA.sh              # only needed when pluto_DA is not built yet
+```
+
+Line endings are pinned to LF by `.gitattributes`: pluto's autotools helpers and the scripts in
+`scripts/` abort with `bad interpreter: /bin/sh^M` when checked out with CRLF.
+
 ## Requirements
 
 - Linux with `gcc`, `autotools` (pluto build), `bash`, `python3`;
