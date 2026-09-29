@@ -150,49 +150,41 @@ class PlutoDriver:
         kernel_c = Path(kernel_c)
         out_c = Path(out_c)
         stdout_path = Path(stdout_path)
-        src_text = kernel_c.read_text(errors="surrogateescape")
 
-        # the wrapper re-runs pluto while the assembled kernel still has a scop
+        # Mirror the shell wrapper exactly: pluto is given the *caller's* output
+        # path (never an absolute temporary one), and while the assembled kernel
+        # still contains a scop the assembled file itself becomes the next
+        # input (the wrapper moves it over the source file).
         work = kernel_c
-        assembled: str | None = None
-        tmp_paths: list[Path] = []
-        try:
-            while True:
-                # mkstemp returns an open descriptor: close it right away, a
-                # leaked fd per kernel exhausts the process limit on big runs
-                fd, tmp_name = tempfile.mkstemp(
-                    prefix=f"{kernel_c.stem}.", suffix=".pluto.c", dir=out_c.parent
-                )
-                os.close(fd)
-                tmp_out = Path(tmp_name)
-                tmp_paths.append(tmp_out)
-                proc = subprocess.run(
-                    [str(self.pluto_bin), str(work), *options, "-o", str(tmp_out)],
-                    capture_output=True,
-                    text=True,
-                    timeout=timeout,
-                )
-                stdout_path.write_text(proc.stdout)
-                if proc.returncode != 0:
-                    raise PlutoDriverError(
-                        f"pluto failed (returncode={proc.returncode}): {proc.stderr.strip()}"
-                    )
-                pluto_text = tmp_out.read_text(errors="surrogateescape")
-                if not pluto_text.strip():
-                    raise PlutoDriverError("pluto produced an empty output file")
+        first_pass = True
+        while True:
+            proc = subprocess.run(
+                [str(self.pluto_bin), str(work), *options, "-o", str(out_c)],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+            # the wrapper redirects every pass to the same file descriptor
+            with open(stdout_path, "w" if first_pass else "a") as handle:
+                handle.write(proc.stdout)
+            first_pass = False
 
-                assembled = assemble_kernel(src_text, pluto_text, cc=self.cc)
-                out_c.write_text(assembled, errors="surrogateescape")
-                if not _SCOP_RE.search(assembled):
-                    return
-                # multi-scop kernel: feed the assembled code back through pluto
-                work = out_c
-        finally:
-            for path in tmp_paths:
-                try:
-                    path.unlink()
-                except OSError:
-                    pass
+            if proc.returncode != 0:
+                raise PlutoDriverError(
+                    f"pluto failed (returncode={proc.returncode}): {proc.stderr.strip()}"
+                )
+
+            pluto_text = out_c.read_text(errors="surrogateescape")
+            if not pluto_text.strip():
+                raise PlutoDriverError("pluto produced an empty output file")
+
+            # the skeleton is the *current* input (original first, assembled later)
+            skeleton = work.read_text(errors="surrogateescape")
+            assembled = assemble_kernel(skeleton, pluto_text, cc=self.cc)
+            out_c.write_text(assembled, errors="surrogateescape")
+            if not _SCOP_RE.search(assembled):
+                return
+            work = out_c
 
 
 def _parse_cli(argv: list[str]) -> tuple[list[str], Path]:

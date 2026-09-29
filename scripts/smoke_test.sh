@@ -36,10 +36,16 @@ grep -q '\[plcg-info\] After affine transformations' smoke_kernel.stdout \
 echo "smoke: cross-checking the python driver"
 python3 "$ROOT/scripts/pluto_driver.py" smoke_kernel.c -q --parallel --tile \
     --nocloogbacktrack --custom-context --plcg-info -o smoke_kernel.driver.pluto.c
-cmp -s smoke_kernel.pluto.c smoke_kernel.driver.pluto.c \
-    || { echo "smoke: driver output differs from the wrapper" >&2; exit 1; }
-cmp -s smoke_kernel.stdout smoke_kernel.driver.pluto.stdout \
-    || { echo "smoke: driver report differs from the wrapper" >&2; exit 1; }
+if ! cmp -s smoke_kernel.pluto.c smoke_kernel.driver.pluto.c; then
+    echo "smoke: driver output differs from the wrapper" >&2
+    diff -u smoke_kernel.pluto.c smoke_kernel.driver.pluto.c | head -40 >&2
+    exit 1
+fi
+if ! cmp -s smoke_kernel.stdout smoke_kernel.driver.pluto.stdout; then
+    echo "smoke: driver report differs from the wrapper" >&2
+    diff -u smoke_kernel.stdout smoke_kernel.driver.pluto.stdout | head -40 >&2
+    exit 1
+fi
 
 echo "smoke: OK"
 echo "  optimised code : $WORK/smoke_kernel.pluto.c ($(wc -l < smoke_kernel.pluto.c) lines)"
