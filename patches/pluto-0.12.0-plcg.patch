@@ -15,6 +15,30 @@ index 5eed0b2..6a65a95 100644
    /* fast linear independence check */
    int flic;
  };
+diff --git a/lib/program.cpp b/lib/program.cpp
+index 391f1f6..4d662e2 100644
+--- a/lib/program.cpp
++++ b/lib/program.cpp
+@@ -125,8 +125,18 @@ void pluto_stmt_print(FILE *fp, const Stmt *stmt) {
+   fprintf(fp, "S%d \"%s\"\n", stmt->id + 1, stmt->text);
+ 
+   fprintf(fp, "ndims: %d; orig_depth: %d\n", stmt->dim, stmt->dim_orig);
++  /* PLCG: the corpus pipeline parses the iterator names and the domain as a
++   * polylib matrix (see extraction_tools.py). */
++  fprintf(fp, "iterators: ");
++  for (unsigned j = 0; j < stmt->dim; j++) {
++    fprintf(fp, "%s", stmt->iterators[j]);
++    if (j + 1 < stmt->dim) {
++      fprintf(fp, ", ");
++    }
++  }
++  fprintf(fp, "\n");
+   fprintf(fp, "Index set\n");
+-  pluto_constraints_compact_print(fp, stmt->domain);
++  pluto_constraints_print_polylib(fp, stmt->domain);
+   pluto_stmt_transformation_print(stmt);
+ 
+   if (stmt->nreads == 0) {
 diff --git a/tool/main.cpp b/tool/main.cpp
 index bbd26d3..863630b 100644
 --- a/tool/main.cpp

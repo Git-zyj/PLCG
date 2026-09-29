@@ -5,6 +5,7 @@ pandas>=1.5
 scipy>=1.8
 matplotlib>=3.7
 dataclasses_json>=0.5
+bidict>=0.22
 
 # Notebooks (test.ipynb) - optional, uncomment when running them
 # jupyter>=1.0

@@ -64,7 +64,7 @@ def parse_arguments():
                        type=int, default=120)
     parser.add_argument("-c", "--command-options", dest="command_options",
                         help="options for pluto in command",
-                        type=str, default='-q --parallel --tile --nocloogbacktrack --plcg-info')
+                        type=str, default='-q --parallel --tile --nocloogbacktrack --custom-context --plcg-info')
     parser.add_argument("--batch-size", dest="batch_size", 
                        help="batch size to reduce memory usage", 
                        type=int, default=500)
