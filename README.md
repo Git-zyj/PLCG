@@ -1,153 +1,120 @@
-﻿# LoopRAG: Loop Transformation-Aware RAG Preprocessing
+# PLCG — Parameter-driven Loop Code Generator
 
-## Overview
+PLCG synthesizes large numbers of diverse, PolyBench-style C loop kernels (SCoPs) from a
+parameter-driven model of loop properties (loop depth, schedule, array accesses, dependencies),
+optimizes them with a PLCG-modified PLuTo and classifies the applied loop transformations. It is
+the corpus generator behind **LOOPRAG** ("Enhancing Loop Transformation Optimization with
+Retrieval-Augmented Large Language Models", ASPLOS 2026) and the basis of the ISPASS
+experiments.
 
-This project extracts loop-level features from optimized code (via PLuTo compiler) for RAG (Retrieval-Augmented Generation) preprocessing. It supports three benchmark datasets: **polybench** (looprag format), **tsvc**, and **lore**.
+This is the `main` development branch: newer generator code, the LOOPRAG/TSVC/LORE
+preprocessing tooling and the ISPASS-related analysis. For the frozen artifact that reproduces
+the LOOPRAG corpus, use `ASPLOS26Summer`.
 
-## Data Format: looprag
+## Branches
 
-The stdout format used by polybench, tsvc, and lore benchmarks is called the **looprag** format. Key characteristics:
+| branch | purpose |
+| --- | --- |
+| `main` | development: rewritten generator, dataset preprocessing (polybench / tsvc / lore), ISPASS experiments. Uses pluto **0.12.0**. |
+| `ASPLOS26Summer` | LOOPRAG artifact: the corpus-generation pipeline of `v1.0.0`, restructured for reproduction. Uses pluto **0.11.4**. |
+| `ISPASS26` | dataset-synthesis experiments for the ISPASS paper. |
+| `v1.0.0` | the exact version whose pipeline synthesized `looprag_135364.json`. |
 
-- Starts with `param_name:` / `param_val:` pairs (or `[zyj-debug]` prefix)
-- Uses `[zyj-debug] Before affine transformations` and `[zyj-debug] After affine transformations` markers
-- Contains `Read accesses` / `Write accesses` sections per statement
-- Dependencies in format: `--- Dep N from Sx to Sy; ... Type: RAW/WAR/WAW`
+## Repository Layout
 
-`extraction_tools.py` auto-detects the format when reading `.stdout` files.
+```text
+random_generation.py                  # step 1: parameter-driven synthesis
+loop_properties_generator.py          # parameter model -> loop properties
+c_code_generator.py                   # loop properties -> PolyBench-style C kernels
+optimization_and_analysis.py          # step 2: PLCG pluto optimisation + dataflow reports
+loop_transformation_classifier.py     # step 3: loop-transformation detection
+rag_preprocess.py                     # step 4: retrieval-corpus preparation
+info_preprocess.py                    # dataset feature extraction (polybench / tsvc / lore)
+extraction_tools.py                   # looprag stdout parsing helpers
+Generation*.py                        # orchestrators (default, 349920-combination, YARPGen)
+polybench/                            # PolyBench header/utilities used by the kernels
+Compilers/pluto/                      # submodule: upstream pluto 0.12.0 + PLCG patch
+patches/pluto-0.12.0-plcg.patch       # the PLCG modifications to pluto
+scripts/setup_pluto.sh                # build pluto + render the pipeline wrappers
+scripts/run_pipeline.sh               # corpus pipeline, four stages
+scripts/smoke_test.sh                 # toolchain health check
+scripts/reproduce.sh                  # docker entry point for all of the above
+scripts/package_deps.sh               # snapshot pluto's dependencies for offline builds
+tests/smoke/                          # kernel used by the smoke test
+```
 
-## Quick Start
+Generated artefacts (regenerated on every run, not tracked): `examples/` (synthesised kernels,
+optimised code, dataflow reports, classification CSV, corpus JSON).
 
-### 1. Info Preprocessing (extract features from benchmarks)
+## The PLCG PLuTo
+
+`Compilers/pluto` is a git submodule pinned to upstream
+[bondhugula/pluto](https://github.com/bondhugula/pluto) **0.12.0** (`a18ffa03`). The PLCG
+modifications are kept as `patches/pluto-0.12.0-plcg.patch` and touch only two files:
+
+- `include/pluto/pluto.h` — the `plcg_info` / `custom_context` options;
+- `tool/main.cpp` — `get_params_info()` (parameter bounds read from `<kernel>.h`), the
+  `--custom-context` and `--plcg-info` flags, and the `[plcg-info]` before/after reports.
+
+`scripts/setup_pluto.sh` fetches pluto's nested dependencies (isl, cloog-isl, piplib, polylib,
+candl, clan, openscop, pet), applies the patch, builds, and renders the two wrappers used by the
+pipeline — `polycc_parallel` and `inscop_parallel` — with the paths of the local checkout
+(nothing is hard-coded, and the build works on any machine).
+
+## Quickstart (docker)
+
+The whole toolchain lives in the image: autotools/gmp/mpfr for pluto and the Python stack for
+the pipeline. The host only needs docker.
 
 ```bash
-# Polybench dataset
-python info_preprocess.py \
-    --dataset-type polybench \
-    --benchmark-list D:\looprag\data\raw_data\benchmark\polybench\utilities\benchmark_list \
-    --pluto-code-dir D:\looprag\data\pluto_code\polybench_pluto_code \
-    --raw-data-dir D:\looprag\data\raw_data\benchmark\polybench \
-    --dataset LARGE_DATASET \
-    -o ./output
-
-# TSVC dataset
-python info_preprocess.py \
-    --dataset-type tsvc \
-    --benchmark-list D:\looprag\data\raw_data\benchmark\tsvc\benchmark_list \
-    --pluto-code-dir D:\looprag\data\pluto_code\tsvc_pluto_code \
-    --raw-data-dir D:\looprag\data\raw_data\benchmark\tsvc \
-    -o ./output
-
-# LORE dataset
-python info_preprocess.py \
-    --dataset-type lore \
-    --benchmark-list D:\looprag\data\raw_data\benchmark\LORE_artificial\benchmark_list \
-    --pluto-code-dir D:\looprag\data\pluto_code\lore_pluto_code \
-    --raw-data-dir D:\looprag\data\raw_data\benchmark\LORE_artificial \
-    -o ./output
+./scripts/reproduce.sh image      # build the image (once)
+./scripts/reproduce.sh smoke      # build pluto + run the smoke test
+./scripts/reproduce.sh pipeline   # full corpus pipeline (synthesis -> pluto -> classification -> corpus)
+./scripts/reproduce.sh shell      # interactive shell in the container
 ```
 
-**Output:** JSON files with `feature_info` and `property_info` (before/after affine transformations).
-
-### 2. Code Synthesis (for plcg dataset)
+Without docker (any Linux with autotools, gmp, mpfr, flex/bison, python3):
 
 ```bash
-python ./Generation.py
+python3 -m pip install -r requirements.txt
+./scripts/setup_pluto.sh
+./scripts/smoke_test.sh
+./scripts/run_pipeline.sh --gen-option 2
 ```
 
-**Output:**
-- Intermediate JSON files: `./examples/input/`
-- Code and header files: `./examples/poly_code/`
+## Pipeline Stages
 
-### 3. Post-Synthesis Processing
+1. `python3 random_generation.py --option 2` — parameter-driven kernel synthesis; parameter JSONs
+   in `examples/input/`, C programs in `examples/poly_code/`;
+2. `python3 optimization_and_analysis.py` — PLCG pluto optimisation
+   (`-q --parallel --tile --nocloogbacktrack --plcg-info`) and dataflow reports
+   (`examples/pluto_code/`, `examples/stdout/`);
+3. `python3 loop_transformation_classifier.py` — transformation detection
+   (`examples/classification_output.csv`);
+4. `python3 rag_preprocess.py` — retrieval corpus (`examples/*.json`).
 
-#### 3.1 Code Optimization & Analysis
+Dataset preprocessing (polybench / tsvc / lore) runs through `info_preprocess.py`; see the
+usage below the `Quick Start`-style examples in the file's docstring.
+
+## Verification
+
 ```bash
-python ./optimization_and_analysis.py
-```
-**Output:**
-- Optimized code (.pluto.c): `./examples/pluto_code/`
-- Data flow info (.stdout): `./examples/stdout/`
-
-#### 3.2 Loop Transformation Classification
-```bash
-python ./loop_transformation_classifier.py
-```
-**Output:** `./examples/classification_output.csv`
-
-#### 3.3 Feature Extraction & Selection
-```bash
-python ./rag_preprocess.py
-```
-**Output:** `./examples/plcg-v2_xxx.json`
-
-## Module Reference
-
-### `extraction_tools.py`
-Core extraction class. Key methods:
-- `extract_stdout_from_file(stdout_path)` -- Auto-detects format (plcg vs looprag) and extracts iterators, statements, dependencies, schedules, loop types, statement arrays, and global params
-- `extract_loop_bounds_from_codelet(c_codelet, original_stmts)` -- Extracts loop nest bounds from C code, supporting if-conditions
-- `get_all_info(stdout_path, h_file_path, ...)` -- Full pipeline: extracts stdout info, computes feature matrices, extracts loop bounds, and builds property_info dict
-- `get_info(stdout_path)` -- Simplified: just extracts feature_info from stdout
-
-### `resolve_global_params.py`
-Parameter resolvers for different benchmark datasets:
-- `PolybenchResolver` -- Resolves `_PB_*` params from `.h` files with `#ifdef DATASET` blocks
-- `TsvcResolver` -- Resolves params from `common.h` with simple `#define` values
-- `LoreResolver` -- Resolves params from `/* start param define */` blocks in `.c` files
-
-### `info_preprocess.py`
-Extracts feature_info and property_info from benchmark codelets without classification or dataset filtering. Supports `--dataset-type` flag for polybench, tsvc, and lore.
-
-### `rag_preprocess.py`
-Full RAG preprocessing pipeline: loads classification data, filters datasets by transformation types, extracts features, and outputs JSON.
-
-### `loop_transformation_classifier.py`
-Classifies loop transformations applied by PLuTo (tiling, interchange, skewing, fusion, distribution, reverse, shifting).
-
-## Dataset Directory Structure
-
-```
-D:\looprag\data\
-├── raw_data\benchmark\
-│   ├── polybench\              # .c + .h files, utilities/benchmark_list
-│   ├── tsvc\                   # cfiles/*.c, cfiles/common.h, benchmark_list
-│   └── LORE_artificial\        # subdirs/*.c, lore.h, benchmark_list
-└── pluto_code\
-    ├── polybench_pluto_code\   # stdout/, pluto_code/
-    ├── tsvc_pluto_code\        # stdout/, pluto_code/
-    └── lore_pluto_code\        # stdout/, pluto_code/
+./scripts/reproduce.sh patch    # the PLCG patch still applies to a pristine pluto 0.12.0
+python3 -m compileall -q .      # python sources
+./scripts/smoke_test.sh         # builds on a tiny kernel: asserts .pluto.c and both
+                                # [plcg-info] before/after reports are produced
 ```
 
-## Compilation Commands
+CI runs the patch check and the smoke test on every push (`.github/workflows/ci.yml`).
 
-### Basic Compilation (No Monitoring)
-```bash
-gcc -O3 -fopenmp examples/poly_code/{filename}.c examples/poly_code/polybench.c \
-    -I examples/poly_code -lm -o examples/execution/{filename}.out
-```
+## Reproduction Scope
 
-### With Execution Time Reporting
-```bash
-gcc -O3 -fopenmp examples/poly_code/{filename}.c examples/poly_code/polybench.c \
-    -I examples/poly_code -lm -DPOLYBENCH_TIME -o examples/execution/{filename}.out
-```
-
-## File Naming & Parameters (plcg dataset)
-
-**Example:** `2324222224_00.c`
-
-| # | Parameter | Value | Description |
-|---|---|---|---|
-| 1* | `arg_depth` | 2 | Max loop depth of SCoP |
-| 2* | `arg_nstmts` | 3 | Number of statements |
-| 3* | `arg_bounds_index` | 2 | Max loop branches per level |
-| 4 | `arg_prob_bounds_exist` | 4 | Probability of iterators in bounds: 40% |
-| 5* | `arg_narrays_per_dim` | 2 | Alternative arrays per dimension |
-| 6 | `arg_avg_narrays_read_per_stmt` | 2 | Avg array reads per statement |
-| 7 | `arg_bounds_coef` | 2 | Max coefficient for array indexes |
-| 8 | `arg_avg_ndeps_read_per_stmt` | 2 | Avg WAR/RAW deps per statement |
-| 9 | `arg_bounds_distance` | 2 | Max dependence distance |
-| 10* | `arg_dep_write_exist` | 4 | Probability of WAW dep: 40% |
-| 11 | `id` | 00 | First code in batch |
-
-*Core parameters
+- Synthesis is randomized (seed 0) and toolchain-dependent: a re-run reproduces the same
+  process and parameterization, not a byte-identical corpus.
+- The historical artefacts that used to live in `examples/` and `baselines/` were moved out of
+  this repository (they are outputs, not sources). Backups live in
+  `D:\plcg_local_backup\<date>\` on the development machine; restore with
+  `tar -xzf examples.tar.gz -C .` when comparing against old runs.
+- Building requires autotools, gmp, mpfr, flex/bison (image: `Dockerfile`); the pluto
+  dependencies can be fetched as submodules or from the snapshot produced by
+  `scripts/package_deps.sh`.
