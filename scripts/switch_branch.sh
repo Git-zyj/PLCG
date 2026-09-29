@@ -140,16 +140,21 @@ for path in $SUBMODULES; do
         fi
     elif [ -e "$path" ]; then
         # path exists but is not a submodule on this branch: drop leftovers
-        for leftover in .git .gitmodules; do
-            if [ -e "$path/$leftover" ]; then
-                rm -f "$path/$leftover"
-                echo "[switch] removed leftover $path/$leftover"
+        if [ -z "$(git ls-files -- "$path")" ]; then
+            echo "[switch] removing $path (not tracked on $TARGET)"
+            rm -rf "$path"
+        else
+            for leftover in .git .gitmodules; do
+                if [ -e "$path/$leftover" ]; then
+                    rm -f "$path/$leftover"
+                    echo "[switch] removed leftover $path/$leftover"
+                fi
+            done
+            if [ -n "$(git clean -nd -- "$path" 2>/dev/null)" ]; then
+                echo "[switch] removing untracked leftovers under $path:"
+                git clean -nd -- "$path" | sed 's/^/    /'
+                git clean -fd -- "$path" >/dev/null
             fi
-        done
-        if [ -n "$(git clean -nd -- "$path" 2>/dev/null)" ]; then
-            echo "[switch] removing untracked leftovers under $path:"
-            git clean -nd -- "$path" | sed 's/^/    /'
-            git clean -fd -- "$path" >/dev/null
         fi
     fi
 done
