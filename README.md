@@ -93,6 +93,17 @@ python3 -m pip install -r requirements.txt
    (`examples/classification_output.csv`);
 4. `python3 rag_preprocess.py` — retrieval corpus (`examples/*.json`).
 
+`scripts/run_pipeline.sh` drives all four stages (`--gen-option`, `--dataset`,
+`--jobs`, `--driver`). Stage 2 runs pluto through `scripts/pluto_driver.py` by
+default: it calls the `tool/pluto` binary directly and re-assembles the kernel
+skeleton in Python (one pluto + one `gcc -E` per kernel instead of the ~20
+helper forks of the shell wrapper), which is ~1.6x faster per kernel and keeps
+`--driver wrapper` available as the reference implementation.
+
+```bash
+./scripts/compare_drivers.sh examples/poly_code   # driver vs wrapper, byte-for-byte
+```
+
 Dataset preprocessing (polybench / tsvc / lore) runs through `info_preprocess.py`; see the
 usage below the `Quick Start`-style examples in the file's docstring.
 
