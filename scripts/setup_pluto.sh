@@ -29,22 +29,28 @@ DEPS="isl cloog-isl piplib polylib candl clan openscop pet"
 
 cd "$PLUTO_DIR"
 
-# pluto 0.12.0's configure insists on LLVM FileCheck for its test-suite; the
-# binary usually lives outside PATH (e.g. /usr/lib/llvm-14/bin/FileCheck).
-ensure_filecheck() {
-    command -v FileCheck >/dev/null 2>&1 && return 0
-    local d
-    for d in /usr/lib/llvm-*/bin /usr/local/opt/llvm/bin; do
-        if [ -x "$d/FileCheck" ]; then
-            export PATH="$d:$PATH"
-            echo "[setup] using FileCheck from $d"
-            return 0
-        fi
+# pluto 0.12.0 needs one LLVM toolchain that provides *all* of: llvm-config
+# (for pet), FileCheck (for the test-suite) and the clang headers
+# (clang/Basic/SourceLocation.h). Machines often ship several versions and
+# `llvm-config` may resolve to a version without headers (e.g. LLVM 13 on the
+# GitHub runners), so pick one explicitly and pin LLVM_CONFIG.
+select_llvm_toolchain() {
+    local d prefix
+    for d in /usr/lib/llvm-*/bin /usr/local/opt/llvm/bin /opt/homebrew/opt/llvm/bin; do
+        [ -x "$d/llvm-config" ] || continue
+        prefix="${d%/bin}"
+        [ -f "$prefix/include/clang/Basic/SourceLocation.h" ] || continue
+        [ -x "$d/FileCheck" ] || command -v FileCheck >/dev/null 2>&1 || continue
+        export PATH="$d:$PATH"
+        export LLVM_CONFIG="$d/llvm-config"
+        echo "[setup] using LLVM toolchain: $prefix ($($d/llvm-config --version))"
+        return 0
     done
-    echo "[setup] WARNING: LLVM FileCheck not found; ./configure may refuse to run" >&2
+    echo "[setup] WARNING: no LLVM toolchain with llvm-config + clang headers found." >&2
+    echo "[setup]          install e.g. 'llvm llvm-14-tools llvm-14-dev clang libclang-14-dev'." >&2
 }
 
-ensure_filecheck
+select_llvm_toolchain
 
 normalize_deps_eol() {
     local d
