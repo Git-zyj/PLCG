@@ -42,10 +42,11 @@ echo "[2/4] PLCG pluto optimisation + dataflow reports"
 python3 "$ROOT/optimization_and_analysis.py" -i "$DATASET" -o "$DATASET" -p "$PLUTO"
 
 echo "[3/4] loop-transformation classification"
-python3 "$ROOT/loop_transformation_classifier.py" -i "$DATASET" -o "$DATASET"
+python3 "$ROOT/loop_transformation_classifier.py" -i "$DATASET" \
+    -o classification_output.csv
 
 echo "[4/4] RAG corpus preparation"
 python3 "$ROOT/rag_preprocess.py" -i "$DATASET" -o "$DATASET" \
-    -c "$DATASET/classification_output.csv"
+    -c classification_output.csv
 
 echo "[pipeline] done; artefacts under $DATASET"
