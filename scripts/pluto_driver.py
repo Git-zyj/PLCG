@@ -61,6 +61,13 @@ def _split_head_tail(src_text: str):
     return head, tail
 
 
+def _strip_trailing_blank(lines: list[str]) -> list[str]:
+    """``$(...)`` in the shell drops trailing newlines: mimic that per section."""
+    while lines and lines[-1] == "":
+        lines.pop()
+    return lines
+
+
 def _preprocess_body(body_lines: list[str], cc: str = "gcc") -> list[str]:
     """`gcc -E -P -CC -nostdinc` over the generated body, as the wrapper does."""
     with tempfile.NamedTemporaryFile("w", suffix=".body.c", delete=False) as handle:
@@ -123,6 +130,13 @@ def assemble_kernel(src_text: str, pluto_text: str, cc: str = "gcc") -> str:
 
     if not any(_OMP_INCLUDE in line for line in includes):
         includes.append(_OMP_INCLUDE)
+
+    # the shell echoes four command substitutions, each of which lost its
+    # trailing blank lines - keep the same shape byte for byte
+    includes = _strip_trailing_blank(includes)
+    init = _strip_trailing_blank(init)
+    body = _strip_trailing_blank(body)
+    tail = _strip_trailing_blank(tail)
 
     sections = "\n".join(includes) + "\n" + "\n".join(init) + "\n" + "\n".join(body) + "\n" + "\n".join(tail) + "\n"
     return sections
