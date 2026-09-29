@@ -158,9 +158,13 @@ class PlutoDriver:
         tmp_paths: list[Path] = []
         try:
             while True:
-                tmp_out = Path(
-                    tempfile.mkstemp(prefix=f"{kernel_c.stem}.", suffix=".pluto.c", dir=out_c.parent)[1]
+                # mkstemp returns an open descriptor: close it right away, a
+                # leaked fd per kernel exhausts the process limit on big runs
+                fd, tmp_name = tempfile.mkstemp(
+                    prefix=f"{kernel_c.stem}.", suffix=".pluto.c", dir=out_c.parent
                 )
+                os.close(fd)
+                tmp_out = Path(tmp_name)
                 tmp_paths.append(tmp_out)
                 proc = subprocess.run(
                     [str(self.pluto_bin), str(work), *options, "-o", str(tmp_out)],

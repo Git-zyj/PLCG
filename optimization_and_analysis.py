@@ -246,7 +246,7 @@ class PlutoBatchOptimizer:
         try:
             self.driver.run(source_file, target_file, stdout_file,
                             command_options, timeout=self.args.timeout)
-        except subprocess.TimeoutExpired:
+        except sp.TimeoutExpired:
             return source_name, 'timeout', f"timeout after {self.args.timeout}s"
         except PlutoDriverError as e:
             return source_name, 'fail', f"pluto failed: {e}"
@@ -304,7 +304,9 @@ class PlutoBatchOptimizer:
                 except Exception as e:
                     batch_fail += 1
                     file_name = self.get_filename_without_extension(file)
-                    self.logger.error(f"✗ {file_name}: future exception - {str(e)}")
+                    self.logger.error(
+                        f"✗ {file_name}: future exception - {type(e).__name__}: {e}"
+                    )
 
         finally:
             if original_cwd is not None:

@@ -32,6 +32,15 @@ grep -q '\[plcg-info\] Before affine transformations' smoke_kernel.stdout \
 grep -q '\[plcg-info\] After affine transformations' smoke_kernel.stdout \
     || { echo "smoke: missing 'After' report" >&2; exit 1; }
 
+# the fast driver must produce exactly the same two files as the wrapper
+echo "smoke: cross-checking the python driver"
+python3 "$ROOT/scripts/pluto_driver.py" smoke_kernel.c -q --parallel --tile \
+    --nocloogbacktrack --custom-context --plcg-info -o smoke_kernel.driver.pluto.c
+cmp -s smoke_kernel.pluto.c smoke_kernel.driver.pluto.c \
+    || { echo "smoke: driver output differs from the wrapper" >&2; exit 1; }
+cmp -s smoke_kernel.stdout smoke_kernel.driver.pluto.stdout \
+    || { echo "smoke: driver report differs from the wrapper" >&2; exit 1; }
+
 echo "smoke: OK"
 echo "  optimised code : $WORK/smoke_kernel.pluto.c ($(wc -l < smoke_kernel.pluto.c) lines)"
 echo "  dataflow report: $WORK/smoke_kernel.stdout ($(wc -l < smoke_kernel.stdout) lines)"
