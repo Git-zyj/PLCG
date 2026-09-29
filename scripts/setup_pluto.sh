@@ -57,18 +57,27 @@ normalize_deps_eol() {
 }
 
 # 1) dependencies --------------------------------------------------------
-if [ -f isl/include/isl/isl.h ] && [ -d clan ] && [ -d pet ]; then
+# deps_present also checks *nested* submodules: the pins of e.g.
+# cloog-isl/isl and pet/isl are no longer advertised by their remotes, so a
+# recursive fetch can fail halfway and leave an incomplete tree behind.
+deps_present() {
+    [ -d isl ] && [ -d clan ] && [ -d pet ] \
+        && [ -d clan/osl ] && [ -d candl/osl ] \
+        && [ -d cloog-isl/isl ] && [ -d pet/isl ]
+}
+
+if deps_present; then
     echo "[setup] dependency trees already present; skipping fetch"
-elif git submodule update --init --recursive 2>/dev/null; then
+elif git submodule update --init --recursive 2>/dev/null && deps_present; then
     echo "[setup] initialising pluto dependencies: $DEPS"
     echo "[setup] nested submodules initialized"
 else
-    echo "[setup] nested submodules could not be fetched; using vendored snapshot"
     if [ -f "$DEPS_TARBALL" ]; then
+        echo "[setup] using the vendored dependency snapshot ($DEPS_TARBALL)"
         tar -xzf "$DEPS_TARBALL"
     else
-        echo "ERROR: vendored dependency snapshot not found: $DEPS_TARBALL" >&2
-        echo "Provide the pluto 0.12.0 submodules manually and retry." >&2
+        echo "ERROR: nested submodules are incomplete and no vendored snapshot" >&2
+        echo "       was found at $DEPS_TARBALL" >&2
         exit 1
     fi
 fi

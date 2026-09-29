@@ -22,13 +22,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          # Only pluto itself: the pins of pluto's nested submodules
+          # (e.g. cloog-isl/isl) are no longer advertised by their remotes, so
+          # a recursive fetch fails. scripts/setup_pluto.sh fetches what it can
+          # and falls back to third_party/pluto-0.12.0-deps.tar.gz.
+          submodules: true
+          fetch-depth: 0
       - name: Install build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential autoconf automake libtool pkg-config \
-            libgmp-dev libmpfr-dev flex bison texinfo python3 python3-pip
+            libgmp-dev libmpfr-dev flex bison texinfo \
+            llvm llvm-14-tools llvm-14-dev clang clang-14 libclang-14-dev \
+            python3 python3-pip
       - name: Install python dependencies
         run: python3 -m pip install -r requirements.txt
       - name: Build pluto + wrappers
