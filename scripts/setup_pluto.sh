@@ -27,6 +27,22 @@ WRAPPER_DIR="$ROOT/scripts/wrappers"
 DEPS_TARBALL="$ROOT/third_party/pluto-0.12.0-deps.tar.gz"
 DEPS="isl cloog-isl piplib polylib candl clan openscop pet"
 
+# Containers usually run as a different user than the one that owns the mount,
+# which makes git refuse to work ("dubious ownership"). Scope the override to
+# this script instead of touching the caller's git configuration.
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0=safe.directory
+export GIT_CONFIG_VALUE_0='*'
+
+# A plain `git clone` leaves the submodule empty.
+if [ ! -e "$PLUTO_DIR/.git" ]; then
+    echo "[setup] initialising the Compilers/pluto submodule"
+    git -C "$ROOT" submodule update --init -- Compilers/pluto || {
+        echo "ERROR: could not initialise Compilers/pluto (pluto 0.12.0)" >&2
+        exit 1
+    }
+fi
+
 cd "$PLUTO_DIR"
 
 # pluto 0.12.0 needs one LLVM toolchain that provides *all* of: llvm-config

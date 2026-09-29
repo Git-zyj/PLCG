@@ -1,0 +1,14 @@
+# The image only needs requirements.txt (see Dockerfile); keep the build
+# context small - the pluto submodule checkout alone is ~100 MB.
+.git
+.gitmodules
+Compilers
+examples
+baselines
+output
+third_party
+ISPASS_results
+**/__pycache__
+*.pyc
+*.ipynb
+*.stdout
