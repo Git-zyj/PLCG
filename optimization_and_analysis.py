@@ -10,7 +10,8 @@ import sys
 import signal
 import json
 
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor, as_completed,
+                                wait, FIRST_COMPLETED)
 
 from path_settings import PROJECT_PATH, DATASET_PATH
 
@@ -19,6 +20,7 @@ from path_settings import PROJECT_PATH, DATASET_PATH
 sys.path.insert(0, os.path.join(PROJECT_PATH, 'scripts'))
 from pluto_driver import PlutoDriver, PlutoDriverError  # noqa: E402
 import machine_profile  # noqa: E402
+from pluto_driver import driver_task  # noqa: E402
 
 
 def _is_nonempty(path) -> bool:
@@ -85,6 +87,9 @@ def parse_arguments():
     parser.add_argument("--skip-existing", dest="skip_existing", action="store_true",
                        help="skip kernels whose .pluto.c/.stdout already exist (resume a long run); "
                             "implies --no-clean. Outputs are deterministic for a given kernel.")
+    parser.add_argument("--chunk-size", dest="chunk_size", type=int, default=8,
+                       help="kernels per worker task on the python driver path; larger chunks "
+                            "amortise process and gcc start-up, smaller chunks balance load")
     parser.add_argument("-c", "--command-options", dest="command_options",
                         help="options for pluto in command",
                         type=str, default='-q --parallel --tile --nocloogbacktrack --custom-context --plcg-info')
@@ -145,10 +150,10 @@ class PlutoBatchOptimizer:
         # the polycc_parallel shell wrapper (one pluto + one gcc per kernel
         # instead of ~20 helper forks)
         self.driver = None
+        self.pluto_dir = os.path.dirname(os.path.abspath(self.args.pluto_path))
         if getattr(self.args, "driver", "python") == "python":
-            pluto_dir = os.path.dirname(os.path.abspath(self.args.pluto_path))
             try:
-                self.driver = PlutoDriver(pluto_dir)
+                self.driver = PlutoDriver(self.pluto_dir)
             except PlutoDriverError as exc:
                 self.logger.warning(
                     f"python driver unavailable ({exc}); falling back to the shell wrapper"
@@ -340,66 +345,15 @@ class PlutoBatchOptimizer:
         if self.manifest_lines % 256 == 0:
             self.manifest_handle.flush()
 
-    def process_batch(self, batch_files, executor):
-        """处理一个批次的文件（executor 在整个运行期间复用）"""
-        batch_success = 0
-        batch_fail = 0  
-        batch_skip = 0
-        batch_timeout = 0
-        
-        self.logger.info(f"Processing batch with {len(batch_files)} files...")
-
-        # the shell wrapper needs a shared temp cwd; the python driver does not
-        original_cwd = None
-        if self.driver is None:
-            original_cwd = os.getcwd()
-            os.chdir(self.tmp_path)
-
-        task = self.pluto_transformation_driver if self.driver is not None \
-            else self.pluto_transformation_single
-
+    def wrapper_task(self, source_file):
+        """Run the shell wrapper in the shared temp directory (per worker)."""
+        original_cwd = os.getcwd()
+        os.chdir(self.tmp_path)
         try:
-            future_to_file = {executor.submit(task, file): file for file in batch_files}
-
-            report_every = max(1, len(batch_files) // 4)
-            for i, future in enumerate(as_completed(future_to_file), 1):
-                file = future_to_file[future]
-
-                try:
-                    file_name, status, message, seconds = future.result()
-                    self.record_manifest(file_name, status, seconds, message)
-
-                    if status == 'success':
-                        batch_success += 1
-                    elif status == 'skipped':
-                        batch_skip += 1
-                    elif status == 'timeout':
-                        batch_timeout += 1
-                        self.logger.info(f"⌛ {file_name}: {message}")
-                    elif status == 'fail':
-                        batch_fail += 1
-                        self.logger.info(f"✗ {file_name}: {message}")
-                    else:
-                        batch_fail += 1
-                        self.logger.error(f"— {file_name}: unexpected condition: {message}")
-
-                    if i % report_every == 0:
-                        progress = i / len(batch_files) * 100
-                        self.logger.info(f"Batch progress: {i}/{len(batch_files)} ({progress:.1f}%)")
-
-                except Exception as e:
-                    batch_fail += 1
-                    file_name = self.get_filename_without_extension(file)
-                    self.logger.error(
-                        f"✗ {file_name}: future exception - {type(e).__name__}: {e}"
-                    )
-
+            return self.pluto_transformation_single(source_file)
         finally:
-            if original_cwd is not None:
-                os.chdir(original_cwd)
+            os.chdir(original_cwd)
 
-        return batch_success, batch_fail, batch_skip, batch_timeout
-    
     def run_optimization(self):
         """运行批量优化过程"""
         try:
@@ -419,51 +373,116 @@ class PlutoBatchOptimizer:
         
         start_time = time.time()
 
-        # one pool for the whole run: recreating it per batch re-imports pandas
-        # (~170 ms/worker) and re-spawns every worker
-        executor_class = ThreadPoolExecutor if self.driver is not None else ProcessPoolExecutor
-        engine = "python driver (threads)" if self.driver is not None else "shell wrapper (processes)"
-        self.logger.info(f"Engine: {engine}, workers: {self.args.num_processes}")
+        files = [f for batch in batches for f in batch]
+        if self.skip_existing:
+            before = len(files)
+            files = [f for f in files if not self.already_done(f)]
+            if before != len(files):
+                self.logger.info(f"resume: {before - len(files)} kernels already done, "
+                                 f"{len(files)} left")
+        total_files = len(files) or total_files
 
-        executor = executor_class(max_workers=self.args.num_processes)
+        # chunks amortise process pickling and let one gcc serve many kernels;
+        # a sliding window keeps every worker busy (no per-batch barrier)
+        chunk_size = max(1, self.args.chunk_size) if self.driver is not None else 1
+        chunks = [files[i:i + chunk_size] for i in range(0, len(files), chunk_size)]
+        engine = ("python driver (chunked processes)" if self.driver is not None
+                  else "shell wrapper (processes)")
+        self.logger.info(f"Engine: {engine}, workers: {self.args.num_processes}, "
+                         f"chunks: {len(chunks)} x {chunk_size}")
+
+        options = self.args.command_options.split() if self.args.command_options else []
+        executor = ProcessPoolExecutor(max_workers=self.args.num_processes)
+        done_kernels = 0
+        last_report = time.time()
         try:
             self.manifest_handle = open(self.manifest_path, 'a', encoding='utf-8')
-            for i, batch in enumerate(batches, 1):
-                batch_start_time = time.time()
+            pending = {}
+            queue = iter(chunks)
 
-                self.logger.info(f"\n--- Processing Batch {i}/{len(batches)} ---")
+            def submit_next():
+                chunk = next(queue, None)
+                if chunk is None:
+                    return False
+                if self.driver is not None:
+                    items = []
+                    for source_file in chunk:
+                        name = self.get_filename_without_extension(source_file)
+                        items.append((
+                            source_file,
+                            os.path.join(self.pluto_code_path, f'{name}.pluto.c'),
+                            os.path.join(self.stdout_path, f'{name}.stdout'),
+                        ))
+                    future = executor.submit(driver_task, self.pluto_dir, items,
+                                             options, self.args.timeout, self.driver.cc)
+                else:
+                    future = executor.submit(self.wrapper_task, chunk[0])
+                pending[future] = chunk
+                return True
 
-                try:
-                    batch_success, batch_fail, batch_skip, batch_timeout = self.process_batch(batch, executor)
+            for _ in range(max(4, self.args.num_processes * 4)):
+                if not submit_next():
+                    break
 
-                    self.success_count += batch_success
-                    self.fail_count += batch_fail
-                    self.skip_count += batch_skip
-                    self.timeout_count += batch_timeout
+            while pending:
+                finished, _ = wait(list(pending), return_when=FIRST_COMPLETED)
+                for future in finished:
+                    chunk = pending.pop(future)
+                    try:
+                        results = future.result()
+                    except Exception as e:
+                        results = [(self.get_filename_without_extension(f), 'fail',
+                                    f"future exception - {type(e).__name__}: {e}", 0.0)
+                                   for f in chunk]
+                    if not isinstance(results, list):
+                        results = [results]
+                    for name, status, message, seconds in results:
+                        self.record_result(name, status, message, seconds)
+                        done_kernels += 1
+                    submit_next()
 
-                    batch_time = time.time() - batch_start_time
-                    batch_total = len(batch)
-
-                    self.logger.info(f"Batch {i} completed: "
-                                   f"Success: {batch_success}/{batch_total}, "
-                                   f"Fail: {batch_fail}, Timeout: {batch_timeout}, "
-                                   f"Time: {batch_time:.1f}s")
-
-                except Exception as e:
-                    self.logger.error(f"Batch {i} failed: {e}")
-                    self.fail_count += len(batch)
-
-                gc.collect()
+                if done_kernels and time.time() - last_report > 15:
+                    elapsed = time.time() - start_time
+                    rate = done_kernels / elapsed if elapsed else 0
+                    self.logger.info(
+                        f"progress: {done_kernels}/{len(files)} kernels "
+                        f"({rate:.1f}/s, success={self.success_count}, fail={self.fail_count}, "
+                        f"timeout={self.timeout_count}, skipped={self.skip_count})")
+                    last_report = time.time()
+                    gc.collect()
         finally:
             if self.manifest_handle is not None:
                 self.manifest_handle.flush()
                 self.manifest_handle.close()
                 self.manifest_handle = None
             executor.shutdown(wait=True)
-        
+
         total_time = time.time() - start_time
         self.log_manifest_summary()
         self.generate_final_report(total_time, total_files)
+
+    def already_done(self, source_file) -> bool:
+        """Has this kernel already been optimized (manifest or artefacts)?"""
+        name = self.get_filename_without_extension(source_file)
+        if name in self.manifest_done:
+            return True
+        target = os.path.join(self.pluto_code_path, f'{name}.pluto.c')
+        stdout = os.path.join(self.stdout_path, f'{name}.stdout')
+        return _is_nonempty(target) and _is_nonempty(stdout)
+
+    def record_result(self, name, status, message, seconds):
+        """Update the counters and the manifest for one finished kernel."""
+        if status == 'success':
+            self.success_count += 1
+        elif status == 'timeout':
+            self.timeout_count += 1
+            self.logger.info(f"⌛ {name}: {message}")
+        elif status == 'skipped':
+            self.skip_count += 1
+        else:
+            self.fail_count += 1
+            self.logger.info(f"✗ {name}: {message}")
+        self.record_manifest(name, status, seconds, message)
 
     def log_manifest_summary(self):
         """Log per-status counts and duration percentiles from the manifest."""

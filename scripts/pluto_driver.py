@@ -27,9 +27,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
-__all__ = ["PlutoDriver", "assemble_kernel", "PlutoDriverError"]
+__all__ = ["PlutoDriver", "assemble_kernel", "PlutoDriverError", "driver_task"]
 
 # the shell wrapper matches "#pragma<space>+scop" / "#pragma<space>+endscop"
 _SCOP_RE = re.compile(r"#pragma[ \t]+scop")
@@ -75,6 +76,82 @@ def _substitute_markers(lines: list[str]) -> list[str]:
     return out
 
 
+def _body_is_batchable(lines: list[str]) -> bool:
+    """A body may share a gcc invocation when it cannot define/leak macros."""
+    for line in lines:
+        if line.startswith("#") and not line.startswith("#pragma"):
+            return False
+        if line.endswith("\\"):
+            return False
+    return True
+
+
+def _batch_preprocess(bodies: dict[str, list[str]], cc: str = "gcc",
+                      batch: int = 16) -> dict[str, list[str]]:
+    """Preprocess many bodies with few gcc calls.
+
+    Bodies that cannot leak macros into each other are concatenated with
+    ``/*__PLCG_SPLIT_<i>__*/`` markers (``-CC`` keeps comments) and split again
+    afterwards; this was verified to reproduce the per-body output exactly.
+    """
+    processed: dict[str, list[str]] = {}
+    group: list[tuple[str, list[str]]] = []
+
+    def flush() -> None:
+        if not group:
+            return
+        parts: list[str] = []
+        for idx, (_, lines) in enumerate(group):
+            parts.append(f"/*__PLCG_SPLIT_{idx}__*/")
+            parts.extend(lines)
+        with tempfile.NamedTemporaryFile("w", suffix=".c", delete=False) as handle:
+            handle.write("\n".join(parts) + "\n")
+            path = handle.name
+        try:
+            proc = subprocess.run([cc, "-E", "-P", "-CC", "-nostdinc", path],
+                                  capture_output=True, text=True)
+            if proc.returncode != 0:
+                raise PlutoDriverError(f"batched preprocessor failed: {proc.stderr.strip()}")
+            current: str | None = None
+            for line in proc.stdout.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("/*__PLCG_SPLIT_") and stripped.endswith("__*/"):
+                    idx = int(stripped[len("/*__PLCG_SPLIT_"):-len("__*/")])
+                    current = group[idx][0]
+                    processed[current] = []
+                    continue
+                if current is None or _LINE_MARKER_RE.match(line):
+                    continue
+                line = line.replace("__bee_schedule", "#pragma schedule")
+                if "_NL_DELIMIT_" in line:
+                    line = line.replace("_NL_DELIMIT_", "\n", 1)
+                processed[current].extend(line.split("\n"))
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        group.clear()
+
+    for name, lines in bodies.items():
+        if _body_is_batchable(lines):
+            group.append((name, lines))
+            if len(group) >= batch:
+                flush()
+        else:
+            processed[name] = _preprocess_body(lines, cc=cc)
+    flush()
+    return processed
+
+
+def driver_task(pluto_dir: str, items: list[tuple[str, str, str]],
+                options: list[str], timeout: int | None = None,
+                cc: str = "gcc") -> list[tuple[str, str, str, float]]:
+    """Top-level entry point for a process pool: optimise one chunk."""
+    driver = PlutoDriver(pluto_dir, cc=cc)
+    return driver.run_chunk(items, options, timeout)
+
+
 def _strip_trailing_blank(lines: list[str]) -> list[str]:
     """``$(...)`` in the shell drops trailing newlines: mimic that per section."""
     while lines and lines[-1] == "":
@@ -112,6 +189,13 @@ def assemble_kernel(src_text: str, pluto_text: str, cc: str = "gcc") -> str:
     include de-duplication, the ceild/floord/max/min fall-backs and the final
     ``echo`` of every section (each section is terminated by a newline).
     """
+    body_lines = [line for line in pluto_text.splitlines() if not line.startswith("#include")]
+    body = _preprocess_body(body_lines, cc=cc)
+    return _assemble_from_parts(src_text, pluto_text, body)
+
+
+def _assemble_from_parts(src_text: str, pluto_text: str, body: list[str]) -> str:
+    """Join skeleton + already-preprocessed body (inscop's final `echo`s)."""
     head, tail = _split_head_tail(src_text)
 
     includes: list[str] = []
@@ -119,15 +203,9 @@ def assemble_kernel(src_text: str, pluto_text: str, cc: str = "gcc") -> str:
     for line in head:
         (includes if line.startswith("#include") else init).append(line)
 
-    # one pass over pluto's output: split into includes (de-duplicated, like
-    # `awk '!x[$0]++'`) and the body that inscop preprocesses
-    body_lines: list[str] = []
     for line in pluto_text.splitlines():
-        if line.startswith("#include"):
-            if line not in includes:
-                includes.append(line)
-        else:
-            body_lines.append(line)
+        if line.startswith("#include") and line not in includes:
+            includes.append(line)
 
     if not any(_MATH_INCLUDE in line for line in includes):
         includes.append(_MATH_INCLUDE)
@@ -137,8 +215,6 @@ def assemble_kernel(src_text: str, pluto_text: str, cc: str = "gcc") -> str:
 
     if not any("#define max(x,y)" in line for line in init):
         includes.extend([_MAX_DEFINE, _MIN_DEFINE])
-
-    body = _preprocess_body(body_lines, cc=cc)
 
     if not any(_OMP_INCLUDE in line for line in includes):
         includes.append(_OMP_INCLUDE)
@@ -173,6 +249,92 @@ class PlutoDriver:
         timeout: int | None = None,
     ) -> None:
         """Optimise one kernel; writes ``out_c`` and ``stdout_path``."""
+        for _, status, message, _ in self.run_chunk(
+                [(kernel_c, out_c, stdout_path)], options, timeout):
+            if status == "success":
+                return
+            if status == "timeout":
+                raise subprocess.TimeoutExpired(cmd=str(self.pluto_bin), timeout=timeout or 0)
+            raise PlutoDriverError(message)
+
+    def run_chunk(
+        self,
+        items: list[tuple[str | os.PathLike, str | os.PathLike, str | os.PathLike]],
+        options: list[str],
+        timeout: int | None = None,
+    ) -> list[tuple[str, str, str, float]]:
+        """Optimise a *chunk* of kernels in one worker.
+
+        Returns ``(name, status, message, seconds)`` per kernel. Running a chunk
+        per worker amortises the process pickling and lets the bodies of the
+        whole chunk share a single ``gcc`` invocation.
+        """
+        results: list[tuple[str, str, str, float]] = []
+        assembled: list[tuple[str, str, str, str, float]] = []
+
+        for kernel_c, out_c, stdout_path in items:
+            name = Path(kernel_c).stem
+            started = time.perf_counter()
+            try:
+                pluto_text = self._run_pluto_once(kernel_c, out_c, stdout_path, options, timeout)
+            except subprocess.TimeoutExpired:
+                results.append((name, "timeout", f"timeout after {timeout}s", time.perf_counter() - started))
+                continue
+            except PlutoDriverError as exc:
+                results.append((name, "fail", str(exc), time.perf_counter() - started))
+                continue
+            assembled.append((name, str(kernel_c), str(out_c), pluto_text, started))
+
+        if assembled:
+            results.extend(self._assemble_many(assembled, options=options, timeout=timeout))
+
+        return results
+
+    def _run_pluto_once(self, kernel_c, out_c, stdout_path, options, timeout) -> str:
+        """Run pluto writing to the caller's ``-o`` path; returns its raw output."""
+        proc = subprocess.run(
+            [str(self.pluto_bin), str(kernel_c), *options, "-o", str(out_c)],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        Path(stdout_path).write_text(proc.stdout)
+        if proc.returncode != 0:
+            raise PlutoDriverError(
+                f"pluto failed (returncode={proc.returncode}): {proc.stderr.strip()}"
+            )
+        pluto_text = Path(out_c).read_text(errors="surrogateescape")
+        if not pluto_text.strip():
+            raise PlutoDriverError("pluto produced an empty output file")
+        return pluto_text
+
+    def _assemble_many(self, assembled, options, timeout) -> list[tuple[str, str, str, float]]:
+        """Assemble the collected pluto outputs, batching the gcc calls."""
+        results: list[tuple[str, str, str, float]] = []
+        bodies: dict[str, list[str]] = {}
+        for name, kernel_c, out_c, pluto_text, _ in assembled:
+            bodies[name] = [line for line in pluto_text.splitlines()
+                            if not line.startswith("#include")]
+
+        # one gcc call per group of bodies that cannot leak macros into each other
+        batched = _batch_preprocess(bodies, cc=self.cc)
+
+        for name, kernel_c, out_c, pluto_text, started in assembled:
+            try:
+                skeleton = Path(kernel_c).read_text(errors="surrogateescape")
+                text = _assemble_from_parts(skeleton, pluto_text, batched[name])
+                Path(out_c).write_text(text, errors="surrogateescape")
+                if _SCOP_RE.search(text):
+                    # multi-scop kernel: fall back to the faithful per-kernel loop
+                    self.run(kernel_c, out_c, out_c + ".stdout", options, timeout)
+                results.append((name, "success", "optimization successful",
+                                time.perf_counter() - started))
+            except Exception as exc:  # pragma: no cover - defensive
+                results.append((name, "fail", f"assembly failed: {exc}",
+                                time.perf_counter() - started))
+        return results
+
+    def _legacy_run(self, kernel_c, out_c, stdout_path, options, timeout=None) -> None:
         kernel_c = Path(kernel_c)
         out_c = Path(out_c)
         stdout_path = Path(stdout_path)
