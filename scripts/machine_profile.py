@@ -19,9 +19,12 @@ import os
 __all__ = ["cpu_count", "available_memory_gb", "recommend", "describe"]
 
 CPU_BOUND_CAP = 16
-SUBPROCESS_CAP = 64
+SUBPROCESS_CAP = 32
 SUBPROCESS_FACTOR = 2
-MEM_PER_WORKER_GB = 1.5
+
+# rough per-worker memory footprints: a python worker with numpy/pandas, and a
+# thread that only owns a pluto/gcc child process
+MEM_PER_WORKER_GB = {"cpu": 0.75, "subprocess": 0.5}
 
 
 def cpu_count() -> int:
@@ -57,7 +60,7 @@ def recommend(kind: str = "cpu", override: int | None = None) -> int:
 
     mem = available_memory_gb()
     if mem is not None:
-        workers = min(workers, max(1, int(mem // MEM_PER_WORKER_GB)))
+        workers = min(workers, max(1, int(mem // MEM_PER_WORKER_GB.get(kind, 1.0))))
     return max(1, workers)
 
 
