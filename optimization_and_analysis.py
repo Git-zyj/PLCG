@@ -160,6 +160,17 @@ class PlutoBatchOptimizer:
         self.args.num_processes = machine_profile.recommend(kind, override)
         self.logger.info(f"workers: {machine_profile.describe(kind, override)}")
 
+    def __getstate__(self):
+        """Drop the open manifest handle before pickling.
+
+        The process pool (``--driver wrapper``) pickles this object for every
+        task, and an open file cannot be pickled; the handle is only used by
+        the parent process anyway.
+        """
+        state = self.__dict__.copy()
+        state['manifest_handle'] = None
+        return state
+
     def setup_paths(self):
         """设置所有路径"""
         self.base_dir = os.path.abspath(self.args.dataset_path)

@@ -1,3 +1,67 @@
+diff --git a/Makefile.am b/Makefile.am
+index 154dffd..51ec882 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -16,7 +16,13 @@ ISL_INCLUDE += -I$(top_srcdir)/isl/include -I$(top_builddir)/isl/include
+ ISL_LIBADD += $(top_builddir)/isl/libisl.la
+ endif
+ 
+-SUBDIRS = piplib $(MAY_ISL) lib polylib openscop cloog-isl clan candl pet tool
++if ENABLE_PET
++MAY_PET = pet
++else
++MAY_PET =
++endif
++
++SUBDIRS = piplib $(MAY_ISL) lib polylib openscop cloog-isl clan candl $(MAY_PET) tool
+ 
+ ACLOCAL_AMFLAGS = -I m4
+ 
+diff --git a/configure.ac b/configure.ac
+index 68ab796..334b9cd 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -71,6 +71,20 @@ AC_ARG_ENABLE(debug,
+ 
+ AM_CONDITIONAL(PLUTO_DEBUG, test x$debug = xtrue)
+ 
++dnl ---------------------------------------------------------------
++dnl pet front-end (clang/LLVM based).  The PLCG corpus pipeline feeds
++dnl C kernels through clan, never through pet, and pet drags in libLLVM
++dnl (~14 ms of process start-up per pluto invocation).  Off by default;
++dnl use --enable-pet for the upstream configuration.
++dnl ---------------------------------------------------------------
++AC_ARG_ENABLE(pet,
++              [  --enable-pet  build the pet front-end (needs LLVM/clang; default: off)],
++              [], [enable_pet=no])
++AM_CONDITIONAL(ENABLE_PET, test x$enable_pet = xtrue)
++if test x$enable_pet = xtrue; then
++    AC_DEFINE([PLUTO_HAVE_PET], 1, [Define when pluto is built with the pet front-end])
++fi
++
+ if test x$debug = x"true"; then
+     CXXFLAGS="$CXXFLAGS -g -O0"
+     CFLAGS="$CFLAGS -g -O0"
+@@ -310,7 +324,9 @@ configureopts="--with-gmp=system \
+ )
+ fi
+ 
+-dnl Configure PET
++dnl Configure PET (only when enabled, see --enable-pet above)
++if test x$enable_pet = xtrue; then
++
+ echo -e "\n=========================="
+ echo "Configuring PET"
+ echo "=========================="
+@@ -327,6 +343,8 @@ fi
+ dnl check if pet configure had failed
+ AC_CHECK_FILE([pet/Makefile], [], [AC_MSG_ERROR([configure in pet/ failed])])
+ 
++fi
++
+ dnl Configuring Cloog 0.14.1 (long long int)
+ echo ""
+ echo "=========================="
 diff --git a/include/pluto/pluto.h b/include/pluto/pluto.h
 index 5eed0b2..6a65a95 100644
 --- a/include/pluto/pluto.h
@@ -39,11 +103,78 @@ index 391f1f6..4d662e2 100644
    pluto_stmt_transformation_print(stmt);
  
    if (stmt->nreads == 0) {
+diff --git a/tool/Makefile.am b/tool/Makefile.am
+index 877cdd8..5f2354d 100644
+--- a/tool/Makefile.am
++++ b/tool/Makefile.am
+@@ -15,6 +15,16 @@ endif
+ 
+ bin_PROGRAMS = pluto
+ 
++if ENABLE_PET
++PET_SOURCES = pet_to_pluto.cpp
++PET_CPPFLAGS = -I$(top_srcdir)/pet/include
++PET_LDADD = ../pet/libpet.la
++else
++PET_SOURCES =
++PET_CPPFLAGS =
++PET_LDADD =
++endif
++
+ pluto_SOURCES = \
+ 		ast_transform.h \
+ 		ast_transform.c \
+@@ -22,8 +32,8 @@ pluto_SOURCES = \
+ 		constraints_polylib.h \
+ 		main.cpp \
+ 		osl_pluto.c \
+-		pet_to_pluto.cpp \
+ 		pluto_codegen_if.c \
++		$(PET_SOURCES) \
+ 		version.h
+ 
+ pluto_CXXFLAGS = $(OPT_FLAGS) $(DEBUG_FLAGS) \
+@@ -33,7 +43,7 @@ pluto_CXXFLAGS = $(OPT_FLAGS) $(DEBUG_FLAGS) \
+    -I$(top_srcdir)/piplib/include \
+    -I../clan/include \
+    -I$(top_srcdir)/clan/include \
+-   -I$(top_srcdir)/pet/include \
++   $(PET_CPPFLAGS) \
+    $(ISL_INCLUDE) \
+    -I../cloog-isl/include \
+    -I$(top_srcdir)/cloog-isl/include \
+@@ -59,5 +69,5 @@ pluto_LDADD =  \
+    ../lib/libpluto.la \
+    $(ISL_LIBADD) \
+    ../piplib/libpiplib_dp.la \
+-   ../pet/libpet.la \
++   $(PET_LDADD) \
+    -lm
 diff --git a/tool/main.cpp b/tool/main.cpp
-index bbd26d3..863630b 100644
+index bbd26d3..60d3d51 100644
 --- a/tool/main.cpp
 +++ b/tool/main.cpp
-@@ -179,6 +179,107 @@ static double rtclock() {
+@@ -25,7 +25,9 @@
+ 
+ #include "math_support.h"
+ #include "osl_pluto.h"
++#ifdef PLUTO_HAVE_PET
+ #include "pet_to_pluto.h"
++#endif
+ #include "pluto.h"
+ #include "pluto/pluto.h"
+ #include "post_transform.h"
+@@ -38,7 +40,9 @@
+ #include "osl/extensions/irregular.h"
+ #include "osl/scop.h"
+ 
++#ifdef PLUTO_HAVE_PET
+ #include "pet.h"
++#endif
+ 
+ void usage_message(void) {
+   fprintf(stdout, "Usage: polycc <input.c> [options] [-o output]\n");
+@@ -179,6 +183,107 @@ static double rtclock() {
    return (Tp.tv_sec + Tp.tv_usec * 1.0e-6);
  }
  
@@ -151,7 +282,7 @@ index bbd26d3..863630b 100644
  int main(int argc, char *argv[]) {
    if (argc <= 1) {
      usage_message();
-@@ -271,6 +372,8 @@ int main(int argc, char *argv[]) {
+@@ -271,6 +376,8 @@ int main(int argc, char *argv[]) {
  #endif
      {"islsolve", no_argument, &options->islsolve, 1},
      {"time", no_argument, &options->time, 1},
@@ -160,7 +291,34 @@ index bbd26d3..863630b 100644
      {0, 0, 0, 0}
    };
  
-@@ -623,6 +726,58 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+@@ -547,6 +654,15 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+   double t_d;
+ 
+   /* Extract polyhedral representation from input program */
++#ifndef PLUTO_HAVE_PET
++  if (options->pet) {
++    fprintf(stderr,
++            "pluto was built without pet support; rebuild with --enable-pet\n");
++    pluto_options_free(options);
++    return 12;
++  }
++#endif
++#ifdef PLUTO_HAVE_PET
+   if (options->pet) {
+     // Extract using PET.
+     isl_ctx *pctx = isl_ctx_alloc_with_pet_options();
+@@ -573,7 +689,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+       fprintf(srcfp, "%s\n", srcFileName);
+       fclose(srcfp);
+     }
+-  } else {
++  } else
++#endif
++  {
+     // Extract polyhedral representation using Clan.
+     FILE *src_fp;
+     if (!strcmp(srcFileName, "stdin")) {
+@@ -623,6 +741,58 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
        clan_options_free(clanOptions);
      }
  
@@ -219,7 +377,7 @@ index bbd26d3..863630b 100644
      /* Convert clan scop to Pluto program */
      prog = osl_scop_to_pluto_prog(scop, context);
  
-@@ -654,6 +809,24 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+@@ -654,6 +824,24 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
      pluto_iss_dep(prog);
    }
  
@@ -244,7 +402,7 @@ index bbd26d3..863630b 100644
    double t_start = rtclock();
    /* Auto transformation */
    if (!options->identity) {
-@@ -703,6 +876,13 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+@@ -703,6 +891,13 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
  
    double t_c = 0.0;
  

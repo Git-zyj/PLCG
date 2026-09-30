@@ -61,6 +61,14 @@ candl, clan, openscop, pet), applies the patch, builds, and renders the two wrap
 pipeline — `polycc_parallel` and `inscop_parallel` — with the paths of the local checkout
 (nothing is hard-coded, and the build works on any machine).
 
+**pet is disabled by default.** The pipeline feeds C kernels through clan and never through
+pet, and a pet-enabled pluto links `libLLVM-14`, which alone costs ~14 ms of start-up for every
+pluto invocation (measured: bare binary 0.9 ms, +libLLVM 13.8 ms; pluto `--version` 15.7 ms).
+The patch therefore adds `--enable-pet` (default off); build with
+`PLCG_PLUTO_WITH_PET=1 ./scripts/setup_pluto.sh` for the upstream configuration. The pet-less
+binary is 13.7 MB instead of 57 MB, links no LLVM, and produces byte-identical results on the
+reference corpus.
+
 ## Quickstart (docker)
 
 The whole toolchain lives in the image: autotools/gmp/mpfr for pluto and the Python stack for

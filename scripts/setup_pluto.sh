@@ -25,7 +25,19 @@ PLUTO_DIR="$ROOT/Compilers/pluto"
 PATCH="$ROOT/patches/pluto-0.12.0-plcg.patch"
 WRAPPER_DIR="$ROOT/scripts/wrappers"
 DEPS_TARBALL="$ROOT/third_party/pluto-0.12.0-deps.tar.gz"
-DEPS="isl cloog-isl piplib polylib candl clan openscop pet"
+DEPS="isl cloog-isl piplib polylib candl clan openscop"
+
+# The corpus pipeline feeds C kernels through clan, never through pet, and a
+# pet-enabled pluto links libLLVM (measured ~14 ms of extra start-up per
+# invocation). pet is therefore off unless PLCG_PLUTO_WITH_PET=1.
+WANT_PET="${PLCG_PLUTO_WITH_PET:-0}"
+if [ "$WANT_PET" = "1" ]; then
+    DEPS="$DEPS pet"
+    CONFIGURE_FLAGS="--enable-pet"
+    echo "[setup] pet front-end requested (PLCG_PLUTO_WITH_PET=1)"
+else
+    CONFIGURE_FLAGS="--disable-pet"
+fi
 
 # Containers usually run as a different user than the one that owns the mount,
 # which makes git refuse to work ("dubious ownership"). Scope the override to
@@ -80,12 +92,13 @@ normalize_deps_eol() {
 
 # 1) dependencies --------------------------------------------------------
 # deps_present also checks *nested* submodules: the pins of e.g.
-# cloog-isl/isl and pet/isl are no longer advertised by their remotes, so a
-# recursive fetch can fail halfway and leave an incomplete tree behind.
+# cloog-isl/isl are no longer advertised by their remotes, so a recursive fetch
+# can fail halfway and leave an incomplete tree behind. The pet tree is only
+# required when the pet front-end is enabled.
 deps_present() {
-    [ -d isl ] && [ -d clan ] && [ -d pet ] \
-        && [ -d clan/osl ] && [ -d candl/osl ] \
-        && [ -d cloog-isl/isl ] && [ -d pet/isl ]
+    [ -d isl ] && [ -d clan ] && [ -d clan/osl ] && [ -d candl/osl ] \
+        && [ -d cloog-isl/isl ] \
+        && { [ "$WANT_PET" != "1" ] || [ -d pet/isl ]; }
 }
 
 if deps_present; then
@@ -120,7 +133,7 @@ if [ "${PLCG_SKIP_AUTOGEN:-0}" != "1" ]; then
     ./autogen.sh
 fi
 
-./configure
+./configure $CONFIGURE_FLAGS
 # TEXI2DVI/MAKEINFO are neutralised: the nested dependency cloog-isl builds
 # texinfo documentation as part of `all`, which would otherwise pull in a full
 # TeX installation that the pipeline never uses.
