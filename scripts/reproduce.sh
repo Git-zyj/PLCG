@@ -18,6 +18,19 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE="${PLCG_IMAGE:-plcg:latest}"
 
+# Docker bind-mounts pass straight through to the host filesystem: a checkout
+# on a Windows drive (drvfs/9p) or on macOS (virtiofs/gRPC-FUSE) makes the
+# per-kernel file I/O ~30% slower than a Linux-native filesystem, inside the
+# container just as much as outside it. Warn instead of silently paying it.
+case "$(stat -f -c %T "$ROOT" 2>/dev/null || echo unknown)" in
+    v9fs|9p|drvfs|virtiofs|fuse*|smb*|cifs|ntfs*|msdos)
+        echo "[reproduce] note: $ROOT is on a non-native filesystem" >&2
+        echo "[reproduce]       (measured: identical stage-2 run 21.6s on ext4 vs 28.6s on drvfs)" >&2
+        echo "[reproduce]       for large corpora keep the checkout inside WSL/Linux (or a docker" >&2
+        echo "[reproduce]       volume); see 'Filesystem' in the README." >&2
+        ;;
+esac
+
 docker_run() {
     docker run --rm -v "$ROOT":/workspace -w /workspace "$IMAGE" "$@"
 }

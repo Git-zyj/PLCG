@@ -147,6 +147,21 @@ Both changes were verified byte-identical against the previous implementation.
 Dataset preprocessing (polybench / tsvc / lore) runs through `info_preprocess.py`; see the
 usage below the `Quick Start`-style examples in the file's docstring.
 
+## Filesystem (matters for large corpora)
+
+Docker bind-mounts pass straight through to the host filesystem, so a checkout on a Windows
+drive (`drvfs`/9p) or on macOS (`virtiofs`/gRPC-FUSE) pays a per-file penalty *inside* the
+container too. Measured with identical code and pluto binary on 2046 kernels:
+
+| working tree / output | stage-2 wall |
+| --- | --- |
+| ext4 (WSL home or a docker volume) | 21.6 s |
+| drvfs (`/mnt/d`, Windows drive) | 28.6 s |
+
+`./scripts/reproduce.sh` prints a note when it detects a non-native filesystem. For the 35k–350k
+kernels keep the checkout — or at least the working data — on a Linux-native filesystem (clone into
+the WSL home or a docker named volume); small runs do not care.
+
 ## Verification
 
 ```bash
