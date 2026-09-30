@@ -119,6 +119,11 @@ seeds `random` *and* `np.random` with the task index and the task list is
 in a one-shot run, a resumed run, on a different machine or with a different
 worker count.
 
+Stage 2 also writes `optimization_manifest.jsonl` (one line per kernel:
+`name`, `status`, `seconds`, `reason`) next to its output. It drives the resume
+path (a kernel recorded as done is skipped even if its files were moved) and
+the final report now logs per-status counts with p50/p95/max durations.
+
 ```bash
 ./scripts/compare_drivers.sh examples/poly_code   # driver vs wrapper, byte-for-byte
 ```

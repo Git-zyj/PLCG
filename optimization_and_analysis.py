@@ -8,6 +8,7 @@ import argparse as ap
 import gc
 import sys
 import signal
+import json
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 
@@ -108,6 +109,24 @@ class PlutoBatchOptimizer:
 
         self.setup_paths()
         self.create_directories()
+
+        # manifest: one JSON line per kernel (status + duration). It gives the
+        # resume path a real record of what is done, and the final report a
+        # duration distribution instead of just totals.
+        self.manifest_path = os.path.join(self.output_path, 'optimization_manifest.jsonl')
+        self.manifest_handle = None
+        self.manifest_lines = 0
+        self.durations: dict[str, list[float]] = {}
+        self.manifest_done: set[str] = set()
+        if self.skip_existing and os.path.exists(self.manifest_path):
+            with open(self.manifest_path, encoding='utf-8') as handle:
+                for line in handle:
+                    try:
+                        entry = json.loads(line)
+                    except ValueError:
+                        continue
+                    if entry.get('status') == 'success':
+                        self.manifest_done.add(entry.get('name'))
         
         # 先初始化logger
         self.logger = setup_logging(self.output_path)
@@ -208,8 +227,9 @@ class PlutoBatchOptimizer:
         target_file = os.path.join(self.pluto_code_path, f'{source_name}.pluto.c')
         stdout_file = os.path.join(self.stdout_path, f'{source_name}.stdout')
 
-        if self.skip_existing and _is_nonempty(target_file) and _is_nonempty(stdout_file):
-            return source_name, 'skipped', "already optimized"
+        if self.skip_existing and (source_name in self.manifest_done
+                                   or (_is_nonempty(target_file) and _is_nonempty(stdout_file))):
+            return source_name, 'skipped', "already optimized", 0.0
 
         if self.args.command_options:
             command_options = self.args.command_options.split()
@@ -217,6 +237,7 @@ class PlutoBatchOptimizer:
             command_options = []
         
         command = [self.pluto_path, source_file] + command_options + ['-o', target_file]
+        started = time.perf_counter()
         
         try:
             with open(stdout_file, 'w') as f:
@@ -230,15 +251,17 @@ class PlutoBatchOptimizer:
                 
                 try:
                     _, stderr = process.communicate(timeout=self.args.timeout)
+                    elapsed = time.perf_counter() - started
                     
                     if process.returncode == 0:
                         if os.path.exists(target_file) and os.path.getsize(target_file) > 0:
-                            return source_name, 'success', "optimization successful"
+                            return source_name, 'success', "optimization successful", elapsed
                         else:
-                            return source_name, 'fail', "output file not generated or empty"
+                            return source_name, 'fail', "output file not generated or empty", elapsed
                     else:
                         error_msg = stderr.strip() if stderr else "unknown error"
-                        return source_name, 'fail', f"pluto failed (returncode={process.returncode}): {error_msg}"
+                        return source_name, 'fail', \
+                            f"pluto failed (returncode={process.returncode}): {error_msg}", elapsed
                             
                 except sp.TimeoutExpired:
                     self.logger.debug(f"Timeout detected for {source_name}, killing process group...")
@@ -254,10 +277,11 @@ class PlutoBatchOptimizer:
                     except sp.TimeoutExpired:
                         self.logger.warning(f"Process group for {source_name} unresponsive after SIGKILL (D-state?)")
                     
-                    return source_name, 'timeout', f"timeout after {self.args.timeout}s"
+                    return source_name, 'timeout', \
+                        f"timeout after {self.args.timeout}s", time.perf_counter() - started
                     
         except Exception as e:
-            return source_name, 'fail', f"unexpected error: {str(e)}"
+            return source_name, 'fail', f"unexpected error: {str(e)}", time.perf_counter() - started
 
     def pluto_transformation_driver(self, source_file):
         """单个文件的转换，直接调用 pluto 二进制（无 shell wrapper）。
@@ -269,25 +293,42 @@ class PlutoBatchOptimizer:
         target_file = os.path.join(self.pluto_code_path, f'{source_name}.pluto.c')
         stdout_file = os.path.join(self.stdout_path, f'{source_name}.stdout')
 
-        if self.skip_existing and _is_nonempty(target_file) and _is_nonempty(stdout_file):
-            return source_name, 'skipped', "already optimized"
+        if self.skip_existing and (source_name in self.manifest_done
+                                   or (_is_nonempty(target_file) and _is_nonempty(stdout_file))):
+            return source_name, 'skipped', "already optimized", 0.0
 
         command_options = self.args.command_options.split() if self.args.command_options else []
+        started = time.perf_counter()
 
         try:
             self.driver.run(source_file, target_file, stdout_file,
                             command_options, timeout=self.args.timeout)
         except sp.TimeoutExpired:
-            return source_name, 'timeout', f"timeout after {self.args.timeout}s"
+            return source_name, 'timeout', \
+                f"timeout after {self.args.timeout}s", time.perf_counter() - started
         except PlutoDriverError as e:
-            return source_name, 'fail', f"pluto failed: {e}"
+            return source_name, 'fail', f"pluto failed: {e}", time.perf_counter() - started
         except Exception as e:
-            return source_name, 'fail', f"unexpected error: {str(e)}"
+            return source_name, 'fail', f"unexpected error: {str(e)}", time.perf_counter() - started
 
+        elapsed = time.perf_counter() - started
         if os.path.exists(target_file) and os.path.getsize(target_file) > 0:
-            return source_name, 'success', "optimization successful"
-        return source_name, 'fail', "output file not generated or empty"
+            return source_name, 'success', "optimization successful", elapsed
+        return source_name, 'fail', "output file not generated or empty", elapsed
     
+    def record_manifest(self, name, status, seconds, reason):
+        """Append one manifest line and keep the duration distribution."""
+        self.durations.setdefault(status, []).append(seconds)
+        if self.manifest_handle is None:
+            return
+        self.manifest_handle.write(json.dumps({
+            'name': name, 'status': status,
+            'seconds': round(seconds, 4), 'reason': reason,
+        }) + '\n')
+        self.manifest_lines += 1
+        if self.manifest_lines % 256 == 0:
+            self.manifest_handle.flush()
+
     def process_batch(self, batch_files, executor):
         """处理一个批次的文件（executor 在整个运行期间复用）"""
         batch_success = 0
@@ -314,7 +355,8 @@ class PlutoBatchOptimizer:
                 file = future_to_file[future]
 
                 try:
-                    file_name, status, message = future.result()
+                    file_name, status, message, seconds = future.result()
+                    self.record_manifest(file_name, status, seconds, message)
 
                     if status == 'success':
                         batch_success += 1
@@ -374,6 +416,7 @@ class PlutoBatchOptimizer:
 
         executor = executor_class(max_workers=self.args.num_processes)
         try:
+            self.manifest_handle = open(self.manifest_path, 'a', encoding='utf-8')
             for i, batch in enumerate(batches, 1):
                 batch_start_time = time.time()
 
@@ -401,10 +444,32 @@ class PlutoBatchOptimizer:
 
                 gc.collect()
         finally:
+            if self.manifest_handle is not None:
+                self.manifest_handle.flush()
+                self.manifest_handle.close()
+                self.manifest_handle = None
             executor.shutdown(wait=True)
         
         total_time = time.time() - start_time
+        self.log_manifest_summary()
         self.generate_final_report(total_time, total_files)
+
+    def log_manifest_summary(self):
+        """Log per-status counts and duration percentiles from the manifest."""
+        def percentile(values, q):
+            if not values:
+                return 0.0
+            ordered = sorted(values)
+            return ordered[min(len(ordered) - 1, int(q * len(ordered)))]
+
+        parts = []
+        for status, values in sorted(self.durations.items()):
+            parts.append(f"{status}={len(values)} p50={percentile(values, 0.5):.3f}s "
+                         f"p95={percentile(values, 0.95):.3f}s max={max(values):.3f}s")
+        if parts:
+            self.logger.info("duration stats: " + " | ".join(parts))
+            self.logger.info(f"manifest: {self.manifest_path} "
+                             f"({self.manifest_lines} lines written this run)")
     
     def generate_final_report(self, total_time, total_files):
         """生成最终报告"""

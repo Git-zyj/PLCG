@@ -52,13 +52,27 @@ class PlutoDriverError(RuntimeError):
 def _split_head_tail(src_text: str):
     """Split the original kernel into (head, tail) around its first scop."""
     lines = src_text.splitlines()
-    start = next((i for i, line in enumerate(lines) if _SCOP_RE.search(line)), None)
+    start = next((i for i, line in enumerate(lines)
+                  if "#pragma" in line and _SCOP_RE.search(line)), None)
     if start is None:
         return lines, []
-    head = [line for line in lines[:start] if not _SCOP_RE.search(line)]
-    end = next((i for i, line in enumerate(lines) if _END_RE.search(line)), None)
+    head = [line for line in lines[:start]
+            if not ("#pragma" in line and _SCOP_RE.search(line))]
+    end = next((i for i, line in enumerate(lines)
+                if "#pragma" in line and _END_RE.search(line)), None)
     tail = lines[end + 1:] if end is not None else []
     return head, tail
+
+
+def _substitute_markers(lines: list[str]) -> list[str]:
+    """Apply the wrapper's `sed` substitutions to already-final body lines."""
+    out: list[str] = []
+    for line in lines:
+        line = line.replace("__bee_schedule", "#pragma schedule")
+        if "_NL_DELIMIT_" in line:
+            line = line.replace("_NL_DELIMIT_", "\n", 1)
+        out.extend(line.split("\n"))
+    return out
 
 
 def _strip_trailing_blank(lines: list[str]) -> list[str]:
@@ -81,15 +95,9 @@ def _preprocess_body(body_lines: list[str], cc: str = "gcc") -> list[str]:
         )
         if proc.returncode != 0:
             raise PlutoDriverError(f"preprocessor failed: {proc.stderr.strip()}")
-        out: list[str] = []
-        for line in proc.stdout.splitlines():
-            if _LINE_MARKER_RE.match(line):
-                continue
-            line = line.replace("__bee_schedule", "#pragma schedule")
-            if "_NL_DELIMIT_" in line:
-                line = line.replace("_NL_DELIMIT_", "\n", 1)
-            out.extend(line.split("\n"))
-        return out
+        kept = [line for line in proc.stdout.splitlines()
+                if not _LINE_MARKER_RE.match(line)]
+        return _substitute_markers(kept)
     finally:
         try:
             os.unlink(body_file)
@@ -111,10 +119,15 @@ def assemble_kernel(src_text: str, pluto_text: str, cc: str = "gcc") -> str:
     for line in head:
         (includes if line.startswith("#include") else init).append(line)
 
+    # one pass over pluto's output: split into includes (de-duplicated, like
+    # `awk '!x[$0]++'`) and the body that inscop preprocesses
+    body_lines: list[str] = []
     for line in pluto_text.splitlines():
-        # `cat $2 | grep '^#include'` then `awk '!x[$0]++'`
-        if line.startswith("#include") and line not in includes:
-            includes.append(line)
+        if line.startswith("#include"):
+            if line not in includes:
+                includes.append(line)
+        else:
+            body_lines.append(line)
 
     if not any(_MATH_INCLUDE in line for line in includes):
         includes.append(_MATH_INCLUDE)
@@ -125,7 +138,6 @@ def assemble_kernel(src_text: str, pluto_text: str, cc: str = "gcc") -> str:
     if not any("#define max(x,y)" in line for line in init):
         includes.extend([_MAX_DEFINE, _MIN_DEFINE])
 
-    body_lines = [line for line in pluto_text.splitlines() if not line.startswith("#include")]
     body = _preprocess_body(body_lines, cc=cc)
 
     if not any(_OMP_INCLUDE in line for line in includes):
