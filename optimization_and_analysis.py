@@ -17,6 +17,16 @@ from path_settings import PROJECT_PATH, DATASET_PATH
 # wrapper on the hot path; see scripts/compare_drivers.sh
 sys.path.insert(0, os.path.join(PROJECT_PATH, 'scripts'))
 from pluto_driver import PlutoDriver, PlutoDriverError  # noqa: E402
+import machine_profile  # noqa: E402
+
+
+def _is_nonempty(path) -> bool:
+    """True when *path* exists and is not empty (used by --skip-existing)."""
+    try:
+        return os.path.getsize(path) > 0
+    except OSError:
+        return False
+
 
 def setup_logging(log_dir):
     """配置日志系统"""
@@ -67,10 +77,13 @@ def parse_arguments():
                        type=str, choices=["python", "wrapper"], default="python")
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
-                       type=int, default=min(mp.cpu_count(), 16))
+                       type=int, default=None)
     parser.add_argument("-t", "--timeout", dest="timeout", 
                        help="timeout duration in seconds per file", 
-                       type=int, default=120)
+                       type=int, default=30)
+    parser.add_argument("--skip-existing", dest="skip_existing", action="store_true",
+                       help="skip kernels whose .pluto.c/.stdout already exist (resume a long run); "
+                            "implies --no-clean. Outputs are deterministic for a given kernel.")
     parser.add_argument("-c", "--command-options", dest="command_options",
                         help="options for pluto in command",
                         type=str, default='-q --parallel --tile --nocloogbacktrack --custom-context --plcg-info')
@@ -87,6 +100,12 @@ def parse_arguments():
 class PlutoBatchOptimizer:
     def __init__(self, args):
         self.args = args
+
+        # resume mode must be decided *before* the output directories are wiped
+        self.skip_existing = getattr(self.args, "skip_existing", False)
+        if self.skip_existing:
+            self.args.no_clean = True
+
         self.setup_paths()
         self.create_directories()
         
@@ -115,7 +134,13 @@ class PlutoBatchOptimizer:
                 self.logger.warning(
                     f"python driver unavailable ({exc}); falling back to the shell wrapper"
                 )
-        
+
+        # workers: probe the machine unless the user passed -j explicitly
+        kind = "subprocess" if self.driver is not None else "cpu"
+        override = self.args.num_processes
+        self.args.num_processes = machine_profile.recommend(kind, override)
+        self.logger.info(f"workers: {machine_profile.describe(kind, override)}")
+
     def setup_paths(self):
         """设置所有路径"""
         self.base_dir = os.path.abspath(self.args.dataset_path)
@@ -182,7 +207,10 @@ class PlutoBatchOptimizer:
         source_name = self.get_filename_without_extension(source_file)
         target_file = os.path.join(self.pluto_code_path, f'{source_name}.pluto.c')
         stdout_file = os.path.join(self.stdout_path, f'{source_name}.stdout')
-        
+
+        if self.skip_existing and _is_nonempty(target_file) and _is_nonempty(stdout_file):
+            return source_name, 'skipped', "already optimized"
+
         if self.args.command_options:
             command_options = self.args.command_options.split()
         else:
@@ -241,6 +269,9 @@ class PlutoBatchOptimizer:
         target_file = os.path.join(self.pluto_code_path, f'{source_name}.pluto.c')
         stdout_file = os.path.join(self.stdout_path, f'{source_name}.stdout')
 
+        if self.skip_existing and _is_nonempty(target_file) and _is_nonempty(stdout_file):
+            return source_name, 'skipped', "already optimized"
+
         command_options = self.args.command_options.split() if self.args.command_options else []
 
         try:
@@ -287,6 +318,8 @@ class PlutoBatchOptimizer:
 
                     if status == 'success':
                         batch_success += 1
+                    elif status == 'skipped':
+                        batch_skip += 1
                     elif status == 'timeout':
                         batch_timeout += 1
                         self.logger.info(f"⌛ {file_name}: {message}")

@@ -28,6 +28,10 @@ import numpy as np
 from path_settings import DATASET_PATH
 from extraction_tools import extraction_tools
 
+# machine-aware worker default (see scripts/machine_profile.py)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts'))
+import machine_profile  # noqa: E402
+
 today = datetime.datetime.now().strftime('%Y%m%d')
 
 random_seed = 0 # 用于随机选择文件时的随机种子，确保结果可复现
@@ -87,7 +91,7 @@ def parse_arguments():
                        type=int, default=3)
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
-                       type=int, default=min(mp.cpu_count(), 16))
+                        type=int, default=None)
     parser.add_argument("--batch-size", dest="batch_size", 
                        help="batch size to reduce memory usage", 
                        type=int, default=5000)
@@ -177,7 +181,7 @@ class RAG_Preprocessor:
         self.dataset_path = Path(args.dataset_path).resolve()
         
         # 基础参数
-        self.num_processes = args.num_processes
+        self.num_processes = machine_profile.recommend("cpu", args.num_processes)
         self.batch_size = args.batch_size
         self.dataset = args.dataset
         self.num_threshold = args.num_threshold

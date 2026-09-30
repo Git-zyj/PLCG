@@ -16,6 +16,10 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from path_settings import DATASET_PATH
 from extraction_tools import extraction_tools
 
+# machine-aware worker default (see scripts/machine_profile.py)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts'))
+import machine_profile  # noqa: E402
+
 TODAY = datetime.datetime.now().strftime('%Y%m%d')
 
 tile_keywords = ['zT', '/32']  # 'zT' in pluto 0.11.4， '/32' in pluto 0.12.0
@@ -71,7 +75,7 @@ def parse_arguments():
                        type=str, default=f"classification_output_{TODAY}.csv")
     parser.add_argument("-j", "--processes", dest="num_processes",
                        help="number of parallel processes",
-                       type=int, default=min(os.cpu_count(), 16))
+                        type=int, default=None)
     parser.add_argument("--batch-size", dest="batch_size",
                        help="batch size to reduce memory usage",
                        type=int, default=5000)
@@ -402,6 +406,7 @@ class Loop_Transformation_Classifier:
 class Classification_Batch_Processor:
     def __init__(self, args):
         self.args = args
+        self.args.num_processes = machine_profile.recommend("cpu", self.args.num_processes)
         self.dataset_path = Path(args.dataset_path).resolve()
         self.folder_stdout_path = self.dataset_path / 'stdout'
         self.folder_code_path = self.dataset_path / 'pluto_code'

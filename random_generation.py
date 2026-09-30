@@ -22,6 +22,10 @@ from loop_properties_generator import Loop_Properties_Generator
 from c_code_generator import C_Code_Generator
 from path_settings import DATASET_PATH, json_input_path, target_path, kernel_list_path
 
+# machine-aware worker defaults (see scripts/machine_profile.py)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts'))
+import machine_profile  # noqa: E402
+
 random.seed(0)
 np.random.seed(0)
 
@@ -66,12 +70,16 @@ def parse_arguments():
                        type=int, choices=[0, 1, 2, 3, 4, 5, 6], default=2)
     parser.add_argument("-j", "--processes", dest="num_processes", 
                        help="number of parallel processes", 
-                       type=int, default=min(mp.cpu_count(), 16))
+                       type=int, default=None)
     parser.add_argument("--batch-size", dest="batch_size", 
                        help="batch size to reduce memory usage", 
                        type=int, default=2000)
     parser.add_argument("--no-clean", action="store_true",
                        help="do not clean output directories before generation")
+    parser.add_argument("--skip-existing", dest="skip_existing", action="store_true",
+                       help="skip tasks whose .json/.c already exist (resume a long run); "
+                            "implies --no-clean. Results are deterministic because every task "
+                            "seeds random/np.random with its own task index.")
     parser.add_argument("--seed", dest="seed",
                        help="random seed for reproducibility",
                        type=str, default=None)
@@ -83,8 +91,11 @@ def parse_arguments():
 class Random_Generator:
     def __init__(self, args):
         self.batch_size = args.batch_size
-        self.num_processes = args.num_processes
+        self.num_processes = machine_profile.recommend("cpu", args.num_processes)
         self.option = args.option
+        self.skip_existing = getattr(args, "skip_existing", False)
+        if self.skip_existing and not args.no_clean:
+            args.no_clean = True
         
         if self.option == 0:
             self.seed = args.seed
@@ -100,6 +111,7 @@ class Random_Generator:
         # 统计信息
         self.success_count = 0
         self.error_count = 0
+        self.skip_count = 0
         self.error_types = Counter()
         
     def setup_paths(self):
@@ -161,7 +173,14 @@ class Random_Generator:
         task_seed = f"{arg_depth}{arg_nstmts}{arg_bounds_index}{arg_prob_bounds_exist}{arg_narrays_per_dim}{arg_avg_narrays_read_per_stmt}{arg_bounds_coef}{arg_avg_ndeps_read_per_stmt}{arg_bounds_distance}{arg_prob_dep_write_exist}"
         
         task_id = f"{task_seed}_{id:02d}"
-        
+
+        if self.skip_existing:
+            json_path = self.json_input_path / f"{task_id}.json"
+            code_path = self.target_path / f"{task_id}.c"
+            if (json_path.exists() and json_path.stat().st_size > 0
+                    and code_path.exists() and code_path.stat().st_size > 0):
+                return "skipped", task_id, None
+
         random.seed(task_index)
         np.random.seed(task_index)
         
@@ -212,6 +231,7 @@ class Random_Generator:
         """处理一个批次的文件"""
         batch_success = 0
         batch_error = 0
+        batch_skipped = 0
         batch_errors = Counter()
         
         self.logger.info(f"Processing batch {batch_num}/{total_batches} with {len(batch_tasks)} tasks...")
@@ -231,13 +251,15 @@ class Random_Generator:
                     
                     if status == "success":
                         batch_success += 1
+                    elif status == "skipped":
+                        batch_skipped += 1
                     else:
                         batch_error += 1
                         batch_errors[error_type] += 1
                         self.logger.error(f"✗ {task_id}: {error_type}")
                     
                     # 进度报告
-                    length_report_section = len(batch_tasks) // 4
+                    length_report_section = max(1, len(batch_tasks) // 4)
                     if i % length_report_section == 0:
                         progress = i / len(batch_tasks) * 100
                         self.logger.info(f"Batch {batch_num} progress: {i}/{len(batch_tasks)} ({progress:.1f}%)")
@@ -247,7 +269,7 @@ class Random_Generator:
                     batch_errors["FutureException"] += 1
                     self.logger.error(f"✗ Future exception: {str(e)}")
         
-        return batch_success, batch_error, batch_errors
+        return batch_success, batch_error, batch_errors, batch_skipped
     
     def get_parameter_ranges(self, option):
         """
@@ -431,10 +453,11 @@ class Random_Generator:
         for i, batch in enumerate(batches, 1):
             batch_start_time = time.time()
             
-            batch_success, batch_error, batch_errors = self.process_batch(batch, i, len(batches))
-            
+            batch_success, batch_error, batch_errors, batch_skipped = self.process_batch(batch, i, len(batches))
+
             self.success_count += batch_success
             self.error_count += batch_error
+            self.skip_count += batch_skipped
             for error_type, count in batch_errors.items():
                 self.error_types[error_type] += count
             
@@ -442,7 +465,8 @@ class Random_Generator:
             
             self.logger.info(f"Batch {i} completed: "
                            f"Success: {batch_success}/{len(batch)}, "
-                           f"Errors: {batch_error}, Time: {batch_time:.1f}s")
+                           f"Errors: {batch_error}, Skipped: {batch_skipped}, "
+                           f"Time: {batch_time:.1f}s")
             
             # 强制垃圾回收
             gc.collect()
@@ -463,6 +487,7 @@ class Random_Generator:
             f"Total processing time: {total_time:.2f} seconds",
             f"Total tasks: {total_tasks}",
             f"Successfully generated: {self.success_count} ({self.success_count/total_tasks*100:.1f}%)",
+            f"Skipped (already present): {self.skip_count}",
             f"Errors: {self.error_count} ({self.error_count/total_tasks*100:.1f}%)",
             f"Error types: {dict(self.error_types)}",
             f"Files generated: JSON={json_count}, C={target_count}",

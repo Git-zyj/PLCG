@@ -94,11 +94,30 @@ python3 -m pip install -r requirements.txt
 4. `python3 rag_preprocess.py` — retrieval corpus (`examples/*.json`).
 
 `scripts/run_pipeline.sh` drives all four stages (`--gen-option`, `--dataset`,
-`--jobs`, `--driver`). Stage 2 runs pluto through `scripts/pluto_driver.py` by
-default: it calls the `tool/pluto` binary directly and re-assembles the kernel
-skeleton in Python (one pluto + one `gcc -E` per kernel instead of the ~20
-helper forks of the shell wrapper), which is ~1.6x faster per kernel and keeps
-`--driver wrapper` available as the reference implementation.
+`--jobs`, `--driver`, `--timeout`, `--resume`). Stage 2 runs pluto through
+`scripts/pluto_driver.py` by default: it calls the `tool/pluto` binary directly
+and re-assembles the kernel skeleton in Python (one pluto + one `gcc -E` per
+kernel instead of the ~20 helper forks of the shell wrapper), which is ~1.6x
+faster per kernel and keeps `--driver wrapper` available as the reference
+implementation.
+
+**Worker counts are probed, not hard-coded** (`scripts/machine_profile.py`):
+CPU-bound stages take `min(cpus, 16)` and the pluto stage `2 x cpus` (capped at
+64), both additionally limited by the available memory; `-j` overrides the
+probe. This keeps the defaults sane on machines very different from the
+development host.
+
+**Timeouts**: `optimization_and_analysis.py` defaults to 30 s per kernel (the
+pathological kernels fail or time out anyway); `scripts/run_pipeline.sh` passes
+120 s explicitly, which is the setting used for the reproduced corpus.
+
+**Resuming a long run**: `--skip-existing` (or `./scripts/run_pipeline.sh
+--resume`) keeps the existing outputs and only processes what is missing. This
+is safe because generation is deterministic per task: `generate_single_file`
+seeds `random` *and* `np.random` with the task index and the task list is
+`enumerate(itertools.product(...))`, so a given task produces the same kernel
+in a one-shot run, a resumed run, on a different machine or with a different
+worker count.
 
 ```bash
 ./scripts/compare_drivers.sh examples/poly_code   # driver vs wrapper, byte-for-byte
