@@ -132,6 +132,14 @@ Stage 2 also writes `optimization_manifest.jsonl` (one line per kernel:
 path (a kernel recorded as done is skipped even if its files were moved) and
 the final report now logs per-status counts with p50/p95/max durations.
 
+Stage 3 caches the parsed `.stdout` under `<dataset>/parse_cache/*.pkl` and
+stage 4 reuses it (`--parse-cache` on both, defaults aligned), so the dataflow
+reports are parsed once instead of twice. Stage 4 also streams: every extracted
+entry is appended to `rag_contents_<dataset>_<date>.jsonl` and the corpus is
+written by seeking to the selected entries, so a corpus with hundreds of
+thousands of entries no longer has to fit in RAM (`--gzip` writes `.json.gz`).
+Both changes were verified byte-identical against the previous implementation.
+
 ```bash
 ./scripts/compare_drivers.sh examples/poly_code   # driver vs wrapper, byte-for-byte
 ```

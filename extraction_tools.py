@@ -813,8 +813,14 @@ class extraction_tools:
                     result[m.group(1)] = int(m.group(2))
         return result
 
-    def get_all_info(self, stdout_path, h_file_path=None, poly_code_path=None, pluto_code_path=None, original_code=None, opt_code=None):
-        iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params = self.extract_stdout_from_file(stdout_path)
+    def get_all_info(self, stdout_path, h_file_path=None, poly_code_path=None, pluto_code_path=None, original_code=None, opt_code=None, parsed=None):
+        # ``parsed`` lets the caller reuse a previously parsed .stdout (the
+        # classifier caches it in parse_cache/, see loop_transformation_classifier.py)
+        if parsed is not None:
+            (iterators, text_stmts, text_deps, schedules,
+             csts_stmts, loop_types, stmt_arrays, global_params) = parsed
+        else:
+            iterators, text_stmts, text_deps, schedules, csts_stmts, loop_types, stmt_arrays, global_params = self.extract_stdout_from_file(stdout_path)
         
         feature_info = self._get_info_from_data(iterators, text_stmts, text_deps, schedules, stmt_arrays)
         

@@ -11,6 +11,8 @@ os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
 import pandas as pd
 import os
 import json
+import gzip
+import pickle
 import datetime
 import re
 import argparse as ap
@@ -95,6 +97,12 @@ def parse_arguments():
     parser.add_argument("--batch-size", dest="batch_size", 
                        help="batch size to reduce memory usage", 
                        type=int, default=5000)
+    parser.add_argument("--gzip", dest="gzip_output", action="store_true",
+                       help="write the corpus JSON gzipped (json.gz)")
+    parser.add_argument("--parse-cache", dest="parse_cache",
+                       help="directory with the parsed-.stdout cache written by "
+                            "loop_transformation_classifier.py (default: <dataset>/parse_cache)",
+                       type=str, default=None)
     
     args = parser.parse_args()
         
@@ -127,7 +135,7 @@ def _init_worker(cls_cache):
     global _classification_cache
     _classification_cache = cls_cache
 
-def _process_single_worker(file_path, pluto_path, stdout_path, dataset_path):
+def _process_single_worker(file_path, pluto_path, stdout_path, dataset_path, parse_cache_dir=None):
     tool = extraction_tools()
     content = defaultdict(list)
     filename = str(Path(file_path).name.removesuffix('.c'))
@@ -154,11 +162,21 @@ def _process_single_worker(file_path, pluto_path, stdout_path, dataset_path):
         return False, f'opt codelet extraction error: {str(e)}', filename
 
     try:
+        parsed = None
+        if parse_cache_dir:
+            cache_file = Path(parse_cache_dir) / f'{filename}.pkl'
+            if cache_file.exists():
+                try:
+                    with open(cache_file, 'rb') as handle:
+                        parsed = pickle.load(handle)
+                except Exception:
+                    parsed = None
         all_info = tool.get_all_info(
             str(stdout_path / f'{filename}.stdout'),
             str(dataset_path / 'poly_code' / f'{filename}.h'),
             original_code=original_code,
-            opt_code=opt_codelet
+            opt_code=opt_codelet,
+            parsed=parsed
         )
         content['feature_info'] = all_info['feature_info']
         content['property_info'] = all_info['property_info']
@@ -179,10 +197,13 @@ def _process_single_worker(file_path, pluto_path, stdout_path, dataset_path):
 class RAG_Preprocessor:
     def __init__(self, args):
         self.dataset_path = Path(args.dataset_path).resolve()
+        cache = getattr(args, "parse_cache", None)
+        self.parse_cache_dir = Path(cache) if cache else (self.dataset_path / 'parse_cache')
         
         # 基础参数
         self.num_processes = machine_profile.recommend("cpu", args.num_processes)
         self.batch_size = args.batch_size
+        self.gzip_output = bool(getattr(args, "gzip_output", False))
         self.dataset = args.dataset
         self.num_threshold = args.num_threshold
         self.batch_threshold = args.batch_threshold
@@ -367,7 +388,8 @@ class RAG_Preprocessor:
             # submit tasks
             future_to_file = {
                 executor.submit(_process_single_worker, file_path,
-                                self.pluto_path, self.stdout_path, self.dataset_path): file_path
+                                self.pluto_path, self.stdout_path, self.dataset_path,
+                                self.parse_cache_dir): file_path
                 for file_path in batch_files
             }
             
@@ -470,9 +492,8 @@ class RAG_Preprocessor:
             return
         
         start_time = datetime.datetime.now()
-        all_contents = {}
         all_errors = []
-        
+
         # 分批处理
         file_mapping = dict(zip(valuable_df['file_name'], valuable_df['file_path']))
 
@@ -482,51 +503,88 @@ class RAG_Preprocessor:
             batch = [file_mapping[file_name] for file_name in batch_names if file_name in file_mapping]
             batches.append(batch)
         
-        for i, batch in enumerate(batches, 1):
-            batch_start_time = datetime.datetime.now()
-            
-            self.logger.info(f"\n--- Processing Batch {i}/{len(batches)} ---")
-            
-            batch_contents, batch_errors, batch_success, batch_fail = self.process_batch(batch)
-            
-            all_contents.update(batch_contents)
-            all_errors.extend(batch_errors)
-            self.success_count += batch_success
-            self.fail_count += batch_fail
-            
-            batch_time = (datetime.datetime.now() - batch_start_time).total_seconds()
-            
-            self.logger.info(f"Batch {i} completed: "
-                           f"Success: {batch_success}/{len(batch)}, "
-                           f"Fail: {batch_fail}, Time: {batch_time:.1f}s")
-            
-            # 强制垃圾回收
-            gc.collect()
-        
-        # filtering
+        # Streaming: every extracted entry is appended to a JSONL cache and only
+        # its byte offset is kept in memory. The corpus is then written by
+        # seeking to the selected entries, so a 350k-entry corpus does not have
+        # to be held in RAM as a whole.
+        self.contents_jsonl = self.output_path / f'rag_contents_{self.dataset}_{today}.jsonl'
+        self.contents_index = {}
+        available_order = []
+        available_names = set()
+
+        with open(self.contents_jsonl, 'w', encoding='utf-8') as cache:
+            for i, batch in enumerate(batches, 1):
+                batch_start_time = datetime.datetime.now()
+
+                self.logger.info(f"\n--- Processing Batch {i}/{len(batches)} ---")
+
+                batch_contents, batch_errors, batch_success, batch_fail = self.process_batch(batch)
+
+                for name, content in batch_contents.items():
+                    self.contents_index[name] = cache.tell()
+                    cache.write(json.dumps(content, cls=NumpyEncoder) + "\n")
+                    available_order.append(name)
+                available_names.update(batch_contents.keys())
+                all_errors.extend(batch_errors)
+                self.success_count += batch_success
+                self.fail_count += batch_fail
+
+                batch_time = (datetime.datetime.now() - batch_start_time).total_seconds()
+
+                self.logger.info(f"Batch {i} completed: "
+                               f"Success: {batch_success}/{len(batch)}, "
+                               f"Fail: {batch_fail}, Time: {batch_time:.1f}s")
+
+                # 强制垃圾回收
+                gc.collect()
+
+        # filtering (only the file names are needed for the selection)
         if self.num_threshold or self.batch_threshold:
-            selected_files = self.dataset_filtering(valuable_df[valuable_df['file_name'].isin(all_contents.keys())])
-            final_contents = {key: all_contents[key] for key in selected_files}
-            self.logger.info(f"Number of files for {self.dataset} after filtering: {len(final_contents)}")
+            selected_files = self.dataset_filtering(
+                valuable_df[valuable_df['file_name'].isin(available_names)])
+            self.logger.info(f"Number of files for {self.dataset} after filtering: "
+                             f"{len(selected_files)}")
         else:
-            final_contents = all_contents
-        
+            selected_files = available_order
+
         total_time = (datetime.datetime.now() - start_time).total_seconds()
-        
+
         # 保存结果
-        self.save_results(final_contents, total_time, len(available_files))
+        self.save_results(selected_files, total_time, len(available_files))
     
     def save_results(self, contents, total_time, total_files):
-        """保存结果并生成报告"""
-        # 保存JSON文件
-        json_filename = f'{self.dataset}_{len(contents)}_{today}.json'
+        """保存结果并生成报告（从 JSONL 缓存流式写出，保持原顺序与字节格式）"""
+        selected = list(contents)
+        json_filename = f'{self.dataset}_{len(selected)}_{today}.json'
         json_path = self.output_path / json_filename
-        
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(list(contents.values()), f, cls=NumpyEncoder)
+
+        opener = gzip.open if self.gzip_output else open
+        if self.gzip_output:
+            json_path = json_path.with_suffix('.json.gz')
+
+        with opener(json_path, 'wt', encoding='utf-8') as out, \
+                open(self.contents_jsonl, encoding='utf-8') as cache:
+            out.write('[')
+            first = True
+            for name in selected:
+                offset = self.contents_index.get(name)
+                if offset is None:
+                    continue
+                cache.seek(offset)
+                line = cache.readline()
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    self.logger.warning(f"corpus cache entry unreadable: {name}")
+                    continue
+                if not first:
+                    out.write(', ')
+                out.write(json.dumps(entry, cls=NumpyEncoder))
+                first = False
+            out.write(']')
         
         # 生成报告
-        report = self._generate_summary_report(total_time, total_files, len(contents), json_path)
+        report = self._generate_summary_report(total_time, total_files, len(selected), json_path)
         self.logger.info("\n" + report)
         
         # # 保存错误日志

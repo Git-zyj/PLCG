@@ -7,6 +7,7 @@ import logging
 import datetime
 import sys
 import gc
+import pickle
 import shutil
 import time
 
@@ -79,6 +80,10 @@ def parse_arguments():
     parser.add_argument("--batch-size", dest="batch_size",
                        help="batch size to reduce memory usage",
                        type=int, default=5000)
+    parser.add_argument("--parse-cache", dest="parse_cache",
+                        help="directory for the parsed-.stdout cache reused by rag_preprocess.py "
+                             "(default: <dataset>/parse_cache)",
+                        type=str, default=None)
 
     args = parser.parse_args()
 
@@ -408,6 +413,9 @@ class Classification_Batch_Processor:
         self.args = args
         self.args.num_processes = machine_profile.recommend("cpu", self.args.num_processes)
         self.dataset_path = Path(args.dataset_path).resolve()
+        cache = getattr(args, "parse_cache", None)
+        self.parse_cache_dir = Path(cache) if cache else (self.dataset_path / 'parse_cache')
+        self.parse_cache_dir.mkdir(parents=True, exist_ok=True)
         self.folder_stdout_path = self.dataset_path / 'stdout'
         self.folder_code_path = self.dataset_path / 'pluto_code'
         self.output_file = self.dataset_path / self.args.output
@@ -449,7 +457,9 @@ class Classification_Batch_Processor:
     def classify_single_file(self, stdout_file, code_file, filename):
         """处理单个文件分类"""
         try:
-            _, stmts, _, schedules, _, loop_types, _, _ = extraction_tools().extract_stdout_from_file(str(stdout_file))
+            parsed = extraction_tools().extract_stdout_from_file(str(stdout_file))
+            _, stmts, _, schedules, _, loop_types, _, _ = parsed
+            self.write_parse_cache(filename, parsed)
             c_codelet = extraction_tools().extract_codelet_from_file(str(code_file), 1)
 
             classifier = Loop_Transformation_Classifier(stmts, schedules, loop_types, c_codelet, filename)
@@ -461,6 +471,17 @@ class Classification_Batch_Processor:
             error_msg = f"classification failed: {str(e)}"
             self.logger.error(f"✗ {filename}: {error_msg}")
             return filename, [0]*9, error_msg
+
+    def write_parse_cache(self, filename, parsed):
+        """Cache the parsed .stdout so rag_preprocess.py does not parse it again."""
+        if not self.parse_cache_dir:
+            return
+        try:
+            path = Path(self.parse_cache_dir) / f'{filename}.pkl'
+            with open(path, 'wb') as handle:
+                pickle.dump(parsed, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as e:      # cache is an optimisation only
+            self.logger.warning(f"parse cache write failed for {filename}: {e}")
 
     def process_batch(self, batch_files):
         """处理一个批次的文件"""
